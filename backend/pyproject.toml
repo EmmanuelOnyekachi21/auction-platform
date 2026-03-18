@@ -1,0 +1,54 @@
+[project]
+name = "auction-platform-backend"
+version = "0.1.0"
+description = "Auction marketplace backend API"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy>=2.0",
+    "asyncpg",
+    "alembic",
+    "pydantic>=2.0",
+    "pydantic-settings",
+    "email-validator",
+    "python-jose[cryptography]",
+    "passlib[bcrypt]",
+    "python-multipart",
+    "celery",
+    "redis",
+    "httpx",
+    "python-dotenv",
+    "Pillow",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "httpx",
+    "black",
+    "ruff",
+    "isort",
+    "pre-commit",
+    "factory-boy",
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+select = ["E", "F", "I", "N", "W"]
+
+[tool.isort]
+profile = "black"
+known_first_party = ["apps", "common", "config"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+env_files = [".env.test"]
