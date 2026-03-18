@@ -1,2 +1,1 @@
-"""Shared utility functions.
-"""
+"""Shared utility functions."""
