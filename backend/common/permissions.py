@@ -1,1 +1,2 @@
-Custom permission classes
+"""Custom permission classes
+"""
