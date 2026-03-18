@@ -1,3 +1,5 @@
+"""Auction platform FastAPI application entry point."""
+
 import logging
 from contextlib import asynccontextmanager
 
@@ -21,6 +23,7 @@ async def lifespan(app: FastAPI):
 
     Yields:
         None: Control to the application during its runtime.
+
     """
     setup_logging(settings.app_env)
     logger.info("Application starting up...")
@@ -45,6 +48,7 @@ app.add_middleware(
 
 @app.get("/health")
 async def health():
+    """Return application health status."""
     return {
         "status": "ok",
         "app": settings.app_name,
@@ -55,6 +59,7 @@ async def health():
 
 @app.get("/api/v1/health")
 async def health_v1():
+    """Return application health status for API v1."""
     return {
         "status": "ok",
         "app": settings.app_name,

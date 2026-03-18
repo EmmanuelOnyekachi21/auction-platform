@@ -1,3 +1,5 @@
+"""Application settings loaded from environment variables."""
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -33,10 +35,12 @@ class Settings(BaseSettings):
 
     @property
     def allowed_hosts_list(self) -> list[str]:
+        """Return allowed hosts as a list."""
         return [host.strip() for host in self.allowed_hosts.split(",")]
 
     @property
     def cors_origins_list(self) -> list[str]:
+        """Return CORS origins as a list."""
         return [origin.strip() for origin in self.cors_origins.split(",")]
 
 

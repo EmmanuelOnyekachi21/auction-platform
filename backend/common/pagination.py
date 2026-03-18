@@ -1,1 +1,1 @@
-"""Pagination utilities"""
+"""Pagination utilities."""

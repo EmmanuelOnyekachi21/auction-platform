@@ -1,0 +1,1 @@
+"""Bids application module."""
