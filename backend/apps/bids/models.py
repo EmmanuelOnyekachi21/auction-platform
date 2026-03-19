@@ -5,7 +5,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Numeric, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Index, Numeric, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -32,7 +32,10 @@ class Bid(BaseModel):
     """
 
     __tablename__ = "bids"
-    __table_args__ = (CheckConstraint("amount > 0", name="ck_bid_amount"),)
+    __table_args__ = (
+        CheckConstraint("amount > 0", name="ck_bid_amount"),
+        Index("ix_bids_auction_amount", "auction_id", "amount"),
+    )
 
     auction_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
