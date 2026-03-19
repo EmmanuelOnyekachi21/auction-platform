@@ -23,6 +23,8 @@ from .enums import AccountStatus, OnboardingIntent, SellerType, UserRole
 
 if TYPE_CHECKING:
     from apps.auctions.models import Auction, Bid
+    from apps.authentication.models import PasswordResetToken
+    from apps.notifications.models import Notification
     from apps.wallet.models import Wallet
 
 
@@ -76,6 +78,12 @@ class User(BaseModel):
     )
     auctions: Mapped[list["Auction"]] = relationship("Auction", back_populates="seller")
     bids: Mapped[list["Bid"]] = relationship("Bid", back_populates="bidder")
+    notifications: Mapped[list["Notification"]] = relationship(
+        "Notification", back_populates="user"
+    )
+    password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
+        "PasswordResetToken", back_populates="user"
+    )
 
 
 class UserProfile(BaseModel):
