@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -38,7 +38,7 @@ class Notification(BaseModel):
             "ix_notifications_user_unread",
             "user_id",
             "is_read",
-            postgresql_where=Text("is_read = false"),
+            postgresql_where=text("is_read = false"),
         ),
     )
 

@@ -10,32 +10,32 @@ from enum import Enum
 class AccountStatus(str, Enum):
     """Possible lifecycle states for a user account."""
 
-    ACTIVE = "active"
-    SUSPENDED = "suspended"
-    BANNED = "banned"
-    DEACTIVATED = "deactivated"
+    ACTIVE = "ACTIVE"
+    SUSPENDED = "SUSPENDED"
+    BANNED = "BANNED"
+    DEACTIVATED = "DEACTIVATED"
 
 
 class UserRole(str, Enum):
     """Permission roles assignable to a user."""
 
-    ADMIN = "admin"
-    USER = "user"
-    STAFF = "staff"
-    SUPERUSER = "superuser"
+    ADMIN = "ADMIN"
+    USER = "USER"
+    STAFF = "STAFF"
+    SUPERUSER = "SUPERUSER"
 
 
 class SellerType(str, Enum):
     """Classification of a seller's trading scale."""
 
-    CASUAL = "casual"
-    RETAIL = "retail"
-    WHOLESALE = "wholesale"
+    CASUAL = "CASUAL"
+    RETAIL = "RETAIL"
+    WHOLESALE = "WHOLESALE"
 
 
 class OnboardingIntent(str, Enum):
     """Primary intent declared by the user during onboarding."""
 
-    BUY = "buy"
-    SELL = "sell"
-    BOTH = "both"
+    BUY = "BUY"
+    SELL = "SELL"
+    BOTH = "BOTH"

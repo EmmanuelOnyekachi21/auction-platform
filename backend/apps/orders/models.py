@@ -7,7 +7,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import DateTime, ForeignKey, Index, Numeric, Text
+from sqlalchemy import DateTime, ForeignKey, Index, Numeric, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -44,7 +44,7 @@ class Order(BaseModel):
         Index(
             "ix_orders_shipping_deadline",
             "shipping_deadline_at",
-            postgresql_where=Text("status = 'pending_shipment'"),
+            postgresql_where=text("status = 'PENDING_SHIPMENT'"),
         ),
     )
 
@@ -74,7 +74,7 @@ class Order(BaseModel):
     )
     amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     status: Mapped[OrderStatus] = mapped_column(
-        nullable=False, default=OrderStatus.PENDING_PAYMENT, index=True
+        nullable=False, default=OrderStatus.PENDING_SHIPMENT, index=True
     )
     shipping_deadline_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True

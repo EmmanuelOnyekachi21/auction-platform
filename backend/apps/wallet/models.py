@@ -101,7 +101,8 @@ class WalletTransactions(BaseModel):
         Index("ix_wallet_transactions_wallet_id", "wallet_id"),
         Index(
             "ix_wallet_transactions_reference",
-            ("reference_id", "reference_type"),
+            "reference_id",
+            "reference_type",
         ),
         Index("ix_wallet_transactions_type", "transaction_type"),
     )

@@ -6,32 +6,32 @@ from enum import Enum
 class ItemCondition(str, Enum):
     """Physical condition of an item being listed for auction."""
 
-    NEW = "new"
-    LIKE_NEW = "like_new"
-    GOOD = "good"
-    FAIR = "fair"
-    POOR = "poor"
+    NEW = "NEW"
+    LIKE_NEW = "LIKE_NEW"
+    GOOD = "GOOD"
+    FAIR = "FAIR"
+    POOR = "POOR"
 
 
 class ItemStatus(str, Enum):
     """Lifecycle state of an item from creation through to sale or archival."""
 
-    DRAFT = "draft"
-    PENDING_REVIEW = "pending_review"
-    APPROVED = "approved"
-    REJECTED = "rejected"
-    LISTED = "listed"
-    SOLD = "sold"
-    IN_AUCTION = "in_auction"
-    ARCHIVED = "archived"
+    DRAFT = "DRAFT"
+    PENDING_REVIEW = "PENDING_REVIEW"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    LISTED = "LISTED"
+    SOLD = "SOLD"
+    IN_AUCTION = "IN_AUCTION"
+    ARCHIVED = "ARCHIVED"
 
 
 class AuctionStatus(str, Enum):
-    DRAFT = "draft"
-    ACTIVE = "active"
-    ENDED_WITH_WINNER = "ended_with_winner"
-    ENDED_NO_BIDS = "ended_no_bids"
-    SETTLED = "settled"
-    SCHEDULED = "scheduled"
-    CANCELLED = "cancelled"
-    SETTLEMENT_FAILED = "settlement_failed"
+    DRAFT = "DRAFT"
+    ACTIVE = "ACTIVE"
+    ENDED_WITH_WINNER = "ENDED_WITH_WINNER"
+    ENDED_NO_BIDS = "ENDED_NO_BIDS"
+    SETTLED = "SETTLED"
+    SCHEDULED = "SCHEDULED"
+    CANCELLED = "CANCELLED"
+    SETTLEMENT_FAILED = "SETTLEMENT_FAILED"

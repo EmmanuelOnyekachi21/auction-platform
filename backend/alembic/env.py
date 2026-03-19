@@ -21,6 +21,7 @@ from alembic import context
 # (config.database, config.settings) can be imported during migrations.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+import config.model_registry  # noqa: F401 - registrs all models into Base.metadata
 from config.database import Base  # noqa: E402
 from config.settings import settings  # noqa: E402
 

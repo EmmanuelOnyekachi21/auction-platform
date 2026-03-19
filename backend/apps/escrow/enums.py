@@ -4,8 +4,8 @@ from enum import Enum
 
 
 class EscrowStatus(str, Enum):
-    HOLDING = "holding"
-    RELEASED = "released"
-    REFUNDED = "refunded"
-    DISPUTED = "disputed"
-    FAILED = "failed"
+    HOLDING = "HOLDING"
+    RELEASED = "RELEASED"
+    REFUNDED = "REFUNDED"
+    DISPUTED = "DISPUTED"
+    FAILED = "FAILED"

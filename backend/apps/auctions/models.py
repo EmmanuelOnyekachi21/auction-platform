@@ -177,7 +177,7 @@ class Auction(BaseModel):
     )
     highest_bid_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("bids.id"),
+        ForeignKey("bids.id", use_alter=True, name="fk_auction_highest_bud_id"),
         nullable=True,
     )
     status: Mapped[AuctionStatus] = mapped_column(

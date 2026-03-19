@@ -4,8 +4,8 @@ from enum import Enum
 
 
 class BidStatus(str, Enum):
-    ACTIVE = "active"
-    OUTBID = "outbid"
-    WON = "won"
-    LOST = "lost"
-    RELEASED = "released"
+    ACTIVE = "ACTIVE"
+    OUTBID = "OUTBID"
+    WON = "WON"
+    LOST = "LOST"
+    RELEASED = "RELEASED"
