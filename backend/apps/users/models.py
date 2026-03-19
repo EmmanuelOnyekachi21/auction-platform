@@ -22,6 +22,7 @@ from config.database import BaseModel
 from .enums import AccountStatus, OnboardingIntent, SellerType, UserRole
 
 if TYPE_CHECKING:
+    from apps.auctions.models import Auction, Bid
     from apps.wallet.models import Wallet
 
 
@@ -73,6 +74,8 @@ class User(BaseModel):
     wallet: Mapped["Wallet"] = relationship(
         "Wallet", back_populates="user", uselist=False
     )
+    auctions: Mapped[list["Auction"]] = relationship("Auction", back_populates="seller")
+    bids: Mapped[list["Bid"]] = relationship("Bid", back_populates="bidder")
 
 
 class UserProfile(BaseModel):

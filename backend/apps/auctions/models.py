@@ -5,18 +5,31 @@ Auction and AuctionItem models are added in a later task.
 """
 
 import uuid
+from datetime import datetime
 from decimal import Decimal
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Boolean, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import (
+    Boolean,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from config.database import BaseModel
 
-from .enums import ItemCondition, ItemStatus
+from .enums import AuctionStatus, ItemCondition, ItemStatus
 
 if TYPE_CHECKING:
+    from apps.bids.models import Bid
     from apps.users.models import User
 
 
@@ -102,6 +115,9 @@ class Item(BaseModel):
     seller: Mapped["User"] = relationship("User", back_populates="items")
     category: Mapped["Category"] = relationship("Category", back_populates="items")
     images: Mapped[list["ItemImage"]] = relationship("ItemImage", back_populates="item")
+    auction_items: Mapped[list["AuctionItem"]] = relationship(
+        "AuctionItem", back_populates="item"
+    )
 
 
 class ItemImage(BaseModel):
@@ -129,3 +145,102 @@ class ItemImage(BaseModel):
 
     # Relationships
     item: Mapped["Item"] = relationship("Item", back_populates="images")
+
+
+class Auction(BaseModel):
+    """An auction listing created by a seller.
+
+    Attributes:
+        seller_id: FK to the User running the auction.
+        highest_bid_id: FK to the current highest Bid, nullable.
+        status: Current lifecycle state of the auction.
+        title: Short descriptive title.
+        description: Full auction description.
+        reserve_price: Minimum acceptable price, nullable.
+        bid_increment: Minimum amount each new bid must exceed the last.
+        starts_at: Scheduled start timestamp.
+        ends_at: Scheduled end timestamp.
+    """
+
+    __tablename__ = "auctions"
+    __table_args__ = (
+        CheckConstraint("ends_at > starts_at", name="check_ends_after_starts"),
+        CheckConstraint("reserve_price >= 0", name="check_reserve_price_non_negative"),
+        Index("ix_auctions_status_ends_at", "status", "ends_at"),
+    )
+
+    seller_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id"),
+        nullable=False,
+        index=True,
+    )
+    highest_bid_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("bids.id"),
+        nullable=True,
+    )
+    status: Mapped[AuctionStatus] = mapped_column(
+        nullable=False,
+        default=AuctionStatus.DRAFT,
+        index=True,
+    )
+    title: Mapped[str] = mapped_column(String(255), nullable=True)
+    description: Mapped[str] = mapped_column(Text, nullable=True)
+    reserve_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=True)
+    bid_increment: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    ends_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
+
+    # Relationships
+    seller: Mapped["User"] = relationship("User", back_populates="auctions")
+    highest_bid: Mapped["Bid"] = relationship("Bid", foreign_keys=[highest_bid_id])
+    bids: Mapped[list["Bid"]] = relationship(
+        "Bid",
+        back_populates="auction",
+        foreign_keys="Bid.auction_id",
+    )
+    auction_items: Mapped[list["AuctionItem"]] = relationship(
+        "AuctionItem", back_populates="auction"
+    )
+
+
+class AuctionItem(BaseModel):
+    """Junction table linking an Auction to its Items.
+
+    Attributes:
+        auction_id: FK to the Auction.
+        item_id: FK to the Item.
+        starting_price: Opening price for this item in the auction.
+        quantity: Number of units available, defaults to 1.
+    """
+
+    __tablename__ = "auction_items"
+    __table_args__ = (
+        UniqueConstraint("auction_id", "item_id", name="uq_auction_item"),
+        CheckConstraint("quantity > 0", name="check_quantity_positive"),
+        CheckConstraint(
+            "starting_price >= 0", name="check_starting_price_non_negative"
+        ),
+    )
+
+    auction_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("auctions.id"),
+        nullable=False,
+        index=True,
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("items.id"),
+        nullable=False,
+        index=True,
+    )
+    starting_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+
+    # Relationships
+    auction: Mapped["Auction"] = relationship("Auction", back_populates="auction_items")
+    item: Mapped["Item"] = relationship("Item", back_populates="auction_items")
