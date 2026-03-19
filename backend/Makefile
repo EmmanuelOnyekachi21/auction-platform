@@ -10,7 +10,7 @@ migrate:
 		alembic upgrade head
 
 migration:
-		alembic revision --autogenerate -m "$(msg)"
+		alembic revision --autogenerate -m "$(message)"
 
 test:
 		pytest tests/ -v --cov=apps --cov-report=term-missing
