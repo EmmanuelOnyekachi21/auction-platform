@@ -3,9 +3,17 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 
+from common.exception_handlers import (
+    handle_auction_platform_exception,
+    handle_generic_exception,
+    handle_not_found,
+    handle_pydantic_validation_error,
+)
+from common.exceptions import AuctionPlatformException
 from config.logging_config import setup_logging
 from config.settings import settings
 
@@ -44,6 +52,10 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_exception_handler(AuctionPlatformException, handle_auction_platform_exception)
+app.add_exception_handler(RequestValidationError, handle_pydantic_validation_error)
+app.add_exception_handler(HTTPException, handle_not_found)
+app.add_exception_handler(Exception, handle_generic_exception)
 
 
 @app.get("/health")

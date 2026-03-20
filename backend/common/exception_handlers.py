@@ -1,0 +1,146 @@
+"""Global exception handlers for the auction platform.
+
+Registered in ``main.py``, these handlers intercept specific exception
+types raised anywhere in the application and return consistently
+formatted ``ErrorResponse`` JSON bodies.
+
+Each handler follows the same contract:
+- Accept a ``Request`` and the raised exception.
+- Build an ``ErrorResponse`` payload.
+- Return a ``JSONResponse`` with the appropriate HTTP status code.
+"""
+
+import logging
+
+from fastapi import HTTPException, Request
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+
+from common.exceptions import AuctionPlatformException
+from common.schemas import ErrorDetail, ErrorResponse
+
+logger = logging.getLogger(__name__)
+
+
+async def handle_auction_platform_exception(
+    request: Request,
+    exc: AuctionPlatformException,
+) -> JSONResponse:
+    """Handle any ``AuctionPlatformException`` subclass.
+
+    Serialises the exception's structured metadata directly into the
+    ``ErrorResponse`` envelope and returns it with the exception's own
+    HTTP status code.
+
+    Args:
+        request: The incoming FastAPI request (unused but required by
+            the handler signature).
+        exc: The caught ``AuctionPlatformException`` instance.
+
+    Returns:
+        A ``JSONResponse`` containing the serialised ``ErrorResponse``.
+
+    """
+    content = ErrorResponse(
+        code=exc.code,
+        status="error",
+        message=exc.message,
+        details=exc.details,
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=content.model_dump(),
+    )
+
+
+async def handle_pydantic_validation_error(
+    request: Request,
+    exc: RequestValidationError,
+) -> JSONResponse:
+    """Handle Pydantic ``RequestValidationError`` raised by FastAPI.
+
+    Flattens the list of Pydantic validation errors into ``ErrorDetail``
+    objects, joining nested location parts with `` -> `` for readability.
+
+    Args:
+        request: The incoming FastAPI request (unused but required by
+            the handler signature).
+        exc: The caught ``RequestValidationError`` instance.
+
+    Returns:
+        A ``JSONResponse`` with HTTP 422 and a list of field-level errors.
+
+    """
+    error_details = []
+
+    for error in exc.errors():
+        field = " -> ".join(str(item) for item in error["loc"][1:])
+        error_details.append(ErrorDetail(field=field, message=error["msg"]))
+
+    content = ErrorResponse(
+        code="VALIDATION_ERROR",
+        status="error",
+        message="Validation failed",
+        details=error_details,
+    )
+    return JSONResponse(
+        status_code=422,
+        content=content.model_dump(),
+    )
+
+
+async def handle_not_found(
+    request: Request,
+    exc: HTTPException,
+) -> JSONResponse:
+    """Handle FastAPI ``HTTPException`` raised with a 404 status.
+
+    Args:
+        request: The incoming FastAPI request (unused but required by
+            the handler signature).
+        exc: The caught ``HTTPException`` instance.
+
+    Returns:
+        A ``JSONResponse`` with HTTP 404 and a ``NOT_FOUND`` error code.
+
+    """
+    content = ErrorResponse(
+        code="NOT_FOUND",
+        status="error",
+        message=exc.detail,
+    )
+    return JSONResponse(
+        status_code=404,
+        content=content.model_dump(),
+    )
+
+
+async def handle_generic_exception(
+    request: Request,
+    exc: Exception,
+) -> JSONResponse:
+    """Handle any unhandled exception as an internal server error.
+
+    Logs the full traceback at ERROR level so it is captured by the
+    application's logging pipeline, then returns a generic 500 response
+    without leaking internal details to the client.
+
+    Args:
+        request: The incoming FastAPI request (unused but required by
+            the handler signature).
+        exc: The unhandled exception instance.
+
+    Returns:
+        A ``JSONResponse`` with HTTP 500 and an ``INTERNAL_SERVER_ERROR``
+        error code.
+
+    """
+    logger.error("Unhandled exception", exc_info=True)
+    content = ErrorResponse(
+        code="INTERNAL_SERVER_ERROR",
+        message="An unexpected error occurred",
+    )
+    return JSONResponse(
+        status_code=500,
+        content=content.model_dump(),
+    )
