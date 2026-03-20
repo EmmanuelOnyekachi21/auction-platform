@@ -14,6 +14,7 @@ from common.exception_handlers import (
     handle_pydantic_validation_error,
 )
 from common.exceptions import AuctionPlatformException
+from common.middleware import RequestLoggingMiddleware
 from config.logging_config import setup_logging
 from config.settings import settings
 
@@ -44,6 +45,8 @@ app = FastAPI(
     version=settings.app_version,
     lifespan=lifespan,
 )
+
+app.add_middleware(RequestLoggingMiddleware)
 
 app.add_middleware(
     CORSMiddleware,
