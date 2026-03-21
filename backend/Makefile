@@ -13,7 +13,7 @@ migration:
 		alembic revision --autogenerate -m "$(message)"
 
 test:
-		pytest tests/ -v --cov=apps --cov-report=term-missing
+		docker-compose exec app pytest tests/ --cov
 
 lint:
 	ruff check . && black --check . && isort --check-only .

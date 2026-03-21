@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     # Hosts
     allowed_hosts: str = "localhost,127.0.0.1"
 
+    # Algorithms
+    algorithm: str
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=False
     )
