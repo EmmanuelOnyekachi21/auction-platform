@@ -34,3 +34,7 @@ build/
 # Frontend
 node_modules/
 .next/
+
+# Others
+.coverage
+.env.test

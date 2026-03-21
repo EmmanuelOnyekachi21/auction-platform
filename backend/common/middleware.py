@@ -13,6 +13,7 @@ from typing import Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
+from starlette.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +55,26 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         )
 
         start_time = time.time()
-        response = await call_next(request)
+        try:
+            response = await call_next(request)
+        except Exception:
+            process_time = (time.time() - start_time) * 1000
+            logger.error(
+                "Request failed | request_id=%s duration_ms=%.2f",
+                request_id,
+                process_time,
+                exc_info=True,
+            )
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "status": "error",
+                    "code": "INTERNAL_SERVER_ERROR",
+                    "message": "An unexpected error occurred",
+                    "details": [],
+                },
+                headers={"X-Request-ID": request_id},
+            )
 
         response.headers["X-Request-ID"] = request_id
 
