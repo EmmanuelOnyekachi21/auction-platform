@@ -18,7 +18,6 @@ from .enums import OrderStatus
 if TYPE_CHECKING:
     from apps.auctions.models import Auction, AuctionItem
     from apps.disputes.models import Dispute
-    from apps.escrow.models import Escrow
     from apps.users.models import User
 
 
@@ -37,6 +36,7 @@ class Order(BaseModel):
         shipped_at: Timestamp when seller marked as shipped.
         delivered_at: Timestamp when buyer confirmed delivery.
         dispute_raised_at: Timestamp when a dispute was opened.
+
     """
 
     __tablename__ = "orders"
@@ -66,12 +66,6 @@ class Order(BaseModel):
         nullable=True,
         unique=True,
     )
-    escrow_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("escrows.id", use_alter=True, name="fk_order_escrow_id"),
-        nullable=True,
-        unique=True,
-    )
     amount: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     status: Mapped[OrderStatus] = mapped_column(
         nullable=False, default=OrderStatus.PENDING_SHIPMENT, index=True
@@ -92,7 +86,4 @@ class Order(BaseModel):
     seller: Mapped[User] = relationship("User", foreign_keys=[seller_id])
     auction: Mapped[Auction] = relationship("Auction")
     auction_item: Mapped[AuctionItem] = relationship("AuctionItem")
-    dispute: Mapped[Dispute] = relationship("Dispute", back_populates="order")
-    escrow: Mapped[Escrow] = relationship(
-        "Escrow", back_populates="order", uselist=False
-    )
+    dispute: Mapped[Dispute] = relationship("Dispute", foreign_keys=[dispute_id])

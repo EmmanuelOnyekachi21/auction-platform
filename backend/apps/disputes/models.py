@@ -33,6 +33,7 @@ class Dispute(BaseModel):
         resolution: Admin resolution notes, nullable.
         resolved_by_id: FK to the admin User who resolved it.
         resolved_at: Timestamp when the dispute was resolved.
+
     """
 
     __tablename__ = "disputes"
@@ -63,7 +64,7 @@ class Dispute(BaseModel):
     )
 
     # Relationships
-    order: Mapped[Order] = relationship("Order", back_populates="dispute")
+    order: Mapped[Order] = relationship("Order", foreign_keys=[order_id])
     raised_by: Mapped[User] = relationship("User", foreign_keys=[raised_by_id])
     against: Mapped[User] = relationship("User", foreign_keys=[against_id])
     resolved_by: Mapped[User] = relationship("User", foreign_keys=[resolved_by_id])
@@ -84,6 +85,7 @@ class DisputeEvidence(BaseModel):
         url: URL to the stored file.
         file_type: Type of file submitted.
         description: Optional description of the evidence.
+
     """
 
     __tablename__ = "dispute_evidence"

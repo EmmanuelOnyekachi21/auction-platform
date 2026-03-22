@@ -22,7 +22,7 @@ from config.database import BaseModel
 from .enums import AccountStatus, OnboardingIntent, SellerType, UserRole
 
 if TYPE_CHECKING:
-    from apps.auctions.models import Auction, Bid
+    from apps.auctions.models import Auction, Bid, Item
     from apps.authentication.models import PasswordResetToken
     from apps.notifications.models import Notification
     from apps.wallet.models import Wallet
@@ -71,13 +71,17 @@ class User(BaseModel):
         "UserProfile", back_populates="user", uselist=False
     )
     seller_profile: Mapped["SellerProfile"] = relationship(
-        "SellerProfile", back_populates="user", uselist=False
+        "SellerProfile",
+        back_populates="user",
+        uselist=False,
+        foreign_keys="SellerProfile.user_id",
     )
     wallet: Mapped["Wallet"] = relationship(
         "Wallet", back_populates="user", uselist=False
     )
     auctions: Mapped[list["Auction"]] = relationship("Auction", back_populates="seller")
     bids: Mapped[list["Bid"]] = relationship("Bid", back_populates="bidder")
+    items: Mapped[list["Item"]] = relationship("Item", back_populates="seller")
     notifications: Mapped[list["Notification"]] = relationship(
         "Notification", back_populates="user"
     )
