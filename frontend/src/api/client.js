@@ -1,0 +1,62 @@
+import axios from "axios";
+import { useAuthStore } from "../store/authStore";
+
+// Use an environment variable of fallback to localhost
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+
+const apiClient = axios.create({
+    baseURL,
+    headers: {
+        'Content-Type': 'application/json'
+    },
+});
+
+// Request interceptot: Attach the token to every outgoing request
+apiClient.interceptors.request.use((config) => {
+    // Get token directly from the Zustand store
+    const { accessToken } = useAuthStore.getState();
+    if (accessToken) {
+        config.headers.Authorization = `Bearer ${accessToken}`
+    }
+    return config;
+});
+
+// Response interceptors: Handle errors and auto-refresh tokens
+apiClient.interceptors.response.use(
+    (response) => response,
+    async (error) => {
+        const originalRequest = error.config;
+
+        // If i get a 401 (Unauthorized) and haven't tried refreshing yet
+        if (error.response?.status == 401 && !originalRequest._retry && !originalRequest.url.includes('/auth/login')) {
+            originalRequest._retry = true;
+
+            try {
+                const { refreshToken, setAuth, logout } = useAuthStore.getState();
+
+                if (!refreshToken) throw new Error('No refresh token available');
+
+                // call the refresh endpoint
+                const response = await axios.post(`${baseURL}/auth/refresh`, {
+                    refresh_token: refreshToken,
+                });
+
+                const { access_token, refresh_token, user } = response.data;
+
+                // Save the new tokens to the global store
+                setAuth(user, access_token, refresh_token);
+
+                // Retry the original request with the NEW token
+                originalRequest.headers.Authorization = `Bearer ${access_token}`;
+                return apiClient(originalRequest);
+            } catch (refreshError) {
+                // If refreshing fails, must log the user out
+                useAuthStore.getState().logout();
+                return Promise.reject(refreshError);
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
+export default apiClient;
