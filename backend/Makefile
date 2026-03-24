@@ -7,10 +7,10 @@ run:
 		uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 migrate:
-		alembic upgrade head
+		docker-compose exec app alembic upgrade head
 
 migration:
-		alembic revision --autogenerate -m "$(message)"
+		docker-compose exec app alembic revision --autogenerate -m "$(message)"
 
 test:
 		docker-compose exec app pytest tests/ --cov

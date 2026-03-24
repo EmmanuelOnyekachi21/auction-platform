@@ -1,4 +1,10 @@
-"""Auction platform FastAPI application entry point."""
+"""Auction platform FastAPI application entry point.
+
+This module initializes the FastAPI app instance, configures middleware,
+registers global exception handlers, and mounts the application routers.
+It also manages startup/shutdown lifespan events, including connection
+verification for PostgreSQL and Redis.
+"""
 
 import logging
 from contextlib import asynccontextmanager
@@ -9,6 +15,10 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
 
+# Import the model registry to ensure all models are registered with SQLAlchemy
+# before any logic tries to use them.
+import config.model_registry  # noqa: F401
+from apps.authentication.routers import router as auth_router
 from common.exception_handlers import (
     handle_auction_platform_exception,
     handle_generic_exception,
@@ -28,13 +38,14 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Manage application lifespan events.
 
-    Handles startup and shutdown operations.
+    Performs initialization (logging, connection pings) on startup and
+    cleanup (session disposal) on shutdown.
 
     Args:
-        app: FastAPI application instance.
+        app: The current FastAPI instance.
 
     Yields:
-        None: Control to the application during its runtime.
+        None: Control to the application until shutdown.
 
     """
     setup_logging(settings.app_env)
@@ -69,6 +80,7 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
+# Core Application setup
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
@@ -78,7 +90,7 @@ app = FastAPI(
     openapi_url="/api/openapi.json" if settings.app_env != "production" else None,
 )
 
-# --- Middleware ---
+# --- Global Middleware ---
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -88,15 +100,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Exception handlers ---
+# --- Exception Handlers ---
 app.add_exception_handler(AuctionPlatformException, handle_auction_platform_exception)
 app.add_exception_handler(RequestValidationError, handle_pydantic_validation_error)
 app.add_exception_handler(HTTPException, handle_not_found)
 app.add_exception_handler(Exception, handle_generic_exception)
 
+# --- API Routers ---
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 
+
+# --- Utility Helpers ---
 async def _check_db() -> bool:
-    """Return True if the database is reachable."""
+    """Check if the PostgreSQL database is reachable."""
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -106,7 +122,7 @@ async def _check_db() -> bool:
 
 
 async def _check_redis() -> bool:
-    """Return True if Redis is reachable."""
+    """Check if the Redis server is reachable."""
     try:
         redis_client = aioredis.from_url(settings.redis_url)
         await redis_client.ping()
@@ -116,9 +132,14 @@ async def _check_redis() -> bool:
         return False
 
 
+# --- Health Endpoints ---
 @app.get("/health")
 async def health():
-    """Return application health status."""
+    """Return application health status used for readiness probes.
+
+    Returns:
+        dict: Infrastructure connectivity and app version info.
+    """
     return {
         "status": "ok",
         "app": settings.app_name,
@@ -131,12 +152,9 @@ async def health():
 
 @app.get("/api/v1/health")
 async def health_v1():
-    """Return application health status for API v1."""
-    return {
-        "status": "ok",
-        "app": settings.app_name,
-        "version": settings.app_version,
-        "environment": settings.app_env,
-        "database_connected": await _check_db(),
-        "redis_connected": await _check_redis(),
-    }
+    """Versioned health checkpoint for consistency within /api/v1.
+
+    Returns:
+        dict: Identical payload to root /health.
+    """
+    return await health()

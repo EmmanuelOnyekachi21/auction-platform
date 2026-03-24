@@ -29,6 +29,7 @@ class Bid(BaseModel):
         status: Current lifecycle state of the bid.
         wallet_transaction_id: FK to the WalletTransaction that locked funds.
         placed_at: Timestamp when the bid was placed.
+
     """
 
     __tablename__ = "bids"
@@ -66,7 +67,11 @@ class Bid(BaseModel):
     )
 
     # Relationships
-    auction: Mapped["Auction"] = relationship("Auction", back_populates="bids")
+    auction: Mapped["Auction"] = relationship(
+        "Auction",
+        back_populates="bids",
+        foreign_keys=[auction_id],
+    )
     bidder: Mapped["User"] = relationship("User", back_populates="bids")
     wallet_transaction: Mapped["WalletTransactions"] = relationship(
         "WalletTransactions"

@@ -1,50 +1,69 @@
-"""Application settings loaded from environment variables."""
+"""Application settings and configuration management.
+
+This module defines the global ``Settings`` class used to manage application
+configuration via environment variables. It leverages Pydantic for
+validation and type safety.
+"""
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    """Application settings loaded from environment variables."""
+    """Global application settings loaded from environment variables.
 
-    # APP
+    Supports automatic loading from a ``.env`` file if present. Configuration
+    is categorized into App, Security, Database, Redis, Email, and Cloud
+    settings.
+    """
+
+    # --- App Identity ---
     app_name: str = "auction-platform"
     app_version: str = "0.1.0"
     app_env: str = "development"
     debug: bool = True
+    app_url: str
 
-    # Security
+    # --- Security & JWT ---
     secret_key: str
+    algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
 
-    # Database
+    # --- Persistence ---
     database_url: str
-
-    # Redis
     redis_url: str
 
-    # CORS
+    # --- Networking & CORS ---
     cors_origins: str = "http://localhost:3000"
-
-    # Hosts
     allowed_hosts: str = "localhost,127.0.0.1"
 
-    # Algorithms
-    algorithm: str
+    # --- Email (SMTP) ---
+    mail_username: str
+    mail_password: str
+    mail_from: str = "noreply@auction-platform.com"
+    mail_port: int
+    mail_server: str
+    mail_from_name: str = "Auction Platform"
+    mail_starttls: bool = True
+    mail_ssl_tls: bool = False
 
+    # --- Pydantic Config ---
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=False
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=False,
     )
 
     @property
     def allowed_hosts_list(self) -> list[str]:
-        """Return allowed hosts as a list."""
+        """Parse the ``allowed_hosts`` string into a list of clean strings."""
         return [host.strip() for host in self.allowed_hosts.split(",")]
 
     @property
     def cors_origins_list(self) -> list[str]:
-        """Return CORS origins as a list."""
+        """Parse the ``cors_origins`` string into a list of clean strings."""
         return [origin.strip() for origin in self.cors_origins.split(",")]
 
 
+# Global settings instance to be imported by other modules.
 settings = Settings()

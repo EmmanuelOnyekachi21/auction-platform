@@ -37,6 +37,7 @@ class Escrow(BaseModel):
         auto_release_at: Timestamp when funds auto-release if no dispute.
         released_at: Timestamp when funds were released to seller.
         refunded_at: Timestamp when funds were refunded to buyer.
+
     """
 
     __tablename__ = "escrows"
@@ -72,6 +73,6 @@ class Escrow(BaseModel):
     )
 
     # Relationships
-    order: Mapped[Order] = relationship("Order", back_populates="escrow")
+    order: Mapped[Order] = relationship("Order", foreign_keys=[order_id])
     winner: Mapped[User] = relationship("User", foreign_keys=[winner_id])
     seller: Mapped[User] = relationship("User", foreign_keys=[seller_id])

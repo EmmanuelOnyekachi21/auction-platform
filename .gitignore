@@ -38,3 +38,5 @@ node_modules/
 # Others
 .coverage
 .env.test
+
+log_error
