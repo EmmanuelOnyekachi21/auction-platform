@@ -93,7 +93,10 @@ async def handle_not_found(
     request: Request,
     exc: HTTPException,
 ) -> JSONResponse:
-    """Handle FastAPI ``HTTPException`` raised with a 404 status.
+    """Handle FastAPI ``HTTPException`` raised with any status.
+
+    Respects the status code set in the exception (e.g. 401, 403, 404)
+    rather than hardcoding to 404.
 
     Args:
         request: The incoming FastAPI request (unused but required by
@@ -101,16 +104,18 @@ async def handle_not_found(
         exc: The caught ``HTTPException`` instance.
 
     Returns:
-        A ``JSONResponse`` with HTTP 404 and a ``NOT_FOUND`` error code.
+        A ``JSONResponse`` with the exception's status code and an
+        appropriate error response body.
 
     """
+    code = "NOT_FOUND" if exc.status_code == 404 else "AUTHENTICATION_ERROR"
     content = ErrorResponse(
-        code="NOT_FOUND",
+        code=code,
         status="error",
         message=exc.detail,
     )
     return JSONResponse(
-        status_code=404,
+        status_code=exc.status_code,
         content=content.model_dump(),
     )
 

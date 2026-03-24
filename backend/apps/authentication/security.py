@@ -1,6 +1,6 @@
 """Password hashing and token utilities for authentication.
 
-Wraps ``passlib`` bcrypt for password operations and the standard
+Wraps ``bcrypt`` for password operations and the standard
 ``secrets`` / ``hashlib`` modules for secure token generation and
 one-way token hashing (used for email-verification and password-reset
 tokens stored in the database).
@@ -9,12 +9,9 @@ tokens stored in the database).
 import hashlib
 import secrets
 
-from passlib.context import CryptContext
+import bcrypt
 
-# Passlib context using bcrypt with a work factor of 12.
-# ``deprecated="auto"`` ensures older hashes are transparently re-hashed
-# on next login if the configuration changes.
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=12)
+_ROUNDS = 12
 
 
 def hash_password(plain: str) -> str:
@@ -27,7 +24,7 @@ def hash_password(plain: str) -> str:
         A bcrypt-hashed string safe to store in the database.
 
     """
-    return pwd_context.hash(plain)
+    return bcrypt.hashpw(plain.encode(), bcrypt.gensalt(rounds=_ROUNDS)).decode()
 
 
 def verify_password(plain: str, hashed: str) -> bool:
@@ -41,7 +38,7 @@ def verify_password(plain: str, hashed: str) -> bool:
         ``True`` if the password matches the hash, ``False`` otherwise.
 
     """
-    return pwd_context.verify(plain, hashed)
+    return bcrypt.checkpw(plain.encode(), hashed.encode())
 
 
 def generate_token() -> str:

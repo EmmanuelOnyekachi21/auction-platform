@@ -37,12 +37,15 @@ class Category(BaseModel):
     """Product category with optional self-referencing parent.
 
     Supports a tree structure where categories can be nested
-    arbitrarily deep (e.g. Electronics → Phones → Android).
+    arbitrarily deep (e.g. Electronics -> Phones -> Android).
 
     Attributes:
         name: Unique human-readable category name.
         slug: Unique URL-safe identifier, indexed for fast lookup.
-        parent_id: Optional FK to the parent Category. Null means root.
+        parent_id: Optional UUID FK to the parent Category. Null means root.
+        parent: Relationship to the parent Category instance.
+        children: Relationship to a list of sub-categories.
+        items: Relationship to the items belonging to this category.
 
     """
 
@@ -79,10 +82,14 @@ class Item(BaseModel):
         category_id: FK to the Category this item belongs to.
         title: Short descriptive title.
         description: Full item description.
-        condition: Physical condition of the item.
-        status: Lifecycle state of the item.
-        weight_kg: Optional weight in kilograms.
-        dimensions: Optional dimensions string e.g. '30x20x10cm'.
+        condition: Physical condition (NEW, USED, etc.).
+        status: Lifecycle state (DRAFT, LISTED, SOLD, etc.).
+        weight_kg: Weight in kilograms for shipping calculation.
+        dimensions: Dimensions string (e.g., '30x20x10cm').
+        seller: Relationship to the owning User.
+        category: Relationship to the assigned Category.
+        images: Relationship to the list of associated images.
+        auction_items: Relationship to the junction entries connecting to auctions.
 
     """
 
@@ -125,9 +132,10 @@ class ItemImage(BaseModel):
 
     Attributes:
         item_id: FK to the owning Item.
-        url: URL pointing to the stored image.
-        display_order: Controls the order images are shown.
-        is_primary: Whether this is the main display image.
+        url: URL pointing to the stored image (e.g., S3 URL).
+        display_order: Controls the sequence images appear in (ascending).
+        is_primary: Whether this is the thumbnail/main image.
+        item: Relationship back to the Item.
 
     """
 
@@ -153,13 +161,18 @@ class Auction(BaseModel):
     Attributes:
         seller_id: FK to the User running the auction.
         highest_bid_id: FK to the current highest Bid, nullable.
-        status: Current lifecycle state of the auction.
+        status: Lifecycle state (DRAFT, ACTIVE, COMPLETED, etc.).
         title: Short descriptive title.
-        description: Full auction description.
-        reserve_price: Minimum acceptable price, nullable.
-        bid_increment: Minimum amount each new bid must exceed the last.
-        starts_at: Scheduled start timestamp.
-        ends_at: Scheduled end timestamp.
+        description: Detailed auction description.
+        reserve_price: Minimum price required for a sale.
+        bid_increment: Minimum amount each new bid must exceed the current high.
+        starts_at: Starting timestamp (UTC).
+        ends_at: Ending timestamp (UTC).
+        seller: Relationship to the host User.
+        highest_bid: Relationship to the current winning Bid instance.
+        bids: Relationship to all Bids made on this auction.
+        auction_items: Relationship to the junction table linking items.
+
     """
 
     __tablename__ = "auctions"
@@ -208,13 +221,19 @@ class Auction(BaseModel):
 
 
 class AuctionItem(BaseModel):
-    """Junction table linking an Auction to its Items.
+    """Junction table linking an Auction to its constituent Items.
+
+    Enables multi-item auctions (lots) where a single auction listing
+    can contain multiple physical items.
 
     Attributes:
         auction_id: FK to the Auction.
         item_id: FK to the Item.
-        starting_price: Opening price for this item in the auction.
-        quantity: Number of units available, defaults to 1.
+        starting_price: Opening price for this specific item.
+        quantity: Number of units available in this lot.
+        auction: Relationship back to the Auction.
+        item: Relationship back to the Item.
+
     """
 
     __tablename__ = "auction_items"

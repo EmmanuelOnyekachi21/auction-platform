@@ -13,13 +13,14 @@ dependencies = [
     "pydantic-settings",
     "email-validator",
     "python-jose[cryptography]",
-    "passlib[bcrypt]",
+    "bcrypt",
     "python-multipart",
     "celery",
     "redis",
     "httpx",
     "python-dotenv",
     "Pillow",
+    "fastapi-mail",  # <--- Add this here
 ]
 
 [project.optional-dependencies]

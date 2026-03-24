@@ -35,7 +35,7 @@ class UserRepository:
             db: An active ``AsyncSession`` to use for all queries.
 
         """
-        self.db = db
+        self._db = db
 
     async def get_by_id(self, user_id: uuid.UUID) -> User | None:
         """Fetch a user by their UUID primary key.
@@ -48,7 +48,7 @@ class UserRepository:
 
         """
         stmt = select(User).where(User.id == user_id)
-        result = await self.db.execute(stmt)
+        result = await self._db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_email(self, email: str) -> User | None:
@@ -62,7 +62,7 @@ class UserRepository:
 
         """
         stmt = select(User).where(func.lower(User.email) == email.lower())
-        result = await self.db.execute(stmt)
+        result = await self._db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def get_by_phone_number(self, phone_number: str) -> User | None:
@@ -76,7 +76,7 @@ class UserRepository:
 
         """
         stmt = select(User).where(User.phone_number == phone_number)
-        result = await self.db.execute(stmt)
+        result = await self._db.execute(stmt)
         return result.scalar_one_or_none()
 
     async def create(self, data: dict) -> User:
@@ -94,8 +94,8 @@ class UserRepository:
 
         """
         user = User(**data)
-        self.db.add(user)
-        await self.db.flush()
+        self._db.add(user)
+        await self._db.flush()
 
         profile = UserProfile(user_id=user.id)
         wallet = Wallet(
@@ -105,10 +105,10 @@ class UserRepository:
             escrow_funds=0,
             currency="NGN",
         )
-        self.db.add(profile)
-        self.db.add(wallet)
-        await self.db.flush()
-        await self.db.refresh(user)
+        self._db.add(profile)
+        self._db.add(wallet)
+        await self._db.flush()
+        await self._db.refresh(user)
         return user
 
     async def update(self, user_id: uuid.UUID, data: dict) -> User | None:
@@ -125,8 +125,8 @@ class UserRepository:
         user = await self.get_by_id(user_id)
         for key, value in data.items():
             setattr(user, key, value)
-        self.db.add(user)
-        await self.db.flush()
+        self._db.add(user)
+        await self._db.flush()
         return user
 
     async def update_last_login(self, user_id: uuid.UUID) -> None:
@@ -138,5 +138,5 @@ class UserRepository:
         """
         user = await self.get_by_id(user_id)
         user.last_login_at = datetime.now(timezone.utc)
-        self.db.add(user)
-        await self.db.flush()
+        self._db.add(user)
+        await self._db.flush()
