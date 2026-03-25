@@ -49,7 +49,29 @@ export default function RegisterPage() {
             await authActions.register(data);
             navigate('/verify-email-sent');
         } catch (err) {
-            setApiError(err.response?.data?.detail || 'Registration failed. Try again.');
+            // Handle different error response formats
+            let errorMessage = 'Registration failed. Try again.';
+
+            if (err.response?.data) {
+                const errorData = err.response.data;
+
+                // Check for message field first (your API format)
+                if (errorData.message) {
+                    errorMessage = errorData.message;
+                }
+                // Check for detail field (string or object)
+                else if (typeof errorData.detail === 'string') {
+                    errorMessage = errorData.detail;
+                } else if (errorData.detail?.message) {
+                    errorMessage = errorData.detail.message;
+                }
+                // Check for validation errors
+                else if (Array.isArray(errorData.detail)) {
+                    errorMessage = errorData.detail.map(err => err.msg).join(', ');
+                }
+            }
+
+            setApiError(errorMessage);
         } finally {
             setIssubmitting(false);
         }
