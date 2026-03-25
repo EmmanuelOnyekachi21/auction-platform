@@ -95,7 +95,7 @@ class TokenInvalidException(AuctionPlatformException):
 
 
 class EmailNotVerifiedException(AuctionPlatformException):
-    """Raised when an action requires a verified email but the user has not done so.
+    """Raised when an action requires a verified email but user has not done so.
 
     HTTP 403 is returned since the account exists but access is restricted
     until the email address is verified.
@@ -212,6 +212,17 @@ class WalletNotFoundException(NotFoundException):
     def __init__(self, message: str = "Wallet not found") -> None:
         """Initialise with error code ``WALLET_NOT_FOUND``."""
         super().__init__(message=message, code="WALLET_NOT_FOUND")
+
+
+class SellerProfileNotFoundException(NotFoundException):
+    """Raised when a seller's profile cannot be found for the given user.
+
+    Inherits from ``NotFoundException`` with HTTP 404 status.
+    """
+
+    def __init__(self, message: str = "Seller profile not found") -> None:
+        """Initialise with error code ``SELLER_PROFILE_NOT_FOUND``."""
+        super().__init__(message=message, code="SELLER_PROFILE_NOT_FOUND")
 
 
 # ---------------------------------------------------------------------------

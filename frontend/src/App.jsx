@@ -3,12 +3,21 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import PublicRoute from './components/common/PublicRoute';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import AuthLayout from './components/layout/AuthLayout';
+import MainLayout from './components/layout/MainLayout';
 
 // 📝 Import our new Auth Pages
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 import VerifyEmailPage from './pages/auth/VerifyEmailPage';
 import ResetPasswordPage from './pages/auth/ResetPasswordPage';
+
+// 📝 Import Profile Pages
+import MyProfilePage from './pages/profile/MyProfilePage';
+import BecomeSellerPage from './pages/profile/BecomeSellerPage';
+import PublicProfilePage from './pages/profile/PublicProfilePage';
+
+// 📝 Import Admin Pages
+import VerifySellersPage from './pages/admin/VerifySellersPage';
 
 // 🛠️ Create a Query Client for React Query
 const queryClient = new QueryClient();
@@ -56,7 +65,17 @@ function App() {
 
           {/* Protected Routes (The VIP Section) */}
           <Route element={<ProtectedRoute />}>
-            <Route path="/dashboard" element={<Dashboard />} />
+            <Route element={<MainLayout />}>
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/profile" element={<MyProfilePage />} />
+              <Route path="/become-seller" element={<BecomeSellerPage />} />
+              <Route path="/admin/verify-sellers" element={<VerifySellersPage />} />
+            </Route>
+          </Route>
+
+          {/* Public Profile Route (No auth required) */}
+          <Route element={<MainLayout />}>
+            <Route path="/users/:userId" element={<PublicProfilePage />} />
           </Route>
 
           {/* Default Redirect */}

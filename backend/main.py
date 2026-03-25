@@ -19,6 +19,7 @@ from sqlalchemy import text
 # before any logic tries to use them.
 import config.model_registry  # noqa: F401
 from apps.authentication.routers import router as auth_router
+from apps.users.routers import router as users_router
 from common.exception_handlers import (
     handle_auction_platform_exception,
     handle_generic_exception,
@@ -108,11 +109,17 @@ app.add_exception_handler(Exception, handle_generic_exception)
 
 # --- API Routers ---
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
+app.include_router(users_router)
 
 
 # --- Utility Helpers ---
 async def _check_db() -> bool:
-    """Check if the PostgreSQL database is reachable."""
+    """Check if the PostgreSQL database is reachable.
+
+    Returns:
+        bool: True if database connection is successful, False otherwise.
+
+    """
     try:
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
@@ -122,7 +129,12 @@ async def _check_db() -> bool:
 
 
 async def _check_redis() -> bool:
-    """Check if the Redis server is reachable."""
+    """Check if the Redis server is reachable.
+
+    Returns:
+        bool: True if Redis connection is successful, False otherwise.
+
+    """
     try:
         redis_client = aioredis.from_url(settings.redis_url)
         await redis_client.ping()
@@ -134,11 +146,12 @@ async def _check_redis() -> bool:
 
 # --- Health Endpoints ---
 @app.get("/health")
-async def health():
+async def health() -> dict:
     """Return application health status used for readiness probes.
 
     Returns:
         dict: Infrastructure connectivity and app version info.
+
     """
     return {
         "status": "ok",
@@ -151,10 +164,11 @@ async def health():
 
 
 @app.get("/api/v1/health")
-async def health_v1():
+async def health_v1() -> dict:
     """Versioned health checkpoint for consistency within /api/v1.
 
     Returns:
         dict: Identical payload to root /health.
+
     """
     return await health()
