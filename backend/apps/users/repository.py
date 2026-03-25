@@ -9,10 +9,12 @@ from datetime import datetime, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from apps.wallet.models import Wallet
+from common.exceptions import AlreadyExistsException
 
-from .models import User, UserProfile
+from .models import SellerProfile, User, UserProfile
 
 
 class UserRepository:
@@ -140,3 +142,153 @@ class UserRepository:
         user.last_login_at = datetime.now(timezone.utc)
         self._db.add(user)
         await self._db.flush()
+
+    async def get_with_profile(self, user_id: uuid.UUID) -> User | None:
+        """Fetch user with profile eagerly loaded (no N+1 query).
+
+        Args:
+            user_id: The UUID of the user to retrieve.
+
+        Returns:
+            The matching ``User`` instance with profile relationships loaded,
+            or ``None`` if not found.
+
+        """
+        stmt = (
+            select(User)
+            .where(User.id == user_id)
+            .options(selectinload(User.profile), selectinload(User.seller_profile))
+        )
+        result = await self._db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update_profile(self, user_id: uuid.UUID, data: dict) -> "UserProfile":
+        """Update or create user profile with partial data.
+
+        Args:
+            user_id: The UUID of the user whose profile to update.
+            data: Dictionary of field names and values to update.
+
+        Returns:
+            The updated or newly created ``UserProfile`` instance.
+
+        """
+        stmt = select(UserProfile).where(UserProfile.user_id == user_id)
+        result = await self._db.execute(stmt)
+        profile = result.scalar_one_or_none()
+
+        if not profile:
+            profile = UserProfile(user_id=user_id)
+            self._db.add(profile)
+
+        for key, value in data.items():
+            if value is not None:
+                setattr(profile, key, value)
+
+        await self._db.flush()
+        await self._db.refresh(profile)
+        return profile
+
+    async def create_seller_profile(
+        self, user_id: uuid.UUID, data: dict
+    ) -> "SellerProfile":
+        """Create seller profile, raising error if profile already exists.
+
+        Args:
+            user_id: The UUID of the user creating the seller profile.
+            data: Dictionary of seller profile field values.
+
+        Returns:
+            The newly created ``SellerProfile`` instance.
+
+        Raises:
+            AlreadyExistsException: If a seller profile already exists for
+                this user.
+
+        """
+        stmt = select(SellerProfile).where(SellerProfile.user_id == user_id)
+        result = await self._db.execute(stmt)
+        existing = result.scalar_one_or_none()
+
+        if existing:
+            msg = "Seller profile already exists for this user"
+            raise AlreadyExistsException(msg)
+
+        seller_profile = SellerProfile(user_id=user_id, **data)
+        self._db.add(seller_profile)
+        await self._db.flush()
+        await self._db.refresh(seller_profile)
+        return seller_profile
+
+    async def get_seller_profile(self, user_id: uuid.UUID) -> "SellerProfile | None":
+        """Fetch seller profile for a user.
+
+        Args:
+            user_id: The UUID of the user.
+
+        Returns:
+            The ``SellerProfile`` instance, or ``None`` if not found.
+
+        """
+        stmt = select(SellerProfile).where(SellerProfile.user_id == user_id)
+        result = await self._db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def update_seller_verification(
+        self, user_id: uuid.UUID, is_verified: bool, verified_by_id: uuid.UUID
+    ) -> "SellerProfile":
+        """Update seller verification status.
+
+        Args:
+            user_id: The UUID of the user to verify.
+            is_verified: Boolean indicating verification status.
+            verified_by_id: The UUID of the admin who performed verification.
+
+        Returns:
+            The updated ``SellerProfile`` instance.
+
+        """
+        seller_profile = await self.get_seller_profile(user_id)
+        seller_profile.is_verified = is_verified
+        seller_profile.verified_by_id = verified_by_id
+
+        if is_verified:
+            seller_profile.verified_at = datetime.now(timezone.utc)
+
+        self._db.add(seller_profile)
+        await self._db.flush()
+        await self._db.refresh(seller_profile)
+        return seller_profile
+
+    async def get_public_profile(self, user_id: uuid.UUID) -> User | None:
+        """Fetch user with profile and seller profile for public view.
+
+        Args:
+            user_id: The UUID of the user to retrieve.
+
+        Returns:
+            The ``User`` instance with profile relationships loaded,
+            or ``None`` if not found.
+
+        """
+        stmt = (
+            select(User)
+            .where(User.id == user_id)
+            .options(selectinload(User.profile), selectinload(User.seller_profile))
+        )
+        result = await self._db.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_wallet(self, user_id: uuid.UUID) -> Wallet | None:
+        """Fetch wallet for a user.
+
+        Args:
+            user_id: The UUID of the user.
+
+        Returns:
+            The ``Wallet`` instance, or ``None`` if not found.
+
+        """
+        stmt = select(Wallet).where(Wallet.user_id == user_id)
+        result = await self._db.execute(stmt)
+        return result.scalar_one_or_none()

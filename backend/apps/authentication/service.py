@@ -24,7 +24,6 @@ from apps.authentication.schemas import (
     AuthResponse,
     ChangePasswordRequest,
     LoginRequest,
-    MessageResponse,
     RegisterRequest,
     UserTokenResponse,
 )
@@ -46,6 +45,7 @@ from common.exceptions import (
     NotFoundException,
     TokenInvalidException,
 )
+from common.schemas import MessageResponse
 
 from .jwt_service import create_access_token, create_token_pair, decode_token
 
@@ -129,9 +129,8 @@ class AuthService:
             token_hash=hash_token(raw_token),
             expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
         )
-        logger.debug(f"Genertaed token:\nToken: {raw_token}")
+        logger.debug(f"Generated token:\nToken: {raw_token}")
 
-        # TODO: Queue Celery task — send_verification_email.delay(user.email, raw_token)
         send_verification_email.delay(user.email, user.first_name, raw_token)
 
         # Explicit commit to save everything
@@ -190,11 +189,9 @@ class AuthService:
         if user.account_status == AccountStatus.BANNED:
             raise AccountBannedException()
 
-        # await self._user_repo.update_last_login(user.id)
-        # Update last login time
         user.last_login_at = datetime.now(timezone.utc)
 
-        # 🟢 Explicit commit to save the last_login_time
+        # Explicit commit to save the last_login_time
         await self._db.commit()
 
         token_pair = create_token_pair(
@@ -306,7 +303,7 @@ class AuthService:
         # Hash/Inactivate the token
         token_record.used_at = datetime.now(timezone.utc)
 
-        # 🟢 Explicit commit
+        # Explicit commit
         await self._db.commit()
 
         return MessageResponse(message="Email successfully verified")
@@ -337,11 +334,8 @@ class AuthService:
             await self._auth_repo.create_password_reset_token(
                 user.id, hash_token(raw_token), expires_at
             )
-            # TODO: Queue Celery task — send_password_reset_email.delay(
-            #     user.email, raw_token
-            # )
             send_password_reset_email.delay(user.email, user.first_name, raw_token)
-            # 🟢 Explicit commit to save the password reset token
+            # Explicit commit to save the password reset token
             await self._db.commit()
 
         return MessageResponse(
@@ -378,12 +372,6 @@ class AuthService:
                 code="TOKEN_INVALID",
             )
 
-        # await self._user_repo.update(
-        #     token_record.user_id,
-        #     {"password_hash": hash_password(new_password)},
-        # )
-        # await self._auth_repo.delete_password_reset_token(token_record.id)
-        # Update password
         user = await self._user_repo.get_by_id(token_record.user_id)
         user.password_hash = hash_password(new_password)
 
@@ -419,14 +407,9 @@ class AuthService:
         if not verify_password(data.old_password, user.password_hash):
             raise InvalidCredentialsException("Current password is incorrect")
 
-        # await self._user_repo.update(
-        #     user.id,
-        #     {"password_hash": hash_password(data.new_password)},
-        # )
-        # Update password
         user.password_hash = hash_password(data.new_password)
 
-        # 🟢 Explicit commit
+        # Explicit commit
         await self._db.commit()
 
         return MessageResponse(message="Password successfully changed")

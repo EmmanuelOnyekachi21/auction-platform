@@ -90,3 +90,14 @@ class PaginatedResponse(BaseModel):
     message: str
     data: list[Any]
     pagination: PaginationMeta
+
+
+class MessageResponse(BaseModel):
+    """Generic single-message response for simple confirmation endpoints.
+
+    Attributes:
+        message: Human-readable confirmation or status message.
+
+    """
+
+    message: str
