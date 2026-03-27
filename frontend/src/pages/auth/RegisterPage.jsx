@@ -4,8 +4,8 @@ import * as z from 'zod';
 import { useNavigate, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { authActions } from '../../api/auth';
+import { FiUser, FiMail, FiPhone, FiLock, FiArrowRight } from 'react-icons/fi';
 
-// Define the validation rules (Zod Schema)
 const registerSchema = z
     .object({
         first_name: z.string().min(2, 'First name is too short'),
@@ -23,7 +23,7 @@ const registerSchema = z
 export default function RegisterPage() {
     const navigate = useNavigate();
     const [apiError, setApiError] = useState(null);
-    const [isSubmitting, setIssubmitting] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
     const { register, handleSubmit, watch, formState: { errors } } = useForm({
         resolver: zodResolver(registerSchema)
@@ -38,135 +38,126 @@ export default function RegisterPage() {
         if (/[^A-Za-z0-9]/.test(pass)) strength++;
         return strength;
     };
-
     const strength = getPasswordStrength(password);
-    const strengthColors = ['bg-danger', 'bg-warning', 'bg-info', 'bg-primary', 'bg-success'];
+    const strengthLabels = ['', 'Weak', 'Fair', 'Good', 'Strong'];
+    const strengthColors = ['', 'var(--danger)', 'var(--warning)', 'var(--info)', 'var(--success)'];
 
     const onSubmit = async (data) => {
-        setIssubmitting(true);
+        setIsSubmitting(true);
         setApiError(null);
         try {
             await authActions.register(data);
             navigate('/verify-email-sent');
         } catch (err) {
-            // Handle different error response formats
             let errorMessage = 'Registration failed. Try again.';
-
             if (err.response?.data) {
                 const errorData = err.response.data;
-
-                // Check for message field first (your API format)
-                if (errorData.message) {
-                    errorMessage = errorData.message;
-                }
-                // Check for detail field (string or object)
-                else if (typeof errorData.detail === 'string') {
-                    errorMessage = errorData.detail;
-                } else if (errorData.detail?.message) {
-                    errorMessage = errorData.detail.message;
-                }
-                // Check for validation errors
-                else if (Array.isArray(errorData.detail)) {
-                    errorMessage = errorData.detail.map(err => err.msg).join(', ');
-                }
+                if (errorData.message) errorMessage = errorData.message;
+                else if (typeof errorData.detail === 'string') errorMessage = errorData.detail;
+                else if (errorData.detail?.message) errorMessage = errorData.detail.message;
+                else if (Array.isArray(errorData.detail)) errorMessage = errorData.detail.map(e => e.msg).join(', ');
             }
-
             setApiError(errorMessage);
         } finally {
-            setIssubmitting(false);
+            setIsSubmitting(false);
         }
     };
 
+    const inputIcon = (Icon) => (
+        <Icon size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+    );
+
     return (
-        <div className="container mt-5">
-            <div className="row justify-content-center">
-                <div className="col-md-6 card shadow p-4">
-                    <h2 className="text-center mb-4">Join Auction Platform</h2>
+        <div className="card" style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-md)' }}>
+            <div className="card-body p-4 p-md-5">
+                <h2 style={{ fontWeight: 800, fontSize: '1.5rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+                    Create your account
+                </h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.75rem' }}>
+                    Join thousands of Nigerians trading on Nohans
+                </p>
 
-                    {apiError && <div className="alert alert-danger">{apiError}</div>}
+                {apiError && (
+                    <div style={{
+                        padding: '0.75rem 1rem', background: 'var(--danger-light)', border: '1px solid #FECACA',
+                        borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: '0.8125rem', fontWeight: 500, marginBottom: '1.25rem',
+                    }}>
+                        {apiError}
+                    </div>
+                )}
 
-                    <form onSubmit={handleSubmit(onSubmit)}>
-                        <div className="row">
-                            <div className="col-md-6 mb-3">
-                                <label className="form-label">First Name</label>
-                                <input
-                                    {...register('first_name')}
-                                    className={`form-control ${errors.first_name ? 'is-invalid' : ''}`}
-                                />
-                                <div className="invalid-feedback">{errors.first_name?.message}</div>
+                <form onSubmit={handleSubmit(onSubmit)}>
+                    <div className="row g-3">
+                        <div className="col-6">
+                            <label className="form-label">First Name</label>
+                            <div style={{ position: 'relative' }}>
+                                {inputIcon(FiUser)}
+                                <input {...register('first_name')} className={`form-control ${errors.first_name ? 'is-invalid' : ''}`} style={{ paddingLeft: '2.5rem' }} />
                             </div>
-
-                            <div className="col-md-6 mb-3">
-                                <label className="form-label">Last Name</label>
-                                <input
-                                    {...register('last_name')}
-                                    className={`form-control ${errors.last_name ? 'is-invalid' : ''}`}
-                                />
-                                <div className="invalid-feedback">{errors.last_name?.message}</div>
+                            {errors.first_name && <div className="text-danger" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.first_name.message}</div>}
+                        </div>
+                        <div className="col-6">
+                            <label className="form-label">Last Name</label>
+                            <div style={{ position: 'relative' }}>
+                                {inputIcon(FiUser)}
+                                <input {...register('last_name')} className={`form-control ${errors.last_name ? 'is-invalid' : ''}`} style={{ paddingLeft: '2.5rem' }} />
                             </div>
+                            {errors.last_name && <div className="text-danger" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.last_name.message}</div>}
                         </div>
+                    </div>
 
-                        <div className="mb-3">
-                            <label className="form-label">Email</label>
-                            <input
-                                type="email"
-                                {...register('email')}
-                                className={`form-control ${errors.email ? 'is-invalid' : ''}`}
-                            />
-                            <div className="invalid-feedback">{errors.email?.message}</div>
+                    <div className="mt-3">
+                        <label className="form-label">Email</label>
+                        <div style={{ position: 'relative' }}>
+                            {inputIcon(FiMail)}
+                            <input type="email" {...register('email')} className={`form-control ${errors.email ? 'is-invalid' : ''}`} placeholder="name@example.com" style={{ paddingLeft: '2.5rem' }} />
                         </div>
+                        {errors.email && <div className="text-danger" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.email.message}</div>}
+                    </div>
 
-                        <div className="mb-3">
-                            <label className="form-label">Phone Number (Nigerian)</label>
-                            <input
-                                placeholder="e.g. 08012345678"
-                                {...register('phone_number')}
-                                className={`form-control ${errors.phone_number ? 'is-invalid' : ''}`}
-                            />
-                            <div className="invalid-feedback">{errors.phone_number?.message}</div>
+                    <div className="mt-3">
+                        <label className="form-label">Phone Number</label>
+                        <div style={{ position: 'relative' }}>
+                            {inputIcon(FiPhone)}
+                            <input placeholder="08012345678" {...register('phone_number')} className={`form-control ${errors.phone_number ? 'is-invalid' : ''}`} style={{ paddingLeft: '2.5rem' }} />
                         </div>
+                        {errors.phone_number && <div className="text-danger" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.phone_number.message}</div>}
+                    </div>
 
-                        <div className="mb-3">
-                            <label className="form-label">Password</label>
-                            <input
-                                type="password"
-                                {...register('password')}
-                                className={`form-control ${errors.password ? 'is-invalid' : ''}`}
-                            />
-                            {password && (
-                                <div className="progress mt-2" style={{ height: '5px' }}>
-                                    <div
-                                        className={`progress-bar ${strengthColors[strength]}`}
-                                        style={{ width: `${(strength / 4) * 100}%` }}
-                                    />
+                    <div className="mt-3">
+                        <label className="form-label">Password</label>
+                        <div style={{ position: 'relative' }}>
+                            {inputIcon(FiLock)}
+                            <input type="password" {...register('password')} className={`form-control ${errors.password ? 'is-invalid' : ''}`} style={{ paddingLeft: '2.5rem' }} />
+                        </div>
+                        {password && (
+                            <div className="mt-2 d-flex align-items-center gap-2">
+                                <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'var(--border)' }}>
+                                    <div style={{ width: `${(strength / 4) * 100}%`, height: '100%', borderRadius: 2, background: strengthColors[strength], transition: 'width 0.3s, background 0.3s' }} />
                                 </div>
-                            )}
-                            <div className="invalid-feedback d-block">{errors.password?.message}</div>
+                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: strengthColors[strength] }}>{strengthLabels[strength]}</span>
+                            </div>
+                        )}
+                        {errors.password && <div className="text-danger" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.password.message}</div>}
+                    </div>
+
+                    <div className="mt-3 mb-4">
+                        <label className="form-label">Confirm Password</label>
+                        <div style={{ position: 'relative' }}>
+                            {inputIcon(FiLock)}
+                            <input type="password" {...register('confirm_password')} className={`form-control ${errors.confirm_password ? 'is-invalid' : ''}`} style={{ paddingLeft: '2.5rem' }} />
                         </div>
+                        {errors.confirm_password && <div className="text-danger" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.confirm_password.message}</div>}
+                    </div>
 
-                        <div className="mb-4">
-                            <label className="form-label">Confirm Password</label>
-                            <input
-                                type="password"
-                                {...register('confirm_password')}
-                                className={`form-control ${errors.confirm_password ? 'is-invalid' : ''}`}
-                            />
-                            <div className="invalid-feedback">{errors.confirm_password?.message}</div>
-                        </div>
+                    <button type="submit" disabled={isSubmitting} className="btn btn-primary w-100 mb-3" style={{ padding: '0.625rem', fontWeight: 600 }}>
+                        {isSubmitting ? <><span className="spinner-sm" /> Creating account...</> : <>Create Account <FiArrowRight size={16} /></>}
+                    </button>
 
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="btn btn-primary w-100 mb-3"
-                        >
-                            {isSubmitting ? 'Registering...' : 'Sign Up'}
-                        </button>
-
-                        <p className="text-center">
-                            Already have an account? <Link to="/login">Login</Link>
-                        </p>
-                    </form>
-                </div>
+                    <p className="text-center mb-0" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                        Already have an account? <Link to="/login" style={{ fontWeight: 600 }}>Sign in</Link>
+                    </p>
+                </form>
             </div>
         </div>
     );

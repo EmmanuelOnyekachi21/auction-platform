@@ -1,27 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import apiClient from '../../api/client';
+import { useToast } from '../../components/common/Toast';
+import { FiShield, FiCheckCircle, FiXCircle, FiSend, FiInfo } from 'react-icons/fi';
 
 export default function VerifySellersPage() {
-  const [sellers, setSellers] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [selectedSeller, setSelectedSeller] = useState(null);
   const { register, handleSubmit, reset } = useForm();
-
-  useEffect(() => {
-    fetchSellers();
-  }, []);
-
-  const fetchSellers = async () => {
-    try {
-      // For now, we'll manually add seller user IDs
-      // In a real app, you'd have an endpoint to list all sellers
-      setLoading(false);
-    } catch (error) {
-      console.error('Failed to fetch sellers:', error);
-      setLoading(false);
-    }
-  };
+  const { showToast } = useToast();
 
   const verifySeller = async (userId, data) => {
     try {
@@ -29,125 +15,99 @@ export default function VerifySellersPage() {
         is_verified: data.is_verified,
         rejection_reason: data.rejection_reason || null
       });
-
-      alert(data.is_verified ? 'Seller verified successfully!' : 'Seller rejected');
+      showToast(data.is_verified ? 'Seller verified successfully!' : 'Seller application rejected', data.is_verified ? 'success' : 'info');
       setSelectedSeller(null);
       reset();
     } catch (error) {
-      console.error('Failed to verify seller:', error);
-      alert(error.response?.data?.detail || 'Failed to verify seller');
+      showToast(error.response?.data?.detail || 'Failed to verify seller', 'error');
     }
   };
 
   const onSubmit = (data) => {
-    if (selectedSeller) {
-      verifySeller(selectedSeller, data);
-    }
+    if (selectedSeller) verifySeller(selectedSeller, data);
   };
 
   return (
-    <div className="container mt-5">
-      <div className="row">
-        <div className="col-md-10 mx-auto">
-          <div className="card">
-            <div className="card-header bg-primary text-white">
-              <h3 className="mb-0">Verify Sellers</h3>
-            </div>
-            <div className="card-body">
-              <div className="alert alert-info">
-                <strong>Admin Tool:</strong> Enter a user ID below to verify or reject their seller application.
+    <div className="page-container" style={{ maxWidth: 700 }}>
+      <div className="d-flex align-items-center gap-2 mb-4">
+        <div style={{ width: 40, height: 40, borderRadius: 'var(--radius)', background: 'var(--primary-50)', color: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <FiShield size={20} />
+        </div>
+        <div>
+          <h1 style={{ fontWeight: 800, fontSize: '1.5rem', margin: 0 }}>Verify Sellers</h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.8125rem', margin: 0 }}>Admin tool for managing seller applications</p>
+        </div>
+      </div>
+
+      <div className="card mb-4" style={{ borderRadius: 'var(--radius-xl)' }}>
+        <div className="card-body p-4">
+          <form onSubmit={handleSubmit(onSubmit)}>
+            <div className="mb-3">
+              <label className="form-label">User ID</label>
+              <input type="text" className="form-control" placeholder="Enter user UUID"
+                value={selectedSeller || ''} onChange={(e) => setSelectedSeller(e.target.value)} required />
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                Paste the seller&rsquo;s user ID from the database or profile URL
               </div>
+            </div>
 
-              <form onSubmit={handleSubmit(onSubmit)}>
-                <div className="mb-3">
-                  <label className="form-label">User ID</label>
-                  <input
-                    type="text"
-                    className="form-control"
-                    placeholder="Enter user UUID"
-                    value={selectedSeller || ''}
-                    onChange={(e) => setSelectedSeller(e.target.value)}
-                    required
-                  />
-                  <small className="text-muted">
-                    You can get the user ID from the database or user profile URL
-                  </small>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Action</label>
+            <div className="mb-3">
+              <label className="form-label">Action</label>
+              <div className="d-flex gap-3">
+                <label style={{
+                  flex: 1, padding: '0.875rem', borderRadius: 'var(--radius)',
+                  border: '2px solid var(--border)', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                }}>
+                  <input {...register('is_verified')} type="radio" value="true" defaultChecked style={{ accentColor: 'var(--success)' }} />
+                  <FiCheckCircle size={16} style={{ color: 'var(--success)' }} />
                   <div>
-                    <div className="form-check">
-                      <input
-                        {...register('is_verified')}
-                        className="form-check-input"
-                        type="radio"
-                        value="true"
-                        id="approve"
-                        defaultChecked
-                      />
-                      <label className="form-check-label text-success" htmlFor="approve">
-                        <strong>Approve</strong> - Verify this seller
-                      </label>
-                    </div>
-                    <div className="form-check">
-                      <input
-                        {...register('is_verified')}
-                        className="form-check-input"
-                        type="radio"
-                        value="false"
-                        id="reject"
-                      />
-                      <label className="form-check-label text-danger" htmlFor="reject">
-                        <strong>Reject</strong> - Deny seller verification
-                      </label>
-                    </div>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--success)' }}>Approve</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Verify this seller</div>
                   </div>
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label">Rejection Reason (required if rejecting)</label>
-                  <textarea
-                    {...register('rejection_reason')}
-                    className="form-control"
-                    rows="3"
-                    placeholder="Explain why the seller application was rejected..."
-                  />
-                </div>
-
-                <button type="submit" className="btn btn-primary">
-                  Submit Verification
-                </button>
-              </form>
-
-              <hr className="my-4" />
-
-              <div className="alert alert-secondary">
-                <h5>How to use:</h5>
-                <ol>
-                  <li>A user registers as a seller via "Become a Seller" page</li>
-                  <li>Get their user ID from the database or their profile URL</li>
-                  <li>Enter the user ID above</li>
-                  <li>Choose to approve or reject</li>
-                  <li>If rejecting, provide a reason</li>
-                  <li>Submit - the user will receive an email notification</li>
-                </ol>
-              </div>
-
-              <div className="card bg-light mt-3">
-                <div className="card-body">
-                  <h6>Quick Test:</h6>
-                  <p className="mb-2">To test this feature:</p>
-                  <ol className="mb-0">
-                    <li>Register a new user account</li>
-                    <li>Go to "Become a Seller" and submit</li>
-                    <li>Note the user ID from the profile URL or database</li>
-                    <li>Come back here as admin and verify them</li>
-                  </ol>
-                </div>
+                </label>
+                <label style={{
+                  flex: 1, padding: '0.875rem', borderRadius: 'var(--radius)',
+                  border: '2px solid var(--border)', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                }}>
+                  <input {...register('is_verified')} type="radio" value="false" style={{ accentColor: 'var(--danger)' }} />
+                  <FiXCircle size={16} style={{ color: 'var(--danger)' }} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--danger)' }}>Reject</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Deny verification</div>
+                  </div>
+                </label>
               </div>
             </div>
+
+            <div className="mb-4">
+              <label className="form-label">Rejection Reason</label>
+              <textarea {...register('rejection_reason')} className="form-control" rows="3" placeholder="Required if rejecting..." />
+            </div>
+
+            <button type="submit" className="btn btn-primary">
+              <FiSend size={14} /> Submit Verification
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {/* Instructions */}
+      <div className="card" style={{ borderRadius: 'var(--radius-xl)' }}>
+        <div className="card-body p-4">
+          <div className="d-flex align-items-center gap-2 mb-3">
+            <FiInfo size={16} style={{ color: 'var(--primary)' }} />
+            <h6 style={{ fontWeight: 700, margin: 0 }}>How to use</h6>
           </div>
+          <ol style={{ color: 'var(--text-secondary)', fontSize: '0.8125rem', paddingLeft: '1.25rem', margin: 0, lineHeight: 2 }}>
+            <li>A user registers as a seller via the &quot;Become a Seller&quot; page</li>
+            <li>Get their user ID from the database or their profile URL</li>
+            <li>Enter the user ID above</li>
+            <li>Choose to approve or reject</li>
+            <li>If rejecting, provide a reason</li>
+            <li>Submit — the user will receive an email notification</li>
+          </ol>
         </div>
       </div>
     </div>

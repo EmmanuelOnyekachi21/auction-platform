@@ -1,0 +1,337 @@
+/* ═══════════════════════════════════════════════════════════════════════════════
+   Navbar.css — Nohans Navbar Styles
+   ═══════════════════════════════════════════════════════════════════════════════ */
+
+.bw-navbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: var(--navbar-height);
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+}
+
+.bw-navbar__inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 100%;
+    gap: 1rem;
+}
+
+/* Brand */
+.bw-navbar__brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--primary);
+    text-decoration: none;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+}
+
+.bw-navbar__brand:hover {
+    color: var(--primary-dark);
+    text-decoration: none;
+}
+
+/* Nav Links */
+.bw-navbar__links {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    margin-left: 2rem;
+}
+
+.bw-nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-decoration: none;
+    border-radius: var(--radius);
+    transition: var(--transition-fast);
+    position: relative;
+    white-space: nowrap;
+}
+
+.bw-nav-link:hover {
+    color: var(--primary);
+    background: var(--primary-50);
+    text-decoration: none;
+}
+
+.bw-nav-link--active {
+    color: var(--primary);
+    background: var(--primary-50);
+    font-weight: 600;
+}
+
+/* Right section */
+.bw-navbar__right {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-left: auto;
+}
+
+/* Wallet Widget */
+.bw-wallet-widget {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.375rem 0.875rem;
+    background: var(--primary-50);
+    border: 1px solid var(--primary-light);
+    border-radius: var(--radius-full);
+    color: var(--primary);
+    font-weight: 600;
+    font-size: 0.8125rem;
+    text-decoration: none;
+    transition: var(--transition-fast);
+    white-space: nowrap;
+}
+
+.bw-wallet-widget:hover {
+    background: var(--primary-light);
+    color: var(--primary-dark);
+    text-decoration: none;
+}
+
+.bw-wallet-widget__amount {
+    font-variant-numeric: tabular-nums;
+}
+
+/* Icon Button */
+.bw-icon-btn {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--radius);
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.bw-icon-btn:hover {
+    background: var(--surface);
+    color: var(--text-primary);
+}
+
+/* Badge */
+.bw-badge {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    min-width: 16px;
+    height: 16px;
+    border-radius: var(--radius-full);
+    background: var(--danger);
+    color: #fff;
+    font-size: 0.625rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    line-height: 1;
+}
+
+/* Avatar */
+.bw-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-full);
+    background: var(--primary);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    flex-shrink: 0;
+}
+
+/* Dropdown */
+.bw-dropdown {
+    position: relative;
+}
+
+.bw-dropdown__trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.25rem 0.5rem;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: var(--transition-fast);
+    color: var(--text-primary);
+}
+
+.bw-dropdown__trigger:hover {
+    background: var(--surface);
+    border-color: var(--border);
+}
+
+.bw-dropdown__name {
+    font-size: 0.8125rem;
+    font-weight: 600;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.bw-dropdown__chevron {
+    transition: transform 0.2s ease;
+    color: var(--text-muted);
+}
+
+.bw-dropdown__chevron--open {
+    transform: rotate(180deg);
+}
+
+.bw-dropdown__menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 200px;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 0.375rem;
+    animation: dropdownFadeIn 0.15s ease-out;
+    z-index: 100;
+}
+
+@keyframes dropdownFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.bw-dropdown__item {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-decoration: none;
+    border-radius: var(--radius);
+    border: none;
+    background: none;
+    width: 100%;
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.bw-dropdown__item:hover {
+    background: var(--surface);
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.bw-dropdown__item--danger:hover {
+    background: var(--danger-light);
+    color: var(--danger);
+}
+
+.bw-dropdown__divider {
+    height: 1px;
+    background: var(--border);
+    margin: 0.25rem 0.5rem;
+}
+
+/* Auth buttons */
+.bw-navbar__auth-btns {
+    display: flex;
+    gap: 0.5rem;
+}
+
+/* Mobile Menu */
+.bw-mobile-menu {
+    position: fixed;
+    top: var(--navbar-height);
+    left: 0;
+    right: 0;
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    box-shadow: var(--shadow-md);
+    padding: 0.5rem;
+    animation: mobileSlideDown 0.2s ease-out;
+    z-index: 999;
+}
+
+@keyframes mobileSlideDown {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.bw-mobile-link {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    font-size: 0.9375rem;
+    font-weight: 500;
+    color: var(--text-primary);
+    text-decoration: none;
+    border-radius: var(--radius);
+    transition: var(--transition-fast);
+}
+
+.bw-mobile-link:hover,
+.bw-mobile-link.active {
+    background: var(--primary-50);
+    color: var(--primary);
+    text-decoration: none;
+}
+
+/* Push content below fixed navbar */
+body {
+    padding-top: var(--navbar-height);
+}
+
+/* Responsive tweaks */
+@media (max-width: 768px) {
+    .bw-wallet-widget__amount {
+        display: none;
+    }
+
+    .bw-navbar__links {
+        margin-left: 1rem;
+    }
+}

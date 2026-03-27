@@ -19,10 +19,11 @@ from apps.users.schemas import (
     VerifySellerRequest,
 )
 from apps.users.service import UserService
+from apps.wallet.service import WalletService
 from common.dependency import get_current_active_user, get_db, require_admin
 from common.schemas import MessageResponse
 
-router = APIRouter(prefix="/api/v1/users", tags=["users"])
+router = APIRouter()
 
 
 @router.get("/me", response_model=UserProfileResponse)
@@ -190,7 +191,7 @@ async def verify_seller(
 async def get_my_wallet(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
-) -> dict:
+):
     """Get the authenticated user's wallet balance.
 
     Args:
@@ -201,5 +202,12 @@ async def get_my_wallet(
         dict: Wallet balance information.
 
     """
-    service = UserService(db)
-    return await service.get_wallet_balance(current_user.id)
+    from apps.payments.flutterwave_service import FlutterwaveService
+    from config.settings import settings
+
+    flutterwave_service = FlutterwaveService(
+        base_url=settings.flutterwave_base_url,
+        secret_key=settings.flutterwave_secret_key,
+    )
+    service = WalletService(db, flutterwave_service)
+    return await service.get_wallet(current_user.id)

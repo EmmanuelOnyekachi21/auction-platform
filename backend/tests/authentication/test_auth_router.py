@@ -104,11 +104,12 @@ async def test_protected_endpoint_with_valid_token_returns_200(
         "first_name": "Secure",
         "last_name": "User",
         "email": "secure_router@example.com",
-        "phone_number": "09012345678",
+        "phone_number": "09012345675",
         "password": "SecurePass1!",
         "confirm_password": "SecurePass1!",
     }
     reg_resp = await client.post("/api/v1/auth/register", json=reg_payload)
+    print(f"Register Response: {reg_resp.json()}")
     user_id = reg_resp.json()["user"]["id"]
     token = reg_resp.json()["access_token"]
 

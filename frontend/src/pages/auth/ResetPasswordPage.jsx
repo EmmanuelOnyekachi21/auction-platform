@@ -4,22 +4,13 @@ import * as z from 'zod';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { authActions } from '../../api/auth';
+import { FiMail, FiLock, FiArrowLeft, FiArrowRight, FiCheckCircle } from 'react-icons/fi';
 
-// 🛡️ Schema 1: Just the email (for requesting reset)
-const requestSchema = z.object({
-  email: z.email('Invalid email address'),
-});
-
-// 🛡️ Schema 2: New passwords (for actual reset)
-const resetSchema = z
-  .object({
-    new_password: z.string().min(8, 'Password must be at least 8 characters'),
-    confirm_password: z.string(),
-  })
-  .refine((data) => data.new_password === data.confirm_password, {
-    message: "Passwords don't match",
-    path: ['confirm_password'],
-  });
+const requestSchema = z.object({ email: z.email('Invalid email address') });
+const resetSchema = z.object({
+  new_password: z.string().min(8, 'Password must be at least 8 characters'),
+  confirm_password: z.string(),
+}).refine((d) => d.new_password === d.confirm_password, { message: "Passwords don't match", path: ['confirm_password'] });
 
 export default function ResetPasswordPage() {
   const [searchParams] = useSearchParams();
@@ -36,9 +27,7 @@ export default function ResetPasswordPage() {
     try {
       await authActions.forgotPassword(data.email);
       setStatus('success');
-      setMessage(
-        `We've sent a password reset link to ${data.email}. Please check your inbox (and spam folder)!`
-      );
+      setMessage(`We've sent a password reset link to ${data.email}. Please check your inbox.`);
     } catch (err) {
       setStatus('error');
       setMessage(err.response?.data?.detail || 'Something went wrong. Please try again later.');
@@ -50,7 +39,7 @@ export default function ResetPasswordPage() {
     try {
       await authActions.resetPassword(token, data.new_password, data.confirm_password);
       setStatus('success');
-      setMessage('Your password has been reset successfully! Redirecting you to login...');
+      setMessage('Your password has been reset successfully! Redirecting to login...');
       setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
       setStatus('error');
@@ -58,86 +47,74 @@ export default function ResetPasswordPage() {
     }
   };
 
+  const inputIcon = (Icon) => (
+    <Icon size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+  );
+
   return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-5 card shadow p-4">
-          <h2 className="text-center mb-4">{token ? 'Set New Password' : 'Reset Your Password'}</h2>
+    <div className="card" style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-md)' }}>
+      <div className="card-body p-4 p-md-5">
+        <h2 style={{ fontWeight: 800, fontSize: '1.5rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+          {token ? 'Set New Password' : 'Reset Your Password'}
+        </h2>
 
-          {status === 'success' && <div className="alert alert-success">{message}</div>}
-          {status === 'error' && <div className="alert alert-danger">{message}</div>}
-
-          {!token && status !== 'success' && (
-            <form onSubmit={requestForm.handleSubmit(onRequestSubmit)}>
-              <p className="text-muted mb-4 text-center">
-                Enter your email address and we'll send you a link to reset your password.
-              </p>
-              <div className="mb-3">
-                <input
-                  type="email"
-                  {...requestForm.register('email')}
-                  className={`form-control ${
-                    requestForm.formState.errors.email ? 'is-invalid' : ''
-                  }`}
-                  placeholder="name@example.com"
-                />
-                <div className="invalid-feedback">
-                  {requestForm.formState.errors.email?.message}
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={status === 'loading'}
-                className="btn btn-primary w-100 mb-3"
-              >
-                {status === 'loading' ? 'Sending...' : 'Send Reset Link'}
-              </button>
-            </form>
-          )}
-
-          {token && status !== 'success' && (
-            <form onSubmit={resetForm.handleSubmit(onResetSubmit)}>
-              <div className="mb-3">
-                <label className="form-label">New Password</label>
-                <input
-                  type="password"
-                  {...resetForm.register('new_password')}
-                  className={`form-control ${
-                    resetForm.formState.errors.new_password ? 'is-invalid' : ''
-                  }`}
-                />
-                <div className="invalid-feedback">
-                  {resetForm.formState.errors.new_password?.message}
-                </div>
-              </div>
-              <div className="mb-4">
-                <label className="form-label">Confirm New Password</label>
-                <input
-                  type="password"
-                  {...resetForm.register('confirm_password')}
-                  className={`form-control ${
-                    resetForm.formState.errors.confirm_password ? 'is-invalid' : ''
-                  }`}
-                />
-                <div className="invalid-feedback">
-                  {resetForm.formState.errors.confirm_password?.message}
-                </div>
-              </div>
-              <button
-                type="submit"
-                disabled={status === 'loading'}
-                className="btn btn-success w-100 mb-3"
-              >
-                {status === 'loading' ? 'Saving...' : 'Update Password'}
-              </button>
-            </form>
-          )}
-
-          <div className="text-center">
-            <Link to="/login" className="text-decoration-none">
-              ← Back to Login
-            </Link>
+        {status === 'success' && (
+          <div style={{ padding: '1rem', background: 'var(--success-light)', border: '1px solid #BBF7D0', borderRadius: 'var(--radius)', color: 'var(--success)', fontSize: '0.8125rem', fontWeight: 500, margin: '1.25rem 0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <FiCheckCircle size={16} /> {message}
           </div>
+        )}
+        {status === 'error' && (
+          <div style={{ padding: '0.75rem 1rem', background: 'var(--danger-light)', border: '1px solid #FECACA', borderRadius: 'var(--radius)', color: 'var(--danger)', fontSize: '0.8125rem', fontWeight: 500, margin: '1.25rem 0' }}>
+            {message}
+          </div>
+        )}
+
+        {!token && status !== 'success' && (
+          <form onSubmit={requestForm.handleSubmit(onRequestSubmit)}>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+              Enter your email address and we will send you a link to reset your password.
+            </p>
+            <div className="mb-3">
+              <div style={{ position: 'relative' }}>
+                {inputIcon(FiMail)}
+                <input type="email" {...requestForm.register('email')} className={`form-control ${requestForm.formState.errors.email ? 'is-invalid' : ''}`} placeholder="name@example.com" style={{ paddingLeft: '2.5rem' }} />
+              </div>
+              {requestForm.formState.errors.email && <div className="text-danger" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{requestForm.formState.errors.email.message}</div>}
+            </div>
+            <button type="submit" disabled={status === 'loading'} className="btn btn-primary w-100 mb-3" style={{ padding: '0.625rem', fontWeight: 600 }}>
+              {status === 'loading' ? <><span className="spinner-sm" /> Sending...</> : <>Send Reset Link <FiArrowRight size={16} /></>}
+            </button>
+          </form>
+        )}
+
+        {token && status !== 'success' && (
+          <form onSubmit={resetForm.handleSubmit(onResetSubmit)} style={{ marginTop: '1.5rem' }}>
+            <div className="mb-3">
+              <label className="form-label">New Password</label>
+              <div style={{ position: 'relative' }}>
+                {inputIcon(FiLock)}
+                <input type="password" {...resetForm.register('new_password')} className={`form-control ${resetForm.formState.errors.new_password ? 'is-invalid' : ''}`} style={{ paddingLeft: '2.5rem' }} />
+              </div>
+              {resetForm.formState.errors.new_password && <div className="text-danger" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{resetForm.formState.errors.new_password.message}</div>}
+            </div>
+            <div className="mb-4">
+              <label className="form-label">Confirm New Password</label>
+              <div style={{ position: 'relative' }}>
+                {inputIcon(FiLock)}
+                <input type="password" {...resetForm.register('confirm_password')} className={`form-control ${resetForm.formState.errors.confirm_password ? 'is-invalid' : ''}`} style={{ paddingLeft: '2.5rem' }} />
+              </div>
+              {resetForm.formState.errors.confirm_password && <div className="text-danger" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{resetForm.formState.errors.confirm_password.message}</div>}
+            </div>
+            <button type="submit" disabled={status === 'loading'} className="btn btn-primary w-100 mb-3" style={{ padding: '0.625rem', fontWeight: 600 }}>
+              {status === 'loading' ? <><span className="spinner-sm" /> Saving...</> : <>Update Password <FiArrowRight size={16} /></>}
+            </button>
+          </form>
+        )}
+
+        <div className="text-center" style={{ marginTop: '0.5rem' }}>
+          <Link to="/login" style={{ fontSize: '0.8125rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+            <FiArrowLeft size={14} /> Back to Login
+          </Link>
         </div>
       </div>
     </div>

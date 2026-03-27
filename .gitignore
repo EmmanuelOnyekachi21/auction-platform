@@ -41,3 +41,6 @@ node_modules/
 
 log_error
 RAILWAY_*
+WALLET_*
+ISSUE_*
+testresults*

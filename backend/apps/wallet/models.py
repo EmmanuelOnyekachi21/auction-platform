@@ -14,9 +14,16 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from config.database import BaseModel
 
-from .enums import BalanceType, ReferenceType, TransactionDirection, TransactionType
+from .enums import (
+    BalanceType,
+    ReferenceType,
+    TransactionDirection,
+    TransactionStatus,
+    TransactionType,
+)
 
 if TYPE_CHECKING:
+    from apps.payments.models import Payment
     from apps.users.models import User
 
 
@@ -68,6 +75,7 @@ class Wallet(BaseModel):
     transactions: Mapped[list["WalletTransactions"]] = relationship(
         "WalletTransactions", back_populates="wallet"
     )
+    payments: Mapped[list["Payment"]] = relationship("Payment", back_populates="wallet")
 
 
 class WalletTransactions(BaseModel):
@@ -86,12 +94,14 @@ class WalletTransactions(BaseModel):
         transaction_type: High-level classification of the transaction.
         direction: Whether funds were credited to or debited from the bucket.
         balance_type: Which balance bucket (available, locked, escrow) changed.
+        status: Current status of the transaction (pending, completed, failed).
         reference_id: Optional UUID of the entity that triggered the movement.
         reference_type: Optional type of the triggering entity.
 
     Note:
         ``updated_at`` is set to ``None`` because transaction rows are
-        immutable — they are never updated after creation.
+        immutable — they are never updated after creation, except for
+        status changes on pending transactions.
 
     """
 
@@ -119,6 +129,9 @@ class WalletTransactions(BaseModel):
     )
     direction: Mapped[TransactionDirection] = mapped_column(String(6), nullable=False)
     balance_type: Mapped[BalanceType] = mapped_column(String(12), nullable=False)
+    status: Mapped[TransactionStatus] = mapped_column(
+        String(10), nullable=False, default=TransactionStatus.COMPLETED, index=True
+    )
     reference_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=True)
     reference_type: Mapped[ReferenceType] = mapped_column(String(20), nullable=True)
     updated_at = None
