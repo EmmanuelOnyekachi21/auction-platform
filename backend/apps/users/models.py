@@ -130,6 +130,11 @@ class UserProfile(BaseModel):
     total_sales: Mapped[int] = mapped_column(nullable=True)
     total_purchases: Mapped[int] = mapped_column(nullable=True)
 
+    # Bank details for withdrawals
+    bank_code: Mapped[str] = mapped_column(String(10), nullable=True)
+    account_number: Mapped[str] = mapped_column(String(10), nullable=True)
+    account_name: Mapped[str] = mapped_column(String(255), nullable=True)
+
     # Relationships
     user: Mapped[User] = relationship("User", back_populates="profile")
 

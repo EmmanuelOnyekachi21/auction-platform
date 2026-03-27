@@ -9,6 +9,7 @@ Provides reusable ``Depends``-compatible callables that handle:
 """
 
 import logging
+from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
 from fastapi import Depends
@@ -17,6 +18,7 @@ from jose import ExpiredSignatureError, JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.payments.flutterwave_service import FlutterwaveService
 from apps.users.enums import AccountStatus, UserRole
 from apps.users.models import User
 from common.exceptions import (
@@ -174,3 +176,25 @@ async def require_verified_seller(
     if current_user.seller_profile and current_user.seller_profile.is_verified:
         return current_user
     raise SellerRequiredException()
+
+
+async def get_flutterwave_service() -> FlutterwaveService:
+    service = FlutterwaveService(
+        settings.flutterwave_base_url, settings.flutterwave_secret_key
+    )
+    return service
+
+
+@asynccontextmanager
+async def get_async_db_session():
+    from config.database import AsyncSessionLocal
+
+    async with AsyncSessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()

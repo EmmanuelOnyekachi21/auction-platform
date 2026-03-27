@@ -41,6 +41,9 @@ class UpdateProfileRequest(BaseModel):
     city: str | None = Field(None, max_length=100)
     state: str | None = Field(None, max_length=100)
     onboarding_intent: OnboardingIntent | None = None
+    bank_code: str | None = None
+    account_number: str | None = None
+    account_name: str | None = None
 
     @field_validator("profile_picture_url", mode="before")
     @classmethod
@@ -108,6 +111,9 @@ class ProfileData(BaseModel):
     city: str | None = None
     state: str | None = None
     onboarding_intent: OnboardingIntent | None = None
+    bank_code: str | None = None
+    account_number: str | None = None
+    account_name: str | None = None
 
 
 class SellerData(BaseModel):

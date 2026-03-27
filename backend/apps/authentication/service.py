@@ -120,7 +120,7 @@ class AuthService:
                 "password_hash": hash_password(data.password),
             }
         )
-        logger.debug(f"Created user: {user.first_name}")
+        logger.info(f"Created user: {user.first_name}")
 
         # Generate and store email verification token
         raw_token = generate_token()
@@ -129,7 +129,7 @@ class AuthService:
             token_hash=hash_token(raw_token),
             expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
         )
-        logger.debug(f"Generated token:\nToken: {raw_token}")
+        logger.info(f"Generated token:\nToken: {raw_token}")
 
         send_verification_email.delay(user.email, user.first_name, raw_token)
 
@@ -279,12 +279,12 @@ class AuthService:
                 or has already been consumed.
 
         """
-        logger.debug(f"Received token: {token}")
+        logger.info(f"Received token: {token}")
         hashed_token = hash_token(token)
-        logger.debug(f"Token hashed into: {hashed_token}")
+        logger.info(f"Token hashed into: {hashed_token}")
         token_record = await self._auth_repo.get_valid_email_token(hashed_token)
 
-        logger.debug(f"Received Token record: {token_record}")
+        logger.info(f"Received Token record: {token_record}")
 
         if not token_record:
             raise NotFoundException(
@@ -329,7 +329,7 @@ class AuthService:
         # whether an address is registered in this system.
         if user:
             raw_token = generate_token()
-            logger.debug(f"Forgot password token generated: {raw_token}")
+            logger.info(f"Forgot password token generated: {raw_token}")
             expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
             await self._auth_repo.create_password_reset_token(
                 user.id, hash_token(raw_token), expires_at
@@ -361,7 +361,7 @@ class AuthService:
                 or has already been consumed.
 
         """
-        logger.debug(f"Reset Password Endpoint called.\nReset Token Received: {token}")
+        logger.info(f"Reset Password Endpoint called.\nReset Token Received: {token}")
         token_record = await self._auth_repo.get_valid_password_reset_token(
             hash_token(token)
         )

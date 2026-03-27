@@ -1,29 +1,24 @@
 import { useEffect, useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { authActions } from "../../api/auth";
+import { FiCheckCircle, FiXCircle, FiLoader } from 'react-icons/fi';
 
 export default function VerifyEmailPage() {
   const [searchParams] = useSearchParams();
-  const [status, setStatus] = useState('verifying'); // 'verifying', 'success', 'error'
+  const [status, setStatus] = useState('verifying');
   const [message, setMessage] = useState('');
-
-  // Prevents react from calling the API twice in Dev mode
   const hasRun = useRef(false);
 
   useEffect(() => {
-    // If we've already run this, stop immediately
     if (hasRun.current) return;
     hasRun.current = true;
-
     const token = searchParams.get('token');
-
     const verify = async () => {
       if (!token) {
         setStatus('error');
         setMessage('No verification token found in the URL.');
         return;
       }
-
       try {
         await authActions.verifyEmail(token);
         setStatus('success');
@@ -33,46 +28,47 @@ export default function VerifyEmailPage() {
         setMessage(err.response?.data?.detail || 'Verification failed. The link may be expired.');
       }
     };
-
     verify();
   }, [searchParams]);
 
+  const iconStyle = { width: 56, height: 56, borderRadius: 'var(--radius-full)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.25rem' };
+
   return (
-    <div className="container mt-5 text-center">
-      <div className="row justify-content-center">
-        <div className="col-md-6 card shadow p-5">
-          {status === 'verifying' && (
-            <div>
-              <div className="spinner-border text-primary mb-3" role="status" />
-              <h3>Verifying your email...</h3>
-              <p>Please wait a moment while we process your request.</p>
+    <div className="card" style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-md)', textAlign: 'center' }}>
+      <div className="card-body p-4 p-md-5">
+        {status === 'verifying' && (
+          <div>
+            <div style={{ ...iconStyle, background: 'var(--primary-50)', color: 'var(--primary)' }}>
+              <FiLoader size={24} className="spinner-sm" style={{ width: 24, height: 24, border: 'none', animation: 'spin 1s linear infinite' }} />
             </div>
-          )}
-
-          {status === 'success' && (
-            <div>
-              <div className="h1 text-success mb-3">✅</div>
-              <h2 className="mb-4">Verification Successful!</h2>
-              <p className="lead">{message}</p>
-              <Link to="/login" className="btn btn-primary mt-3">
-                Go to Login
-              </Link>
+            <h3 style={{ fontWeight: 700, fontSize: '1.25rem' }}>Verifying your email</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>Please wait a moment...</p>
+          </div>
+        )}
+        {status === 'success' && (
+          <div>
+            <div style={{ ...iconStyle, background: 'var(--success-light)', color: 'var(--success)' }}>
+              <FiCheckCircle size={28} />
             </div>
-          )}
-
-          {status === 'error' && (
-            <div>
-              <div className="h1 text-danger mb-3">❌</div>
-              <h2 className="mb-4">Verification Failed</h2>
-              <p className="text-muted">{message}</p>
-              <hr />
-              <p>Didn't get the email? Or the link expired?</p>
-              <Link to="/login" className="btn btn-outline-primary">
-                Return to Login
-              </Link>
+            <h3 style={{ fontWeight: 700, fontSize: '1.25rem', marginBottom: '0.75rem' }}>Verification Successful</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>{message}</p>
+            <Link to="/login" className="btn btn-primary" style={{ padding: '0.5rem 2rem' }}>
+              Go to Login
+            </Link>
+          </div>
+        )}
+        {status === 'error' && (
+          <div>
+            <div style={{ ...iconStyle, background: 'var(--danger-light)', color: 'var(--danger)' }}>
+              <FiXCircle size={28} />
             </div>
-          )}
-        </div>
+            <h3 style={{ fontWeight: 700, fontSize: '1.25rem', marginBottom: '0.75rem' }}>Verification Failed</h3>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>{message}</p>
+            <Link to="/login" className="btn btn-outline-primary" style={{ padding: '0.5rem 2rem' }}>
+              Return to Login
+            </Link>
+          </div>
+        )}
       </div>
     </div>
   );

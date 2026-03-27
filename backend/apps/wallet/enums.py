@@ -45,3 +45,12 @@ class ReferenceType(str, Enum):
     WITHDRAWAL = "WITHDRAWAL"
     REFUND = "REFUND"
     COMMISSION = "COMMISSION"
+
+
+class TransactionStatus(str, Enum):
+    """The current status of a wallet transaction."""
+
+    PENDING = "PENDING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"

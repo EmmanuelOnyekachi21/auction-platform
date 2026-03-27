@@ -55,7 +55,8 @@ LOGGING_CONFIG = {
 
 def setup_logging(app_env: str = "development") -> None:
     """Configure logging based on the application environment."""
-    level = "DEBUG" if app_env == "development" else "INFO"
+    # Always use INFO level for better visibility
+    level = "INFO"
     LOGGING_CONFIG["root"]["level"] = level
 
     logging.config.dictConfig(LOGGING_CONFIG)

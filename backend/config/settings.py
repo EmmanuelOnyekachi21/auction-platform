@@ -47,12 +47,22 @@ class Settings(BaseSettings):
     mail_starttls: bool = True
     mail_ssl_tls: bool = False
 
+    # --- Flutterwave ---
+    flutterwave_secret_key: str = ""
+    flutterwave_public_key: str = ""  # You'll need this for frontend integration later
+    flutterwave_base_url: str = "https://api.flutterwave.com/v3"
+    flutterwave_webhook_secret: str = ""
+    frontend_url: str = ""
+
     # --- Pydantic Config ---
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
     )
+
+    # --- Server URL ---
+    server_url: str
 
     @property
     def allowed_hosts_list(self) -> list[str]:

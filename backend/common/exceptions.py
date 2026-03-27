@@ -371,3 +371,46 @@ class PaymentVerificationException(AuctionPlatformException):
             code="PAYMENT_VERIFICATION_FAILED",
             status_code=400,
         )
+
+
+# Flutterwave errors
+class FlutterwaveError(AuctionPlatformException):
+    """Base exception for Flutterwave errors."""
+
+    def __init__(self, message: str = "Flutterwave error occurred") -> None:
+        """Initialise with error code and HTTP 500."""
+        super().__init__(message=message, code="FLUTTERWAVE_ERROR", status_code=500)
+
+
+class FlutterwavePaymentError(FlutterwaveError):
+    """Raised when payment initiation fails."""
+
+    def __init__(self, message: str = "Payment initiation failed") -> None:
+        """Initialise with parent error code."""
+        super().__init__(message=message)
+
+
+class FlutterwaveVerificationError(FlutterwaveError):
+    """Raised when payment verification fails."""
+
+    def __init__(self, message: str = "Payment verification failed") -> None:
+        """Initialise with parent error code."""
+        super().__init__(message=message)
+
+
+class BankDetailsNotSetupException(AuctionPlatformException):
+    """Raised when user attempts withdrawal without bank details."""
+
+    def __init__(
+        self,
+        message: str = (
+            "Bank details not set up. Please add your bank account "
+            "in profile settings."
+        ),
+    ) -> None:
+        """Initialise with error code and HTTP 400."""
+        super().__init__(
+            message=message,
+            code="BANK_DETAILS_NOT_SETUP",
+            status_code=400,
+        )

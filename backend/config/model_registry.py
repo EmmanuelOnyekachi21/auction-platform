@@ -19,6 +19,7 @@ from apps.disputes.models import Dispute, DisputeEvidence
 from apps.escrow.models import Escrow
 from apps.notifications.models import Notification
 from apps.orders.models import Order
+from apps.payments.models import Payment
 
 # Users - imported early as it is a frequent foreign-key target.
 from apps.users.models import SellerProfile, User, UserProfile, VerificationDoc
@@ -31,6 +32,7 @@ __all__ = [
     "VerificationDoc",
     "Wallet",
     "WalletTransactions",
+    "Payment",
     "Category",
     "Item",
     "ItemImage",

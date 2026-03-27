@@ -13,7 +13,10 @@ celery = Celery(
     "auction_platform",
     broker=settings.redis_url,
     backend=settings.redis_url,
-    include=["apps.notifications.tasks"],
+    include=[
+        "apps.notifications.tasks",
+        "apps.wallet.tasks",  # Import wallet tasks for email notifications
+    ],
 )
 
 # Celery configuration

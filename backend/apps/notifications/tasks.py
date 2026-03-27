@@ -1,32 +1,17 @@
 """Asynchronous Celery tasks for sending email notifications.
 
-Uses ``FastAPI-Mail`` to connect to an SMTP server and send formatted
-emails for verification, password resets, and other system alerts.
+Uses centralized email utilities to send formatted emails for
+verification, password resets, and other system alerts.
 """
 
 import asyncio
 import logging
 
-from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
-
+from common.email import send_email
 from config.celery_app import celery
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
-
-# FastAPI-Mail configuration
-mail_conf = ConnectionConfig(
-    MAIL_USERNAME=settings.mail_username,
-    MAIL_PASSWORD=settings.mail_password,
-    MAIL_FROM=settings.mail_from,
-    MAIL_PORT=settings.mail_port,
-    MAIL_SERVER=settings.mail_server,
-    MAIL_FROM_NAME=settings.mail_from_name,
-    MAIL_STARTTLS=settings.mail_starttls,
-    MAIL_SSL_TLS=settings.mail_ssl_tls,
-    USE_CREDENTIALS=True,
-    VALIDATE_CERTS=False,
-)
 
 
 @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
@@ -49,27 +34,18 @@ def send_verification_email(self, user_email: str, user_name: str, token: str):
         f"Hello {user_name},\n\n"
         f"Thank you for joining! Verify your email here: {verify_url}"
     )
-    message = MessageSchema(
-        subject="Verify your email",
-        recipients=[user_email],
-        body=body,
-        subtype=MessageType.plain,
-    )
-
-    fm = FastMail(mail_conf)
-    logger.info(
-        "Attempting to send verification email to %s via %s:%s (TLS=%s).",
-        user_email,
-        settings.mail_server,
-        settings.mail_port,
-        settings.mail_starttls,
-    )
 
     try:
-        asyncio.run(fm.send_message(message))
-        logger.info("Verification email sent.")
+        asyncio.run(
+            send_email(
+                subject="Verify your email",
+                recipients=[user_email],
+                body=body,
+            )
+        )
+        logger.info("Verification email sent to %s", user_email)
     except Exception as exc:
-        logger.error(f"Error sending verification email: {exc}")
+        logger.error(f"Error sending verification email to {user_email}: {exc}")
         raise exc
 
 
@@ -90,25 +66,18 @@ def send_password_reset_email(self, user_email: str, user_name: str, token: str)
     reset_url = f"{settings.app_url}/reset-password?token={token}"
 
     body = f"Hello {user_name},\n\nReset your password here: {reset_url}"
-    message = MessageSchema(
-        subject="Reset your password",
-        recipients=[user_email],
-        body=body,
-        subtype=MessageType.plain,
-    )
-    fm = FastMail(mail_conf)
-    logger.info(
-        "Attempting to send password reset email to %s via %s:%s (TLS=%s).",
-        user_email,
-        settings.mail_server,
-        settings.mail_port,
-        settings.mail_starttls,
-    )
+
     try:
-        asyncio.run(fm.send_message(message))
-        logger.info("Password reset link sent.")
+        asyncio.run(
+            send_email(
+                subject="Reset your password",
+                recipients=[user_email],
+                body=body,
+            )
+        )
+        logger.info("Password reset email sent to %s", user_email)
     except Exception as exc:
-        logger.error(f"Error sending reset email: {exc}")
+        logger.error(f"Error sending reset email to {user_email}: {exc}")
         raise exc
 
 
@@ -132,23 +101,20 @@ def send_seller_verification_approved(self, user_email: str, user_name: str):
         f"Visit your dashboard: {settings.app_url}/dashboard\n\n"
         f"Thank you for being part of our community!"
     )
-    message = MessageSchema(
-        subject="Seller Account Verified",
-        recipients=[user_email],
-        body=body,
-        subtype=MessageType.plain,
-    )
-
-    fm = FastMail(mail_conf)
-    logger.info(
-        "Attempting to send seller verification approved email to %s.", user_email
-    )
 
     try:
-        asyncio.run(fm.send_message(message))
-        logger.info("Seller verification approved email sent to %s.", user_email)
+        asyncio.run(
+            send_email(
+                subject="Seller Account Verified",
+                recipients=[user_email],
+                body=body,
+            )
+        )
+        logger.info("Seller verification approved email sent to %s", user_email)
     except Exception as exc:
-        logger.error(f"Error sending seller verification approved email: {exc}")
+        logger.error(
+            f"Error sending seller verification approved email to {user_email}: {exc}"
+        )
         raise exc
 
 
@@ -176,21 +142,18 @@ def send_seller_verification_rejected(
         f"If you have questions, please contact our support team.\n\n"
         f"Visit your profile: {settings.app_url}/profile"
     )
-    message = MessageSchema(
-        subject="Seller Verification Unsuccessful",
-        recipients=[user_email],
-        body=body,
-        subtype=MessageType.plain,
-    )
-
-    fm = FastMail(mail_conf)
-    logger.info(
-        "Attempting to send seller verification rejected email to %s.", user_email
-    )
 
     try:
-        asyncio.run(fm.send_message(message))
-        logger.info("Seller verification rejected email sent to %s.", user_email)
+        asyncio.run(
+            send_email(
+                subject="Seller Verification Unsuccessful",
+                recipients=[user_email],
+                body=body,
+            )
+        )
+        logger.info("Seller verification rejected email sent to %s", user_email)
     except Exception as exc:
-        logger.error(f"Error sending seller verification rejected email: {exc}")
+        logger.error(
+            f"Error sending seller verification rejected email to {user_email}: {exc}"
+        )
         raise exc

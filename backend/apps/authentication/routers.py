@@ -99,7 +99,7 @@ async def verify_email(
         A MessageResponse confirming successful verification.
 
     """
-    logger.debug(f"Received token: {token}")
+    logger.info(f"Received token: {token}")
     auth_service = AuthService(db)
     return await auth_service.verify_email(token)
 

@@ -5,6 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { authActions } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight } from 'react-icons/fi';
 
 const loginSchema = z.object({
   email: z.email('Invalid email address'),
@@ -27,34 +28,19 @@ export default function LoginPage() {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     setApiError(null);
-
     try {
       const response = await authActions.login(data);
       setAuth(response.user, response.access_token, response.refresh_token);
       navigate('/dashboard');
     } catch (err) {
-      // Handle different error response formats
       let errorMessage = 'Invalid email or password';
-
       if (err.response?.data) {
         const errorData = err.response.data;
-
-        // Check for message field first (your API format)
-        if (errorData.message) {
-          errorMessage = errorData.message;
-        }
-        // Check for detail field (string or object)
-        else if (typeof errorData.detail === 'string') {
-          errorMessage = errorData.detail;
-        } else if (errorData.detail?.message) {
-          errorMessage = errorData.detail.message;
-        }
-        // Check for validation errors
-        else if (Array.isArray(errorData.detail)) {
-          errorMessage = errorData.detail.map(err => err.msg).join(', ');
-        }
+        if (errorData.message) errorMessage = errorData.message;
+        else if (typeof errorData.detail === 'string') errorMessage = errorData.detail;
+        else if (errorData.detail?.message) errorMessage = errorData.detail.message;
+        else if (Array.isArray(errorData.detail)) errorMessage = errorData.detail.map(e => e.msg).join(', ');
       }
-
       setApiError(errorMessage);
     } finally {
       setIsSubmitting(false);
@@ -62,77 +48,104 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="container mt-5">
-      <div className="row justify-content-center">
-        <div className="col-md-5 card shadow p-4">
-          <h2 className="text-center mb-4">Welcome Back</h2>
+    <div className="card" style={{ borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-md)' }}>
+      <div className="card-body p-4 p-md-5">
+        <h2 style={{ fontWeight: 800, fontSize: '1.5rem', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
+          Welcome back
+        </h2>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.75rem' }}>
+          Sign in to your Nohans account
+        </p>
 
-          {apiError && <div className="alert alert-danger">{apiError}</div>}
+        {apiError && (
+          <div style={{
+            padding: '0.75rem 1rem',
+            background: 'var(--danger-light)',
+            border: '1px solid #FECACA',
+            borderRadius: 'var(--radius)',
+            color: 'var(--danger)',
+            fontSize: '0.8125rem',
+            fontWeight: 500,
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}>
+            {apiError}
+          </div>
+        )}
 
-          <form onSubmit={handleSubmit(onSubmit)}>
-            {/* Email Field */}
-            <div className="mb-3">
-              <label className="form-label">Email Address</label>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="mb-3">
+            <label className="form-label">Email Address</label>
+            <div style={{ position: 'relative' }}>
+              <FiMail size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
               <input
                 type="email"
                 {...register('email')}
                 className={`form-control ${errors.email ? 'is-invalid' : ''}`}
                 placeholder="name@example.com"
+                style={{ paddingLeft: '2.5rem' }}
               />
-              {errors.email && <div className="invalid-feedback d-block">{errors.email.message}</div>}
             </div>
+            {errors.email && <div className="text-danger" style={{ fontSize: '0.8125rem', marginTop: '0.25rem' }}>{errors.email.message}</div>}
+          </div>
 
-            {/* Password Field */}
-            <div className="mb-3">
-              <label className="form-label">Password</label>
-              <div className="input-group">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  {...register('password')}
-                  className={`form-control ${errors.password ? 'is-invalid' : ''}`}
-                />
-                <button
-                  className="btn btn-outline-secondary"
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                >
-                  {showPassword ? '🙈' : '👁️'}
-                </button>
-              </div>
-              {errors.password && <div className="invalid-feedback d-block">{errors.password.message}</div>}
+          <div className="mb-3">
+            <label className="form-label">Password</label>
+            <div style={{ position: 'relative' }}>
+              <FiLock size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+              <input
+                type={showPassword ? 'text' : 'password'}
+                {...register('password')}
+                className={`form-control ${errors.password ? 'is-invalid' : ''}`}
+                style={{ paddingLeft: '2.5rem', paddingRight: '2.5rem' }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)',
+                  background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.25rem',
+                }}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? <FiEyeOff size={16} /> : <FiEye size={16} />}
+              </button>
             </div>
+            {errors.password && <div className="text-danger" style={{ fontSize: '0.8125rem', marginTop: '0.25rem' }}>{errors.password.message}</div>}
+          </div>
 
-            {/* Remember & Forgot Password */}
-            <div className="mb-3 d-flex justify-content-between align-items-center">
-              <div className="form-check">
-                <input
-                  type="checkbox"
-                  {...register('remember_me')}
-                  className="form-check-input"
-                  id="remember"
-                />
-                <label className="form-check-label" htmlFor="remember">
-                  Remember me
-                </label>
-              </div>
-              <Link to="/forgot-password">Forgot password?</Link>
+          <div className="mb-4 d-flex justify-content-between align-items-center">
+            <div className="form-check">
+              <input type="checkbox" {...register('remember_me')} className="form-check-input" id="remember" />
+              <label className="form-check-label" htmlFor="remember" style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>
+                Remember me
+              </label>
             </div>
+            <Link to="/forgot-password" style={{ fontSize: '0.8125rem', fontWeight: 600 }}>
+              Forgot password?
+            </Link>
+          </div>
 
-            {/* Submit Button */}
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="btn btn-primary w-100 mb-3"
-            >
-              {isSubmitting ? 'Logging in...' : 'Login'}
-            </button>
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="btn btn-primary w-100 mb-3"
+            style={{ padding: '0.625rem', fontWeight: 600 }}
+          >
+            {isSubmitting ? (
+              <><span className="spinner-sm" /> Signing in...</>
+            ) : (
+              <>Sign In <FiArrowRight size={16} /></>
+            )}
+          </button>
 
-            {/* Register Link */}
-            <p className="text-center mb-0">
-              Don't have an account? <Link to="/register">Register here</Link>
-            </p>
-          </form>
-        </div>
+          <p className="text-center mb-0" style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Don&rsquo;t have an account?{' '}
+            <Link to="/register" style={{ fontWeight: 600 }}>Create one</Link>
+          </p>
+        </form>
       </div>
     </div>
   );

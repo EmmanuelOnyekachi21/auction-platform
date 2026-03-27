@@ -93,6 +93,8 @@ class UserService:
         profile_fields = {}
 
         for key, value in update_data.items():
+            # REASONING: Only first_name and last_name are in User table
+            # Everything else (bio, city, state, bank details, etc.) goes to UserProfile
             if key in ["first_name", "last_name"]:
                 user_fields[key] = value
             else:
