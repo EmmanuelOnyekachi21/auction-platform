@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate, Link } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, Link, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import PublicRoute from './components/common/PublicRoute';
 import ProtectedRoute from './components/common/ProtectedRoute';
@@ -10,6 +10,10 @@ import TransactionsPage from './pages/wallet/TransactionsPage';
 import PaymentConfirmPage from './pages/wallet/PaymentConfirmPage';
 import { FiMail, FiArrowRight, FiTrendingUp, FiSearch, FiShoppingBag } from 'react-icons/fi';
 import { useAuthStore } from './store/authStore';
+
+// Auction / Browse Pages
+import HomePage from './pages/auctions/HomePage';
+import AuctionDetailPage from './pages/auctions/AuctionDetailPage';
 
 // Auth Pages
 import LoginPage from './pages/auth/LoginPage';
@@ -25,11 +29,33 @@ import PublicProfilePage from './pages/profile/PublicProfilePage';
 // Admin Pages
 import VerifySellersPage from './pages/admin/VerifySellersPage';
 
+// Seller Pages
+import SellerDashboardPage from './pages/seller/SellerDashboardPage';
+import SellerPendingPage from './pages/seller/SellerPendingPage';
+import CreateAuctionPage from './pages/seller/CreateAuctionPage';
+
 const queryClient = new QueryClient();
+
+/** Derive where "Start Selling" should navigate based on seller status */
+const getSellerRoute = (user) => {
+  if (!user?.seller_profile)               return '/become-seller';
+  if (!user.seller_profile.is_verified)    return '/seller/pending';
+  return '/seller/dashboard';
+};
 
 // Homepage / Dashboard
 const Dashboard = () => {
   const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const sellerRoute = getSellerRoute(user);
+
+  // Smart seller label for the quick-actions list
+  const sellerAction = (() => {
+    if (!user?.seller_profile)             return { label: 'Start Selling', desc: 'Register as a seller to list items' };
+    if (!user.seller_profile.is_verified)  return { label: 'Seller Status',  desc: 'Check the status of your application' };
+    return { label: 'Seller Dashboard', desc: 'Manage your auctions and earnings' };
+  })();
+
   return (
     <div>
       {/* Hero Section */}
@@ -50,9 +76,13 @@ const Dashboard = () => {
             <Link to="/auctions" className="btn btn-light" style={{ fontWeight: 600, padding: '0.625rem 1.5rem', color: 'var(--primary)' }}>
               <FiSearch size={16} /> Browse Auctions
             </Link>
-            <Link to="/become-seller" className="btn" style={{ fontWeight: 600, padding: '0.625rem 1.5rem', background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)' }}>
+            <button
+              className="btn"
+              style={{ fontWeight: 600, padding: '0.625rem 1.5rem', background: 'rgba(255,255,255,0.15)', color: '#fff', border: '1px solid rgba(255,255,255,0.3)' }}
+              onClick={() => navigate(sellerRoute)}
+            >
               <FiShoppingBag size={16} /> Start Selling
-            </Link>
+            </button>
           </div>
         </div>
       </section>
@@ -91,9 +121,9 @@ const Dashboard = () => {
           </div>
           <div className="card-body p-0">
             {[
-              { to: '/wallet', label: 'View Wallet', desc: 'Check your balance, fund or withdraw', icon: '₦' },
-              { to: '/profile', label: 'My Profile', desc: 'Update your details and bank info', icon: null },
-              { to: '/become-seller', label: 'Start Selling', desc: 'Register as a seller to list items', icon: null },
+              { to: '/wallet', label: 'View Wallet', desc: 'Check your balance, fund or withdraw' },
+              { to: '/profile', label: 'My Profile', desc: 'Update your details and bank info' },
+              { to: sellerRoute, label: sellerAction.label, desc: sellerAction.desc },
             ].map((item, i) => (
               <Link key={i} to={item.to} style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -168,17 +198,22 @@ function App() {
                 <Route path="/wallet" element={<WalletPage />} />
                 <Route path="/wallet/transactions" element={<TransactionsPage />} />
                 <Route path="/payment/:paymentId/confirm" element={<PaymentConfirmPage />} />
+                <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
+                <Route path="/seller/pending" element={<SellerPendingPage />} />
+                <Route path="/seller/create-auction" element={<CreateAuctionPage />} />
               </Route>
             </Route>
 
-            {/* Public Profile */}
+            {/* Public Auction + Profile Routes (no auth required) */}
             <Route element={<MainLayout />}>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/auctions" element={<HomePage />} />
+              <Route path="/auctions/:auctionId" element={<AuctionDetailPage />} />
               <Route path="/users/:userId" element={<PublicProfilePage />} />
             </Route>
 
-            {/* Default Redirect */}
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            {/* Default Redirect — send authenticated users to dashboard, everyone else to home */}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </ToastProvider>

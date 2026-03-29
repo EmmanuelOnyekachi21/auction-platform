@@ -131,7 +131,7 @@ class SellerData(BaseModel):
 
     seller_type: SellerType
     is_verified: bool
-    verified_by_id: UUID
+    verified_by_id: UUID | None = None
     created_at: datetime
     verified_at: datetime | None = None
 
@@ -190,12 +190,38 @@ class PublicUserResponse(BaseModel):
     id: UUID
     first_name: str | None = None
     last_name: str | None = None
-    rating: Decimal
-    total_sales: int
-    total_purchases: int
-    is_verified_seller: bool
+    rating: Decimal = Decimal("0.0")
+    total_sales: int = 0
+    total_purchases: int = 0
+    is_verified_seller: bool = False
     seller_type: str | None = None
-    member_since: datetime
+    member_since: datetime | None = None
+
+    @classmethod
+    def model_validate(cls, obj, **kwargs):
+        """Custom validation to map User model fields to schema fields."""
+        if hasattr(obj, "__dict__") and not isinstance(obj, dict):
+            data = {
+                "id": obj.id,
+                "first_name": getattr(obj, "first_name", None),
+                "last_name": getattr(obj, "last_name", None),
+                "rating": Decimal("0.0"),  # not stored on User yet
+                "total_sales": 0,  # not stored on User yet
+                "total_purchases": 0,  # not stored on User yet
+                "is_verified_seller": (
+                    obj.seller_profile.is_verified
+                    if getattr(obj, "seller_profile", None)
+                    else False
+                ),
+                "seller_type": (
+                    obj.seller_profile.seller_type
+                    if getattr(obj, "seller_profile", None)
+                    else None
+                ),
+                "member_since": getattr(obj, "created_at", None),
+            }
+            return super().model_validate(data, **kwargs)
+        return super().model_validate(obj, **kwargs)
 
 
 class SellerProfileResponse(BaseModel):

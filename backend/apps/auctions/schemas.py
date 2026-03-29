@@ -90,8 +90,8 @@ class CreateAuctionRequest(BaseModel):
         now = datetime.now(timezone.utc)
         if self.starts_at < now:
             raise ValueError("Starts_at must be in the future")
-        if self.ends_at < self.starts_at + timedelta(hours=1):
-            raise ValueError("Auction must last at least 1 hour")
+        if self.ends_at < self.starts_at + timedelta(minutes=5):
+            raise ValueError("Auction must last at least 5 minutes")
         if self.ends_at > self.starts_at + timedelta(days=30):
             raise ValueError("Auction cannot last longer than 30 days")
         return self
@@ -133,8 +133,8 @@ class ItemResponse(BaseModel):
     condition: ItemCondition
     status: ItemStatus
     category: CategoryResponse
-    images: List[ItemImageResponse]
-    seller: PublicUserResponse
+    images: List[ItemImageResponse] | None = None
+    # seller: PublicUserResponse
     weight_kg: Optional[Decimal] = None
     dimensions: Optional[str] = None
     created_at: datetime
@@ -152,7 +152,7 @@ class AuctionItemResponse(BaseModel):
 class AuctionResponse(BaseModel):
     """Response schema for detailed auction information."""
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(from_attributes=True, populate_by_name=True)
     id: uuid.UUID
     title: Optional[str] = None
     description: Optional[str] = None
@@ -163,8 +163,10 @@ class AuctionResponse(BaseModel):
     reserve_price: Optional[Decimal] = None
     created_at: datetime
 
-    # Nested Data
-    items: List[AuctionItemResponse]
+    # ORM attribute is auction_items, but we expose it as items in the API
+    items: List[AuctionItemResponse] = Field(
+        default_factory=list, validation_alias="auction_items"
+    )
     seller: PublicUserResponse
     highest_bid: Optional[BidSummary] = None
 
@@ -212,3 +214,11 @@ class AuctionListResponse(BaseModel):
         now = datetime.now(timezone.utc)
         delta = self.ends_at - now
         return max(0, int(delta.total_seconds()))
+
+
+class RejectItemRequest(BaseModel):
+    """Request schema for rejecting an item."""
+
+    reason: str = Field(
+        ..., min_length=10, max_length=500, description="Reason for rejection"
+    )

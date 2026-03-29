@@ -20,6 +20,11 @@ export const useAuthStore = create(
                     isAuthenticated: !!user
                 }),
 
+            updateUser: (userData) =>
+                set((state) => ({
+                    user: { ...state.user, ...userData }
+                })),
+
             setLoading: (isLoading) => set({ isLoading }),
 
             logout: () => {

@@ -150,6 +150,7 @@ class ItemImage(BaseModel):
     url: Mapped[str] = mapped_column(String(500), nullable=False)
     display_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     is_primary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    public_id: Mapped[str] = mapped_column(String(255), nullable=True)
 
     # Relationships
     item: Mapped["Item"] = relationship("Item", back_populates="images")
