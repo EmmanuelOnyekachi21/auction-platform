@@ -26,6 +26,9 @@ import MyProfilePage from './pages/profile/MyProfilePage';
 import BecomeSellerPage from './pages/profile/BecomeSellerPage';
 import PublicProfilePage from './pages/profile/PublicProfilePage';
 
+// Bids Pages
+import MyBidsPage from './pages/bids/MyBidsPage';
+
 // Admin Pages
 import VerifySellersPage from './pages/admin/VerifySellersPage';
 
@@ -198,6 +201,7 @@ function App() {
                 <Route path="/wallet" element={<WalletPage />} />
                 <Route path="/wallet/transactions" element={<TransactionsPage />} />
                 <Route path="/payment/:paymentId/confirm" element={<PaymentConfirmPage />} />
+                <Route path="/my-bids" element={<MyBidsPage />} />
                 <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
                 <Route path="/seller/pending" element={<SellerPendingPage />} />
                 <Route path="/seller/create-auction" element={<CreateAuctionPage />} />

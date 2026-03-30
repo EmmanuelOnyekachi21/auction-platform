@@ -10,7 +10,7 @@ import { walletActions } from '../../api/wallet';
 import {
   FiMenu, FiX, FiHome, FiGrid, FiHelpCircle,
   FiCreditCard, FiBell, FiUser, FiLogOut,
-  FiShield, FiSettings, FiShoppingBag, FiChevronDown,
+  FiShield, FiSettings, FiShoppingBag, FiChevronDown, FiList,
 } from 'react-icons/fi';
 import './Navbar.css';
 
@@ -129,6 +129,9 @@ export default function Navbar() {
                     <Link to="/wallet" className="bw-dropdown__item" onClick={() => setDropdownOpen(false)}>
                       <FiCreditCard size={15} /> Wallet
                     </Link>
+                    <Link to="/my-bids" className="bw-dropdown__item" onClick={() => setDropdownOpen(false)}>
+                      <FiList size={15} /> My Bids
+                    </Link>
                     {user?.seller_profile?.is_verified ? (
                       <Link to="/seller/dashboard" className="bw-dropdown__item" onClick={() => setDropdownOpen(false)}>
                         <FiShoppingBag size={15} /> Seller Dashboard
@@ -179,6 +182,9 @@ export default function Navbar() {
               </NavLink>
               <NavLink to="/wallet" className="bw-mobile-link" onClick={() => setMobileOpen(false)}>
                 <FiCreditCard size={16} /> Wallet
+              </NavLink>
+              <NavLink to="/my-bids" className="bw-mobile-link" onClick={() => setMobileOpen(false)}>
+                <FiList size={16} /> My Bids
               </NavLink>
               {user?.seller_profile?.is_verified ? (
                 <NavLink to="/seller/dashboard" className="bw-mobile-link" onClick={() => setMobileOpen(false)}>

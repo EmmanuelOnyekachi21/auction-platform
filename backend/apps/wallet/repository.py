@@ -7,11 +7,12 @@ from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from apps.payments.models import Payment
 from apps.users.models import User
+from apps.wallet.enums import BalanceType, TransactionDirection, TransactionType
 from apps.wallet.models import Wallet, WalletTransactions
 from common.exceptions import WalletLockException, WalletNotFoundException
-from common.pagination import paginate
-from common.schemas import PaginatedResponse
+from common.pagination import PaginatedResponse, paginate
 
 
 class WalletRepository:
@@ -251,9 +252,6 @@ class WalletRepository:
             Created transaction record
 
         """
-        from apps.wallet.enums import BalanceType, TransactionDirection, TransactionType
-
-        # Get wallet with lock
         wallet = await self.get_by_user_id_with_lock(user_id)
         if not wallet:
             raise WalletNotFoundException()
@@ -307,8 +305,6 @@ class PaymentRepository:
             Created payment instance
 
         """
-        from apps.payments.models import Payment
-
         payment = Payment(**data)
         self._db.add(payment)
         await self._db.flush()
@@ -325,8 +321,6 @@ class PaymentRepository:
             Payment instance or None if not found
 
         """
-        from apps.payments.models import Payment
-
         stmt = select(Payment).where(
             Payment.transaction_reference == transaction_reference
         )
@@ -358,8 +352,6 @@ class PaymentRepository:
             Updated payment instance or None if not found
 
         """
-        from apps.payments.models import Payment
-
         stmt = select(Payment).where(Payment.id == payment_id)
         result = await self._db.execute(stmt)
         payment = result.scalar_one_or_none()
