@@ -32,6 +32,7 @@ from apps.escrow.enums import EscrowStatus
 from apps.escrow.models import Escrow
 from apps.orders.enums import OrderStatus
 from apps.orders.models import Order
+from apps.users.models import User
 from apps.wallet.enums import (
     BalanceType,
     ReferenceType,
@@ -39,6 +40,7 @@ from apps.wallet.enums import (
     TransactionType,
 )
 from apps.wallet.repository import WalletRepository
+from common.email import send_email
 from config.celery_app import celery
 from config.settings import settings
 
@@ -178,6 +180,17 @@ def process_auction_settlement(self, auction_id: str):
                     auction_seller_name,
                     auction_seller_email,
                 )
+                await send_email(
+                    subject="Your auction ended with no bids",
+                    recipients=[auction_seller_email],
+                    body=(
+                        f"Hello {auction_seller_name},\n\n"
+                        f"Your auction has ended but no bids were placed.\n\n"
+                        f"Your items have been returned to your inventory and "
+                        f"are available to relist.\n\n"
+                        f"Visit your dashboard: {settings.app_url}/seller/dashboard"
+                    ),
+                )
                 return
 
             # ----------------------------------------------------------------
@@ -264,11 +277,40 @@ def process_auction_settlement(self, auction_id: str):
             auction.status = AuctionStatus.SETTLED
             logger.info("Auction %s settled successfully", auction_id)
 
-        logger.info(
-            "Notifying winner %s and seller %s",
-            winner_id,
-            auction_seller_email,
+        # Fetch winner details for notification (outside DB session)
+        async with get_task_db_session() as notify_db:
+            result = await notify_db.execute(select(User).where(User.id == winner_id))
+            winner_user = result.scalar_one_or_none()
+            winner_email = winner_user.email if winner_user else None
+            winner_name = (
+                f"{winner_user.first_name} {winner_user.last_name}".strip()
+                if winner_user
+                else "Winner"
+            )
+
+        if winner_email:
+            await send_email(
+                subject="Congratulations! You won the auction",
+                recipients=[winner_email],
+                body=(
+                    f"Hello {winner_name},\n\n"
+                    f"You won the auction with a bid of ₦{bid_amount:,.2f}!\n\n"
+                    f"The seller has 72 hours to ship your item.\n\n"
+                    f"View your order: {settings.app_url}/orders"
+                ),
+            )
+
+        await send_email(
+            subject="Your item has been sold!",
+            recipients=[auction_seller_email],
+            body=(
+                f"Hello {auction_seller_name},\n\n"
+                f"Your auction has settled! Your item sold for ₦{bid_amount:,.2f}.\n\n"
+                f"Commission (5%): ₦{commission:,.2f}\n"
+                f"Your payout: ₦{seller_payout:,.2f}\n\n"
+                f"Please ship the item within 72 hours.\n\n"
+                f"View your orders: {settings.app_url}/seller/dashboard"
+            ),
         )
-        # TODO: queue winner/seller notification tasks
 
     asyncio.run(_process())

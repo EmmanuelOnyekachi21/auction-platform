@@ -248,3 +248,47 @@ def send_item_rejected_notification(
             f"Error sending item rejected notification to {seller_email}: {exc}"
         )
         raise exc
+
+
+@celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+def notify_outbid_user(
+    self, user_email: str, user_name: str, auction_id: str, new_highest_bid: str
+):
+    """Send email notification when a user has been outbid.
+
+    Args:
+        self: The Celery task instance (injected via bind=True).
+        user_email: The outbid user's email address.
+        user_name: The outbid user's name for personalization.
+        auction_id: UUID string of the auction.
+        new_highest_bid: The new highest bid amount as string (Decimal-safe).
+
+    Raises:
+        Exception: If the email fails to send (triggered for retry).
+
+    """
+    auction_url = f"{settings.app_url}/auctions/{auction_id}"
+
+    body = (
+        f"Hello {user_name},\n\n"
+        f"You've been outbid! Someone placed a higher bid of ₦{new_highest_bid} "
+        f"on an auction you were leading.\n\n"
+        f"Your funds have been returned to your wallet.\n\n"
+        f"Place a higher bid to get back in the lead:\n{auction_url}\n\n"
+        f"Act fast — the auction may end soon!"
+    )
+
+    try:
+        asyncio.run(
+            send_email(
+                subject="You've been outbid!",
+                recipients=[user_email],
+                body=body,
+            )
+        )
+        logger.info(
+            "Outbid notification sent to %s for auction %s", user_email, auction_id
+        )
+    except Exception as exc:
+        logger.error(f"Error sending outbid notification to {user_email}: {exc}")
+        raise exc

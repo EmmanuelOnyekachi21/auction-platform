@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from apps.auctions.enums import AuctionStatus, ItemStatus
 from apps.auctions.models import Auction, AuctionItem, Category, Item, ItemImage
+from apps.bids.models import Bid
 from common.pagination import paginate
 
 
@@ -378,10 +379,6 @@ class AuctionRepository:
             Paginated result dictionary
 
         """
-        from apps.bids.models import (  # noqa: F811 — already imported at module level
-            Bid,
-        )
-
         stmt = (
             select(Auction)
             .where(Auction.status == AuctionStatus.ACTIVE)
@@ -501,7 +498,9 @@ class AuctionRepository:
             True if successfully claimed, False if already claimed
 
         """
-        from sqlalchemy import update  # noqa: F811 — already imported at module level
+        from sqlalchemy import (  # noqa: F811 — already imported at module level  # noqa: F811 — already imported at module level
+            update,
+        )
 
         stmt = (
             update(Auction)
@@ -536,6 +535,7 @@ class AuctionRepository:
                 selectinload(Auction.highest_bid),
                 selectinload(Auction.bids),
             )
+            .with_for_update()
         )
         result = await self._db.execute(stmt)
         return result.scalar_one_or_none()
