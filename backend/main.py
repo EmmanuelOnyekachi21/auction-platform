@@ -20,6 +20,7 @@ from sqlalchemy import text
 import config.model_registry  # noqa: F401
 from apps.auctions.routers import router as auctions_router
 from apps.authentication.routers import router as auth_router
+from apps.bids.router import router as bids_router
 from apps.users.routers import router as users_router
 from apps.wallet.routers import router as wallet_router
 from common.exception_handlers import (
@@ -113,9 +114,8 @@ app.add_exception_handler(Exception, handle_generic_exception)
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(wallet_router, prefix="/api/v1/wallets", tags=["Wallets"])
-app.include_router(
-    auctions_router, prefix="/api/v1", tags=["Auctions"]
-)  # Router already has /api/v1 prefix
+app.include_router(auctions_router, prefix="/api/v1", tags=["Auctions"])
+app.include_router(bids_router, prefix="/api/v1", tags=["Bids"])
 
 
 # --- Utility Helpers ---
