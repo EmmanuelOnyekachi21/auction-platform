@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     FiPackage, FiTag, FiTrendingUp, FiEye, FiClock,
     FiCheckCircle, FiShare2, FiChevronDown, FiChevronUp,
@@ -20,6 +20,7 @@ import {
 
 import { getAuction } from '../../api/auctions';
 import { walletActions } from '../../api/wallet';
+import apiClient from '../../api/client';
 import { useAuthStore } from '../../store/authStore';
 import { useToast } from '../../components/common/Toast';
 import './AuctionDetailPage.css';
@@ -201,7 +202,7 @@ function StatusBadge({ status }) {
 }
 
 /* ─── Bid History Row ───────────────────────────────────────────────────────── */
-function BidHistorySection({ bids }) {
+function BidHistorySection({ bids, userBidId }) {
     const sorted = [...(Array.isArray(bids) ? bids : [])]
         .sort((a, b) => (b.amount ?? 0) - (a.amount ?? 0))
         .slice(0, 10);
@@ -225,7 +226,7 @@ function BidHistorySection({ bids }) {
     return (
         <div>
             {sorted.map((bid, i) => (
-                <div key={bid.id ?? i} className="adp__bid-row">
+                <div key={bid.id ?? i} className="adp__bid-row" style={{ borderLeft: bid.id === userBidId ? '3px solid var(--primary)' : undefined, paddingLeft: bid.id === userBidId ? '0.5rem' : undefined }}>
                     <div className="adp__bid-row-rank">#{i + 1}</div>
                     <div className="adp__bid-row-name">Bidder #{i + 1}</div>
                     <div className="adp__bid-row-amount">{formatNaira(bid.amount)}</div>
@@ -250,6 +251,13 @@ export default function AuctionDetailPage() {
     const [descExpanded, setDescExpanded] = useState(false);
     const DESC_THRESHOLD = 300;
 
+    /* ── Bid states ── */
+    const [bidAmount, setBidAmount] = useState('');
+    const [bidError, setBidError] = useState('');
+    const [bidSuccess, setBidSuccess] = useState(false);
+    const bidHistoryRef = useRef(null);
+    const qc = useQueryClient();
+
     /* ── Fetch auction ── */
     const {
         data: auction,
@@ -270,6 +278,39 @@ export default function AuctionDetailPage() {
         queryFn: walletActions.getWallet,
         enabled: isAuthenticated,
         staleTime: 30_000,
+    });
+
+    /* ── Live bid state polling ── */
+    const { data: bidState, dataUpdatedAt } = useQuery({
+        queryKey: ['bid-state', auctionId],
+        queryFn: () => apiClient.get(`/auctions/${auctionId}/bid-state`).then(r => r.data?.data ?? r.data),
+        refetchInterval: 10_000,
+        enabled: !!auctionId,
+    });
+
+    /* ── Place bid mutation ── */
+    const placeBidMutation = useMutation({
+        mutationFn: (amount) => apiClient.post(`/auctions/${auctionId}/bids`, { amount }),
+        onSuccess: (res) => {
+            const data = res.data?.data ?? res.data;
+            setBidSuccess(true);
+            setBidError('');
+            setBidAmount('');
+            showToast(`Your bid of ${formatNaira(data?.bid?.amount)} has been placed`, 'success');
+            qc.invalidateQueries({ queryKey: ['bid-state', auctionId] });
+            qc.invalidateQueries({ queryKey: ['wallet'] });
+            setTimeout(() => setBidSuccess(false), 2000);
+            bidHistoryRef.current?.scrollIntoView({ behavior: 'smooth' });
+        },
+        onError: (err) => {
+            const code = err?.response?.data?.code;
+            const msg = err?.response?.data?.message;
+            if (code === 'INSUFFICIENT_FUNDS') setBidError('Insufficient wallet balance. Fund your wallet to continue.');
+            else if (code === 'ALREADY_HIGHEST_BIDDER') setBidError('You are already the highest bidder.');
+            else if (code === 'INVALID_BID_AMOUNT') setBidError(msg || 'Bid amount is too low.');
+            else if (code === 'AUCTION_NOT_ACTIVE') setBidError('This auction has ended.');
+            else setBidError(msg || 'Failed to place bid. Please try again.');
+        },
     });
 
     /* ── Share handler ── */
@@ -353,13 +394,17 @@ export default function AuctionDetailPage() {
     const categoryName = item?.category?.name ?? auction.category?.name ?? null;
 
     /* Current bid display */
-    const currentBidAmount = highest_bid?.amount ?? null;
-    const hasBids = bid_count > 0 && currentBidAmount !== null;
+    const currentBidAmount = bidState?.highest_bid_amount ?? highest_bid?.amount ?? null;
+    const liveBidCount = bidState?.bid_count ?? bid_count ?? 0;
+    const hasBids = liveBidCount > 0 && currentBidAmount !== null;
 
     /* Minimum next bid */
-    const minBid = hasBids
+    const minBid = bidState?.minimum_next_bid ?? (hasBids
         ? (Number(currentBidAmount) + Number(bid_increment || 0))
-        : Number(starting_price ?? 0);
+        : Number(starting_price ?? 0));
+
+    /* User current bid */
+    const userCurrentBid = bidState?.user_current_bid ?? null;
 
     /* Seller meta */
     const sellerName = seller
@@ -577,9 +622,16 @@ export default function AuctionDetailPage() {
                                 )}
 
                                 <div className="adp__bid-meta">
-                                    <div className="adp__bid-meta-item">
-                                        <FiTrendingUp size={14} style={{ color: 'var(--primary)' }} />
-                                        <span><strong>{bid_count}</strong> {bid_count === 1 ? 'bid' : 'bids'}</span>
+                                    <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                        <div className="adp__bid-meta-item">
+                                            <FiTrendingUp size={14} style={{ color: 'var(--primary)' }} />
+                                            <span><strong>{liveBidCount}</strong> {liveBidCount === 1 ? 'bid' : 'bids'}</span>
+                                        </div>
+                                        {dataUpdatedAt ? (
+                                            <div style={{ fontSize: '0.6875rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                                Updated {timeAgo(new Date(dataUpdatedAt).toISOString())}
+                                            </div>
+                                        ) : null}
                                     </div>
                                     <div className="adp__bid-meta-item">
                                         <FiEye size={14} />
@@ -600,13 +652,33 @@ export default function AuctionDetailPage() {
                                     <div className="adp__place-bid" id="place-bid-section">
                                         <div className="adp__place-bid-title">Place Your Bid</div>
 
+                                        {/* User's current bid indicator */}
+                                        {userCurrentBid && (
+                                            <div style={{
+                                                padding: '0.625rem 0.875rem',
+                                                borderRadius: 'var(--radius)',
+                                                marginBottom: '0.75rem',
+                                                background: userCurrentBid.status === 'OUTBID' ? 'var(--warning-50, #fffbeb)' : 'var(--primary-50)',
+                                                border: `1px solid ${userCurrentBid.status === 'OUTBID' ? 'var(--warning, #d97706)' : 'var(--primary-light)'}`,
+                                                fontSize: '0.8125rem',
+                                            }}>
+                                                {userCurrentBid.status === 'OUTBID'
+                                                    ? <><FiAlertCircle size={13} style={{ color: 'var(--warning, #d97706)' }} /> You have been outbid. Place a higher bid.</>
+                                                    : <><FiCheckCircle size={13} style={{ color: 'var(--primary)' }} /> Your current bid: {formatNaira(userCurrentBid.amount)}</>
+                                                }
+                                            </div>
+                                        )}
+
                                         {/* Wallet balance */}
                                         <div className="adp__wallet-row">
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                                                 <FiCreditCard size={13} /> Available Balance
                                             </span>
-                                            <span className="adp__wallet-balance">
+                                            <span className="adp__wallet-balance" style={{ color: walletBalance !== null && walletBalance < minBid ? 'var(--danger)' : undefined }}>
                                                 {walletBalance !== null ? formatNaira(walletBalance) : '—'}
+                                                {walletBalance !== null && walletBalance < minBid && (
+                                                    <Link to="/wallet" style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: 'var(--primary)' }}>Fund Wallet</Link>
+                                                )}
                                             </span>
                                         </div>
 
@@ -625,47 +697,64 @@ export default function AuctionDetailPage() {
                                                 placeholder={String(minBid)}
                                                 min={minBid}
                                                 step={bid_increment || 1}
+                                                value={bidAmount}
+                                                onChange={(e) => { setBidAmount(e.target.value); setBidError(''); }}
                                                 aria-label="Bid amount in Naira"
                                             />
                                         </div>
 
-                                        {/* Place bid button — disabled for Phase 6.8 */}
+                                        {/* Inline error */}
+                                        {bidError && (
+                                            <div style={{ fontSize: '0.8125rem', color: 'var(--danger)', marginTop: '0.375rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                                                <FiAlertCircle size={13} />
+                                                {bidError}
+                                                {bidError.includes('Fund your wallet') && (
+                                                    <Link to="/wallet" style={{ marginLeft: '0.25rem', fontWeight: 600 }}>Fund Wallet</Link>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Place bid button */}
                                         <button
                                             id="place-bid-btn"
                                             className="adp__bid-btn"
-                                            disabled
-                                            title="Bidding Coming in Phase 6.8"
+                                            disabled={
+                                                placeBidMutation.isPending ||
+                                                !bidAmount ||
+                                                Number(bidAmount) < minBid ||
+                                                (walletBalance !== null && walletBalance < Number(bidAmount)) ||
+                                                user?.id === seller?.id
+                                            }
+                                            onClick={() => placeBidMutation.mutate(Number(bidAmount))}
+                                            style={{ marginTop: '0.75rem' }}
                                         >
-                                            Bidding Coming in Phase 6.8
+                                            {placeBidMutation.isPending ? 'Placing Bid…' : bidSuccess ? 'Bid Placed! ✓' : 'Place Bid'}
                                         </button>
                                     </div>
                                 ) : (
                                     <div className="adp__login-prompt" id="login-to-bid">
                                         <p>You must be logged in to place a bid on this auction.</p>
-                                        <button
-                                            className="btn btn-primary w-100"
-                                            onClick={() => navigate('/login')}
-                                            id="login-to-bid-btn"
-                                        >
+                                        <button className="btn btn-primary w-100" onClick={() => navigate('/login')} id="login-to-bid-btn">
                                             Login to Place a Bid
                                         </button>
                                     </div>
                                 )
                             )}
+
                         </div>
 
                         {/* ── Bid History ── */}
-                        <div className="adp__card" id="auction-bid-history">
+                        <div className="adp__card" id="auction-bid-history" ref={bidHistoryRef}>
                             <div className="adp__card-header">
                                 <FiTrendingUp size={14} /> Bid History
-                                {bid_count > 0 && (
+                                {liveBidCount > 0 && (
                                     <span style={{ marginLeft: 'auto', fontSize: '0.75rem', fontWeight: 600, color: 'var(--primary)' }}>
-                                        {bid_count} total
+                                        {liveBidCount} total
                                     </span>
                                 )}
                             </div>
-                            <div className="adp__card-body" style={{ padding: bid_count > 0 ? '0 1.25rem' : undefined }}>
-                                <BidHistorySection bids={bids} />
+                            <div className="adp__card-body" style={{ padding: liveBidCount > 0 ? '0 1.25rem' : undefined }}>
+                                <BidHistorySection bids={bids} userBidId={userCurrentBid?.id} />
                             </div>
                         </div>
 
