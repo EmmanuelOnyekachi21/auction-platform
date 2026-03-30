@@ -27,10 +27,13 @@ class ItemStatus(str, Enum):
 
 
 class AuctionStatus(str, Enum):
+    """Lifecycle states for an auction from creation through settlement."""
+
     DRAFT = "DRAFT"
     ACTIVE = "ACTIVE"
     ENDED_WITH_WINNER = "ENDED_WITH_WINNER"
     ENDED_NO_BIDS = "ENDED_NO_BIDS"
+    SETTLEMENT_IN_PROGRESS = "SETTLEMENT_IN_PROGRESS"
     SETTLED = "SETTLED"
     SCHEDULED = "SCHEDULED"
     CANCELLED = "CANCELLED"

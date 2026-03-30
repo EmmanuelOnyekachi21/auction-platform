@@ -44,3 +44,4 @@ RAILWAY_*
 WALLET_*
 ISSUE_*
 testresults*
+celerybeat-schedule

@@ -15,7 +15,8 @@ celery = Celery(
     backend=settings.redis_url,
     include=[
         "apps.notifications.tasks",
-        "apps.wallet.tasks",  # Import wallet tasks for email notifications
+        "apps.wallet.tasks",
+        "apps.auctions.tasks",  # Auction settlement tasks
     ],
 )
 
@@ -36,4 +37,11 @@ celery.conf.update(
     # Worker settings
     worker_prefetch_multiplier=1,  # Take 1 task at a time (fair distribution)
     worker_max_tasks_per_child=1000,  # Restart worker after 1000 tasks
+    # Beat schedule - periodic tasks (cron jobs)
+    beat_schedule={
+        "settle-ended-auctions": {
+            "task": "apps.auctions.tasks.settle_ended_auctions",
+            "schedule": 60.0,  # Run every 60 seconds
+        },
+    },
 )

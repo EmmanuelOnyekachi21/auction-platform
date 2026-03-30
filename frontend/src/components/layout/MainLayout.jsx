@@ -2,11 +2,24 @@
  * MainLayout.jsx — Wraps all authenticated pages
  * Includes Navbar and Footer.
  */
+import { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import Navbar from './Navbar';
 import { FiGrid } from 'react-icons/fi';
+import { useAuthStore } from '../../store/authStore';
+import apiClient from '../../api/client';
 
 export default function MainLayout() {
+  const { isAuthenticated, updateUser } = useAuthStore();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      apiClient.get('/users/me')
+        .then((res) => updateUser(res.data))
+        .catch((err) => console.error("Failed to sync user profile in MainLayout:", err));
+    }
+  }, [isAuthenticated, updateUser]);
+
   return (
     <div className="d-flex flex-column" style={{ minHeight: '100vh' }}>
       <Navbar />

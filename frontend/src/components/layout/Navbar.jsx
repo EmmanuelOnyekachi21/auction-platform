@@ -45,7 +45,7 @@ export default function Navbar() {
     staleTime: 60_000,
     retry: 1,
   });
-  const balance = parseFloat(wallet?.available_balance ?? 0);
+  const balance = parseFloat(wallet?.available_funds ?? wallet?.available_balance ?? 0);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -129,9 +129,15 @@ export default function Navbar() {
                     <Link to="/wallet" className="bw-dropdown__item" onClick={() => setDropdownOpen(false)}>
                       <FiCreditCard size={15} /> Wallet
                     </Link>
-                    <Link to="/become-seller" className="bw-dropdown__item" onClick={() => setDropdownOpen(false)}>
-                      <FiSettings size={15} /> Become a Seller
-                    </Link>
+                    {user?.seller_profile?.is_verified ? (
+                      <Link to="/seller/dashboard" className="bw-dropdown__item" onClick={() => setDropdownOpen(false)}>
+                        <FiShoppingBag size={15} /> Seller Dashboard
+                      </Link>
+                    ) : (
+                      <Link to="/become-seller" className="bw-dropdown__item" onClick={() => setDropdownOpen(false)}>
+                        <FiSettings size={15} /> Become a Seller
+                      </Link>
+                    )}
                     <div className="bw-dropdown__divider" />
                     <button className="bw-dropdown__item bw-dropdown__item--danger" onClick={handleLogout}>
                       <FiLogOut size={15} /> Logout
@@ -174,6 +180,15 @@ export default function Navbar() {
               <NavLink to="/wallet" className="bw-mobile-link" onClick={() => setMobileOpen(false)}>
                 <FiCreditCard size={16} /> Wallet
               </NavLink>
+              {user?.seller_profile?.is_verified ? (
+                <NavLink to="/seller/dashboard" className="bw-mobile-link" onClick={() => setMobileOpen(false)}>
+                  <FiShoppingBag size={16} /> Seller Dashboard
+                </NavLink>
+              ) : (
+                <NavLink to="/become-seller" className="bw-mobile-link" onClick={() => setMobileOpen(false)}>
+                  <FiSettings size={16} /> Become a Seller
+                </NavLink>
+              )}
             </>
           )}
           {user?.role === 'ADMIN' && (

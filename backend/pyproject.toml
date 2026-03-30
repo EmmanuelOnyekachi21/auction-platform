@@ -20,7 +20,8 @@ dependencies = [
     "httpx",
     "python-dotenv",
     "Pillow",
-    "fastapi-mail",  # <--- Add this here
+    "fastapi-mail",
+    "cloudinary>=1.36.0"
 ]
 
 [project.optional-dependencies]

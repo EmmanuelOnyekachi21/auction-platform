@@ -54,15 +54,21 @@ class Settings(BaseSettings):
     flutterwave_webhook_secret: str = ""
     frontend_url: str = ""
 
+    # --- Server URL ---
+    server_url: str
+
+    # Cloudinary
+    cloudinary_cloud_name: str
+    cloudinary_api_key: str
+    cloudinary_api_secret: str
+    cloudinary_upload_preset: str
+
     # --- Pydantic Config ---
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
     )
-
-    # --- Server URL ---
-    server_url: str
 
     @property
     def allowed_hosts_list(self) -> list[str]:

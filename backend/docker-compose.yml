@@ -53,6 +53,19 @@ services:
       - .:/app
     command: celery -A config.celery_app worker --loglevel=info
 
+  celery_beat:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: celery -A config.celery_app beat --loglevel=info
+
 volumes:
   postgres_data:
   # Persists database data between container restarts,
