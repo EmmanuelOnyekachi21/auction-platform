@@ -391,6 +391,7 @@ class AuctionRepository:
                 .selectinload(Item.images),
                 selectinload(Auction.seller),
                 selectinload(Auction.highest_bid),
+                selectinload(Auction.bids),
             )
         )
 
@@ -571,6 +572,7 @@ class AuctionRepository:
                 .selectinload(Item.images),
                 selectinload(Auction.seller),
                 selectinload(Auction.highest_bid),
+                selectinload(Auction.bids),
             )
         )
 

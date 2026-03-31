@@ -288,6 +288,15 @@ export default function AuctionDetailPage() {
         enabled: !!auctionId,
     });
 
+    /* ── Bid history ── */
+    const { data: bidHistoryData } = useQuery({
+        queryKey: ['auction-bids', auctionId],
+        queryFn: () => apiClient.get(`/auctions/${auctionId}/bids?limit=10`).then(r => r.data?.data ?? []),
+        refetchInterval: 10_000,
+        enabled: !!auctionId,
+    });
+    const liveBids = Array.isArray(bidHistoryData) ? bidHistoryData : [];
+
     /* ── Place bid mutation ── */
     const placeBidMutation = useMutation({
         mutationFn: (amount) => apiClient.post(`/auctions/${auctionId}/bids`, { amount }),
@@ -298,6 +307,7 @@ export default function AuctionDetailPage() {
             setBidAmount('');
             showToast(`Your bid of ${formatNaira(data?.bid?.amount)} has been placed`, 'success');
             qc.invalidateQueries({ queryKey: ['bid-state', auctionId] });
+            qc.invalidateQueries({ queryKey: ['auction-bids', auctionId] });
             qc.invalidateQueries({ queryKey: ['wallet'] });
             setTimeout(() => setBidSuccess(false), 2000);
             bidHistoryRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -601,13 +611,14 @@ export default function AuctionDetailPage() {
                                     <span className="adp__bid-label">
                                         {hasBids ? 'Current Bid' : 'Starting Bid'}
                                     </span>
-                                    {/* Reserve indicator — only if reserve_price_met is not null */}
+                                    {/* Reserve indicator — commented out until reserve price feature is complete
                                     {reserve_price_met !== null && reserve_price_met !== undefined && (
                                         <span className={`adp__reserve ${reserve_price_met ? 'adp__reserve--met' : 'adp__reserve--not-met'}`}>
                                             <FiCheckCircle size={11} />
                                             {reserve_price_met ? 'Reserve Met' : 'Reserve Not Met'}
                                         </span>
                                     )}
+                                    */}
                                 </div>
 
                                 {hasBids ? (
@@ -754,7 +765,7 @@ export default function AuctionDetailPage() {
                                 )}
                             </div>
                             <div className="adp__card-body" style={{ padding: liveBidCount > 0 ? '0 1.25rem' : undefined }}>
-                                <BidHistorySection bids={bids} userBidId={userCurrentBid?.id} />
+                                <BidHistorySection bids={liveBids} userBidId={userCurrentBid?.id} />
                             </div>
                         </div>
 

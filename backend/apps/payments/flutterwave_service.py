@@ -83,7 +83,7 @@ class FlutterwaveService:
         )
 
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
                     f"{self.base_url}/payments", json=payload, headers=self.headers
                 )
@@ -101,6 +101,14 @@ class FlutterwaveService:
                 error_msg = data.get("message", "Unknown error")
                 logger.error(f"Flutterwave payment initiation failed: {error_msg}")
                 raise FlutterwavePaymentError(error_msg)
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"HTTP error initiating payment for "
+                f"{transaction_reference}: {e.response.text}"
+            )
+            raise FlutterwavePaymentError(
+                f"Payment initiation failed: {e.response.text}"
+            )
         except httpx.HTTPError as e:
             logger.error(
                 f"HTTP error initiating payment for {transaction_reference}: {e}"
