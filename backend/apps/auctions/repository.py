@@ -470,15 +470,31 @@ class AuctionRepository:
     async def get_auctions_to_settle(self) -> Sequence[Auction]:
         """Get auctions that need settlement (ended but still active).
 
+        Also recovers auctions stuck in SETTLEMENT_IN_PROGRESS for over 10
+        minutes — handles the case where a worker crashed mid-settlement.
+
         Returns:
             Sequence of auctions to settle
 
         """
+        from datetime import timedelta
+
+        from sqlalchemy import or_
+
         now = datetime.now(timezone.utc)
+        stale_threshold = now - timedelta(minutes=10)
+
         stmt = (
             select(Auction)
-            .where(Auction.status == AuctionStatus.ACTIVE)
-            .where(Auction.ends_at <= now)
+            .where(
+                or_(
+                    # Normal case: ended but not yet claimed
+                    (Auction.status == AuctionStatus.ACTIVE) & (Auction.ends_at <= now),
+                    # Recovery case: claimed but worker died
+                    (Auction.status == AuctionStatus.SETTLEMENT_IN_PROGRESS)
+                    & (Auction.updated_at <= stale_threshold),
+                )
+            )
             .options(
                 selectinload(Auction.auction_items).selectinload(AuctionItem.item),
                 selectinload(Auction.seller),
@@ -499,9 +515,7 @@ class AuctionRepository:
             True if successfully claimed, False if already claimed
 
         """
-        from sqlalchemy import (  # noqa: F811 — already imported at module level  # noqa: F811 — already imported at module level
-            update,
-        )
+        from sqlalchemy import update
 
         stmt = (
             update(Auction)

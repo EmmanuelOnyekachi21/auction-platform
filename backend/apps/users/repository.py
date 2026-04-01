@@ -292,3 +292,17 @@ class UserRepository:
         stmt = select(Wallet).where(Wallet.user_id == user_id)
         result = await self._db.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def increment_total_sales(self, user_id: uuid.UUID) -> None:
+        """Increment total_sales counter on UserProfile by 1.
+
+        Called after escrow is released to seller on order completion.
+        Creates profile if it doesn't exist yet.
+        """
+        stmt = select(UserProfile).where(UserProfile.user_id == user_id)
+        result = await self._db.execute(stmt)
+        profile = result.scalar_one_or_none()
+
+        if profile:
+            profile.total_sales = (profile.total_sales or 0) + 1
+            await self._db.flush()

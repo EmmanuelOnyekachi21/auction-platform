@@ -206,6 +206,14 @@ class OrderNotFoundException(NotFoundException):
         super().__init__(message=message, code="ORDER_NOT_FOUND")
 
 
+class EscrowNotFoundException(NotFoundException):
+    """Raised when an escrow cannot be found by the given identifier."""
+
+    def __init__(self, message: str = "Escrow not found") -> None:
+        """Initialise with error code ``ESCROW_NOT_FOUND``."""
+        super().__init__(message=message, code="ESCROW_NOT_FOUND")
+
+
 class WalletNotFoundException(NotFoundException):
     """Raised when a wallet cannot be found for the given user."""
 

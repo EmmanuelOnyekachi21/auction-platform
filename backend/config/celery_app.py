@@ -16,7 +16,8 @@ celery = Celery(
     include=[
         "apps.notifications.tasks",
         "apps.wallet.tasks",
-        "apps.auctions.tasks",  # Auction settlement tasks
+        "apps.auctions.tasks",
+        "apps.escrow.tasks",  # Auto-release and overdue shipment tasks
     ],
 )
 
@@ -41,7 +42,15 @@ celery.conf.update(
     beat_schedule={
         "settle-ended-auctions": {
             "task": "apps.auctions.tasks.settle_ended_auctions",
-            "schedule": 60.0,  # Run every 60 seconds
+            "schedule": 60.0,  # Every 60 seconds
+        },
+        "auto-release-escrow": {
+            "task": "apps.escrow.tasks.process_auto_releases",
+            "schedule": 300.0,  # Every 5 minutes
+        },
+        "check-overdue-shipments": {
+            "task": "apps.escrow.tasks.process_overdue_shipments",
+            "schedule": 1800.0,  # Every 30 minutes
         },
     },
 )
