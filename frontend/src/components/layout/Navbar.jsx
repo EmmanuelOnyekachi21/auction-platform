@@ -10,7 +10,7 @@ import { walletActions } from '../../api/wallet';
 import {
   FiMenu, FiX, FiHome, FiGrid, FiHelpCircle,
   FiCreditCard, FiBell, FiUser, FiLogOut,
-  FiShield, FiSettings, FiShoppingBag, FiChevronDown, FiList,
+  FiShield, FiSettings, FiShoppingBag, FiChevronDown, FiList, FiAlertCircle,
 } from 'react-icons/fi';
 import './Navbar.css';
 
@@ -21,11 +21,20 @@ const fmtNaira = (n) => {
 };
 
 /** Initials circle */
-function Avatar({ user }) {
+function Avatar({ user, showDot }) {
   const initials = `${(user?.first_name?.[0] || '').toUpperCase()}${(user?.last_name?.[0] || '').toUpperCase()}`;
   return (
-    <div className="bw-avatar" title={`${user?.first_name || ''} ${user?.last_name || ''}`}>
+    <div className="bw-avatar" title={showDot ? 'You have items awaiting confirmation' : `${user?.first_name || ''} ${user?.last_name || ''}`}
+         style={{ position: 'relative' }}>
       {initials || <FiUser size={14} />}
+      {showDot && (
+        <span style={{
+          position: 'absolute', top: -2, right: -2,
+          width: 10, height: 10, borderRadius: '50%',
+          backgroundColor: '#D97706',
+          border: '2px solid var(--card-bg)',
+        }} />
+      )}
     </div>
   );
 }
@@ -45,6 +54,20 @@ export default function Navbar() {
     staleTime: 60_000,
     retry: 1,
   });
+
+  // Check for orders awaiting buyer's delivery confirmation
+  const { data: pendingOrders } = useQuery({
+    queryKey: ['pending-confirmations'],
+    queryFn: async () => {
+      const res = await apiClient.get('/users/me/orders?role=buyer&status=shipped&limit=50');
+      return res.data?.data ?? res.data?.items ?? [];
+    },
+    enabled: isAuthenticated,
+    staleTime: 60_000,
+    retry: 1,
+  });
+  const hasPendingConfirmations = (pendingOrders?.length ?? 0) > 0;
+
   const balance = parseFloat(wallet?.available_funds ?? wallet?.available_balance ?? 0);
 
   // Close dropdown on outside click
@@ -115,7 +138,7 @@ export default function Navbar() {
                   aria-expanded={dropdownOpen}
                   id="navbar-user-dropdown"
                 >
-                  <Avatar user={user} />
+                  <Avatar user={user} showDot={hasPendingConfirmations} />
                   <span className="bw-dropdown__name d-none d-md-inline">
                     {user?.first_name || 'Account'}
                   </span>
@@ -131,6 +154,12 @@ export default function Navbar() {
                     </Link>
                     <Link to="/my-bids" className="bw-dropdown__item" onClick={() => setDropdownOpen(false)}>
                       <FiList size={15} /> My Bids
+                    </Link>
+                    <Link to="/my-orders" className="bw-dropdown__item" onClick={() => setDropdownOpen(false)}>
+                      <FiShoppingBag size={15} /> My Orders
+                    </Link>
+                    <Link to="/my-disputes" className="bw-dropdown__item" onClick={() => setDropdownOpen(false)}>
+                      <FiAlertCircle size={15} /> My Disputes
                     </Link>
                     {user?.seller_profile?.is_verified ? (
                       <Link to="/seller/dashboard" className="bw-dropdown__item" onClick={() => setDropdownOpen(false)}>
@@ -185,6 +214,12 @@ export default function Navbar() {
               </NavLink>
               <NavLink to="/my-bids" className="bw-mobile-link" onClick={() => setMobileOpen(false)}>
                 <FiList size={16} /> My Bids
+              </NavLink>
+              <NavLink to="/my-orders" className="bw-mobile-link" onClick={() => setMobileOpen(false)}>
+                <FiShoppingBag size={16} /> My Orders
+              </NavLink>
+              <NavLink to="/my-disputes" className="bw-mobile-link" onClick={() => setMobileOpen(false)}>
+                <FiAlertCircle size={16} /> My Disputes
               </NavLink>
               {user?.seller_profile?.is_verified ? (
                 <NavLink to="/seller/dashboard" className="bw-mobile-link" onClick={() => setMobileOpen(false)}>

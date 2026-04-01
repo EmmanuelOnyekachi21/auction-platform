@@ -210,7 +210,9 @@ class Auction(BaseModel):
 
     # Relationships
     seller: Mapped["User"] = relationship("User", back_populates="auctions")
-    highest_bid: Mapped["Bid"] = relationship("Bid", foreign_keys=[highest_bid_id])
+    highest_bid: Mapped["Bid"] = relationship(
+        "Bid", foreign_keys=[highest_bid_id], post_update=True
+    )
     bids: Mapped[list["Bid"]] = relationship(
         "Bid",
         back_populates="auction",

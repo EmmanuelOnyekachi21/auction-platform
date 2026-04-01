@@ -29,8 +29,17 @@ import PublicProfilePage from './pages/profile/PublicProfilePage';
 // Bids Pages
 import MyBidsPage from './pages/bids/MyBidsPage';
 
+// Orders Pages
+import MyOrdersPage from './pages/orders/MyOrdersPage';
+import OrderDetailPage from './pages/orders/OrderDetailPage';
+
+// Dispute Pages
+import DisputeDetailPage from './pages/disputes/DisputeDetailPage';
+import MyDisputesPage from './pages/disputes/MyDisputesPage';
+
 // Admin Pages
 import VerifySellersPage from './pages/admin/VerifySellersPage';
+import AdminDisputesPage from './pages/admin/AdminDisputesPage';
 
 // Seller Pages
 import SellerDashboardPage from './pages/seller/SellerDashboardPage';
@@ -198,10 +207,15 @@ function App() {
                 <Route path="/profile" element={<MyProfilePage />} />
                 <Route path="/become-seller" element={<BecomeSellerPage />} />
                 <Route path="/admin/verify-sellers" element={<VerifySellersPage />} />
+                <Route path="/admin/disputes" element={<AdminDisputesPage />} />
                 <Route path="/wallet" element={<WalletPage />} />
                 <Route path="/wallet/transactions" element={<TransactionsPage />} />
                 <Route path="/payment/:paymentId/confirm" element={<PaymentConfirmPage />} />
                 <Route path="/my-bids" element={<MyBidsPage />} />
+                <Route path="/my-orders" element={<MyOrdersPage />} />
+                <Route path="/orders/:orderId" element={<OrderDetailPage />} />
+                <Route path="/my-disputes" element={<MyDisputesPage />} />
+                <Route path="/disputes/:disputeId" element={<DisputeDetailPage />} />
                 <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
                 <Route path="/seller/pending" element={<SellerPendingPage />} />
                 <Route path="/seller/create-auction" element={<CreateAuctionPage />} />

@@ -3,7 +3,7 @@
 import uuid
 from datetime import datetime, timedelta, timezone
 from decimal import Decimal
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
 
@@ -170,9 +170,17 @@ class AuctionResponse(BaseModel):
     seller: PublicUserResponse
     highest_bid: Optional[BidSummary] = None
 
-    # Counters (computed by service layer)
-    bid_count: int = 0
+    # Load bids from ORM to count them — excluded from API output
+    bids: List[Any] = Field(default_factory=list, exclude=True)
+
+    # Counters
     viewer_count: int = 0
+
+    @computed_field
+    @property
+    def bid_count(self) -> int:
+        """Count bids from loaded relationship."""
+        return len(self.bids) if self.bids else 0
 
     @computed_field
     @property

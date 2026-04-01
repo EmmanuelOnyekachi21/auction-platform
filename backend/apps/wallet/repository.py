@@ -69,6 +69,20 @@ class WalletRepository:
         result = await self._db.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_by_id_with_lock(self, wallet_id: UUID) -> Wallet | None:
+        """Get wallet by ID with pessimistic lock.
+
+        Args:
+            wallet_id: Wallet UUID
+
+        Returns:
+            Wallet instance or None if not found
+
+        """
+        stmt = select(Wallet).where(Wallet.id == wallet_id).with_for_update()
+        result = await self._db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def update_balances(
         self,
         wallet_id: UUID,
