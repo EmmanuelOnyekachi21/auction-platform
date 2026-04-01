@@ -9,10 +9,22 @@ from celery import Celery
 
 from config.settings import settings
 
+
+def _redis_url_with_ssl(url: str) -> str:
+    """Append ssl_cert_reqs=CERT_NONE for rediss:// URLs (required by Celery)."""
+    if url.startswith("rediss://") and "ssl_cert_reqs" not in url:
+        separator = "&" if "?" in url else "?"
+        return f"{url}{separator}ssl_cert_reqs=CERT_NONE"
+    return url
+
+
+_broker_url = _redis_url_with_ssl(settings.redis_url)
+_backend_url = _redis_url_with_ssl(settings.redis_url)
+
 celery = Celery(
     "auction_platform",
-    broker=settings.redis_url,
-    backend=settings.redis_url,
+    broker=_broker_url,
+    backend=_backend_url,
     include=[
         "apps.notifications.tasks",
         "apps.wallet.tasks",
