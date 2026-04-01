@@ -72,7 +72,6 @@ async def lifespan(app: FastAPI):
 
     # Verify Redis connection
     try:
-        logger.info("Redis URL (masked): %s", settings.redis_url[:30])
         redis_client = aioredis.from_url(settings.redis_url)
         await redis_client.ping()
         await redis_client.aclose()
