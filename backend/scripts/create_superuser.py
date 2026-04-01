@@ -1,19 +1,20 @@
 """One-off script to create a superuser account.
 
 Usage:
-    python scripts/create_superuser.py
+    python scripts/create_superuser.py --first-name Admin --last-name User \
+        --email admin@example.com --phone 08000000000 --password changeme123
 """
 
+import argparse
 import asyncio
 import sys
 import uuid
 
 from passlib.context import CryptContext
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 sys.path.insert(0, ".")
-
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.users.enums import AccountStatus, UserRole
 from apps.users.models import User, UserProfile
@@ -30,7 +31,6 @@ async def create_superuser(
     password: str,
 ) -> None:
     async with AsyncSession(engine) as session:
-        # Check if user already exists
         result = await session.execute(select(User).where(User.email == email))
         if result.scalar_one_or_none():
             print(f"User with email {email} already exists.")
@@ -58,12 +58,20 @@ async def create_superuser(
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Create a superuser")
+    parser.add_argument("--first-name", required=True)
+    parser.add_argument("--last-name", required=True)
+    parser.add_argument("--email", required=True)
+    parser.add_argument("--phone", required=True)
+    parser.add_argument("--password", required=True)
+    args = parser.parse_args()
+
     asyncio.run(
         create_superuser(
-            first_name="Admin",
-            last_name="User",
-            email="admin@example.com",
-            phone_number="08000000000",
-            password="changeme123",
+            first_name=args.first_name,
+            last_name=args.last_name,
+            email=args.email,
+            phone_number=args.phone,
+            password=args.password,
         )
     )
