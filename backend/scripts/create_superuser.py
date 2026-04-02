@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 sys.path.insert(0, ".")
 
+import config.model_registry  # noqa: F401
 from apps.users.enums import AccountStatus, UserRole
 from apps.users.models import User, UserProfile
 from config.database import engine
