@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     # --- Resend ---
     resend_api_key: str = ""
 
+    # --- Brevo ---
+    brevo_api_key: str = ""
+
     # --- Flutterwave ---
     flutterwave_secret_key: str = ""
     flutterwave_public_key: str = ""  # You'll need this for frontend integration later
