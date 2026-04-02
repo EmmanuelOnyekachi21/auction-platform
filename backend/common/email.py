@@ -1,110 +1,57 @@
-"""Email utilities using FastAPI-Mail.
+"""Email utilities using Resend HTTP API.
 
-Provides centralized email configuration and sending functionality.
-Supports both development (Mailtrap) and production SMTP servers.
+Provides centralized email sending functionality via Resend,
+which works on platforms that block outbound SMTP (e.g. Railway).
 """
 
 import logging
 from typing import List
 
-from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
+import resend
 
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
 
-def get_mail_config() -> ConnectionConfig:
-    """Create FastAPI-Mail connection configuration from settings.
-
-    Returns:
-        ConnectionConfig: Configured email connection settings
-
-    Notes:
-        - Uses settings from environment variables
-        - VALIDATE_CERTS is disabled for Mailtrap (sandbox)
-        - For production, ensure MAIL_SSL_TLS=True and valid certificates
-
-    """
-    # Disable cert validation for Mailtrap sandbox
-    validate_certs = not settings.mail_server.endswith("mailtrap.io")
-
-    return ConnectionConfig(
-        MAIL_USERNAME=settings.mail_username,
-        MAIL_PASSWORD=settings.mail_password,
-        MAIL_FROM=settings.mail_from,
-        MAIL_PORT=settings.mail_port,
-        MAIL_SERVER=settings.mail_server,
-        MAIL_FROM_NAME=settings.mail_from_name,
-        MAIL_STARTTLS=settings.mail_starttls,
-        MAIL_SSL_TLS=settings.mail_ssl_tls,
-        USE_CREDENTIALS=True,
-        VALIDATE_CERTS=validate_certs,
-    )
-
-
-def get_mail_client() -> FastMail:
-    """Get configured FastMail client instance.
-
-    Returns:
-        FastMail: Ready-to-use email client
-
-    Example:
-        ```python
-        fm = get_mail_client()
-        await fm.send_message(message)
-        ```
-
-    """
-    return FastMail(get_mail_config())
+def _init_resend() -> None:
+    resend.api_key = settings.resend_api_key
 
 
 async def send_email(
     subject: str,
     recipients: List[str],
     body: str,
-    subtype: MessageType = MessageType.plain,
+    subtype: str = "plain",
 ) -> None:
-    """Send an email using configured SMTP settings.
+    """Send an email via Resend HTTP API.
 
     Args:
         subject: Email subject line
         recipients: List of recipient email addresses
         body: Email body content
-        subtype: Message type (plain or html)
+        subtype: 'plain' or 'html'
 
     Raises:
         Exception: If email sending fails
 
-    Example:
-        ```python
-        await send_email(
-            subject="Welcome!",
-            recipients=["user@example.com"],
-            body="Hello, welcome to our platform!",
-        )
-        ```
-
     """
-    message = MessageSchema(
-        subject=subject,
-        recipients=recipients,
-        body=body,
-        subtype=subtype,
-    )
+    _init_resend()
 
-    fm = get_mail_client()
-
-    logger.info(
-        "Sending email to %s via %s:%s (subject: %s)",
-        recipients,
-        settings.mail_server,
-        settings.mail_port,
-        subject,
-    )
+    logger.info("Sending email to %s (subject: %s)", recipients, subject)
 
     try:
-        await fm.send_message(message)
+        params = {
+            "from": f"{settings.mail_from_name} <{settings.mail_from}>",
+            "to": recipients,
+            "subject": subject,
+        }
+        if subtype == "html":
+            params["html"] = body
+        else:
+            params["text"] = body
+
+        resend.Emails.send(params)
         logger.info("Email sent successfully to %s", recipients)
     except Exception as exc:
         logger.error("Failed to send email to %s: %s", recipients, exc)
@@ -116,20 +63,10 @@ async def send_html_email(
     recipients: List[str],
     html_body: str,
 ) -> None:
-    """Send an HTML email.
-
-    Args:
-        subject: Email subject line
-        recipients: List of recipient email addresses
-        html_body: HTML content for email body
-
-    Raises:
-        Exception: If email sending fails
-
-    """
+    """Send an HTML email via Resend."""
     await send_email(
         subject=subject,
         recipients=recipients,
         body=html_body,
-        subtype=MessageType.html,
+        subtype="html",
     )

@@ -21,6 +21,7 @@ dependencies = [
     "python-dotenv",
     "Pillow",
     "fastapi-mail",
+    "resend",
     "cloudinary>=1.36.0"
 ]
 

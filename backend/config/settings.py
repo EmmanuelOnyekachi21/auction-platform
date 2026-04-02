@@ -38,14 +38,17 @@ class Settings(BaseSettings):
     allowed_hosts: str = "localhost,127.0.0.1"
 
     # --- Email (SMTP) ---
-    mail_username: str
-    mail_password: str
-    mail_from: str = "noreply@auction-platform.com"
-    mail_port: int
-    mail_server: str
+    mail_username: str = ""
+    mail_password: str = ""
+    mail_from: str = "noreply@resend.dev"
+    mail_port: int = 465
+    mail_server: str = "smtp.resend.com"
     mail_from_name: str = "Auction Platform"
-    mail_starttls: bool = True
-    mail_ssl_tls: bool = False
+    mail_starttls: bool = False
+    mail_ssl_tls: bool = True
+
+    # --- Resend ---
+    resend_api_key: str = ""
 
     # --- Flutterwave ---
     flutterwave_secret_key: str = ""
