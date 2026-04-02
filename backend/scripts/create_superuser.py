@@ -10,18 +10,16 @@ import asyncio
 import sys
 import uuid
 
-from passlib.context import CryptContext
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 sys.path.insert(0, ".")
 
 import config.model_registry  # noqa: F401
+from apps.authentication.security import hash_password
 from apps.users.enums import AccountStatus, UserRole
 from apps.users.models import User, UserProfile
 from config.database import engine
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 async def create_superuser(
@@ -43,7 +41,7 @@ async def create_superuser(
             last_name=last_name,
             email=email,
             phone_number=phone_number,
-            password_hash=pwd_context.hash(password),
+            password_hash=hash_password(password),
             role=UserRole.SUPERUSER,
             account_status=AccountStatus.ACTIVE,
             is_email_verified=True,
