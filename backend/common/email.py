@@ -1,63 +1,68 @@
-"""Email utilities using Brevo (Sendinblue) HTTP API.
+"""Email utilities using FastAPI-Mail.
 
-Sends email via Brevo's transactional API over HTTPS,
-avoiding SMTP port restrictions on platforms like Railway.
+Provides centralized email configuration and sending functionality.
+Supports both development (Mailtrap) and production SMTP servers.
 """
 
 import logging
 from typing import List
 
-import httpx
+from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
 
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-BREVO_API_URL = "https://api.brevo.com/v3/smtp/email"
+
+def get_mail_config() -> ConnectionConfig:
+    """Create FastAPI-Mail connection configuration from settings."""
+    validate_certs = not settings.mail_server.endswith("mailtrap.io")
+
+    return ConnectionConfig(
+        MAIL_USERNAME=settings.mail_username,
+        MAIL_PASSWORD=settings.mail_password,
+        MAIL_FROM=settings.mail_from,
+        MAIL_PORT=settings.mail_port,
+        MAIL_SERVER=settings.mail_server,
+        MAIL_FROM_NAME=settings.mail_from_name,
+        MAIL_STARTTLS=settings.mail_starttls,
+        MAIL_SSL_TLS=settings.mail_ssl_tls,
+        USE_CREDENTIALS=True,
+        VALIDATE_CERTS=validate_certs,
+    )
+
+
+def get_mail_client() -> FastMail:
+    """Get configured FastMail client instance."""
+    return FastMail(get_mail_config())
 
 
 async def send_email(
     subject: str,
     recipients: List[str],
     body: str,
-    subtype: str = "plain",
+    subtype: MessageType = MessageType.plain,
 ) -> None:
-    """Send an email via Brevo HTTP API.
+    """Send an email using configured SMTP settings."""
+    message = MessageSchema(
+        subject=subject,
+        recipients=recipients,
+        body=body,
+        subtype=subtype,
+    )
 
-    Args:
-        subject: Email subject line
-        recipients: List of recipient email addresses
-        body: Email body content
-        subtype: 'plain' or 'html'
+    fm = get_mail_client()
 
-    Raises:
-        Exception: If email sending fails
-
-    """
-    logger.info("Sending email to %s (subject: %s)", recipients, subject)
-
-    payload = {
-        "sender": {"name": settings.mail_from_name, "email": settings.mail_from},
-        "to": [{"email": r} for r in recipients],
-        "subject": subject,
-    }
-    if subtype == "html":
-        payload["htmlContent"] = body
-    else:
-        payload["textContent"] = body
+    logger.info(
+        "Sending email to %s via %s:%s (subject: %s)",
+        recipients,
+        settings.mail_server,
+        settings.mail_port,
+        subject,
+    )
 
     try:
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
-                BREVO_API_URL,
-                json=payload,
-                headers={
-                    "api-key": settings.brevo_api_key,
-                    "Content-Type": "application/json",
-                },
-                timeout=10,
-            )
-            response.raise_for_status()
+        await fm.send_message(message)
         logger.info("Email sent successfully to %s", recipients)
     except Exception as exc:
         logger.error("Failed to send email to %s: %s", recipients, exc)
@@ -69,10 +74,10 @@ async def send_html_email(
     recipients: List[str],
     html_body: str,
 ) -> None:
-    """Send an HTML email via Brevo."""
+    """Send an HTML email."""
     await send_email(
         subject=subject,
         recipients=recipients,
         body=html_body,
-        subtype="html",
+        subtype=MessageType.html,
     )

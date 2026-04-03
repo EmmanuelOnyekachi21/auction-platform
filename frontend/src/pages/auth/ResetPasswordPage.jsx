@@ -43,7 +43,18 @@ export default function ResetPasswordPage() {
       setTimeout(() => navigate('/login'), 3000);
     } catch (err) {
       setStatus('error');
-      setMessage(err.response?.data?.detail || 'Failed to reset password. The link may be expired.');
+      const errorData = err.response?.data;
+      let msg = 'Failed to reset password. The link may be expired.';
+      if (errorData) {
+        if (Array.isArray(errorData.details) && errorData.details.length > 0) {
+          msg = errorData.details.map(e => e.message.replace(/^Value error,\s*/i, '')).join(', ');
+        } else if (errorData.message) {
+          msg = errorData.message;
+        } else if (typeof errorData.detail === 'string') {
+          msg = errorData.detail;
+        }
+      }
+      setMessage(msg);
     }
   };
 

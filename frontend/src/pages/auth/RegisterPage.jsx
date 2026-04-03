@@ -52,10 +52,17 @@ export default function RegisterPage() {
             let errorMessage = 'Registration failed. Try again.';
             if (err.response?.data) {
                 const errorData = err.response.data;
-                if (errorData.message) errorMessage = errorData.message;
-                else if (typeof errorData.detail === 'string') errorMessage = errorData.detail;
-                else if (errorData.detail?.message) errorMessage = errorData.detail.message;
-                else if (Array.isArray(errorData.detail)) errorMessage = errorData.detail.map(e => e.msg).join(', ');
+                if (Array.isArray(errorData.details) && errorData.details.length > 0) {
+                    errorMessage = errorData.details.map(e => e.message.replace(/^Value error,\s*/i, '')).join(', ');
+                } else if (errorData.message) {
+                    errorMessage = errorData.message;
+                } else if (typeof errorData.detail === 'string') {
+                    errorMessage = errorData.detail;
+                } else if (errorData.detail?.message) {
+                    errorMessage = errorData.detail.message;
+                } else if (Array.isArray(errorData.detail)) {
+                    errorMessage = errorData.detail.map(e => e.msg).join(', ');
+                }
             }
             setApiError(errorMessage);
         } finally {
