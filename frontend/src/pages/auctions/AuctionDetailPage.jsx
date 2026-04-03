@@ -663,6 +663,40 @@ export default function AuctionDetailPage() {
                                     <div className="adp__place-bid" id="place-bid-section">
                                         <div className="adp__place-bid-title">Place Your Bid</div>
 
+                                        {/* Seller cannot bid on their own auction */}
+                                        {user?.id === seller?.id ? (
+                                            <div style={{
+                                                padding: '0.75rem 1rem',
+                                                borderRadius: 'var(--radius)',
+                                                background: 'var(--warning-50, #fffbeb)',
+                                                border: '1px solid var(--warning, #d97706)',
+                                                fontSize: '0.8125rem',
+                                                color: 'var(--warning, #d97706)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                            }}>
+                                                <FiAlertCircle size={14} />
+                                                You listed this auction and cannot place a bid on it.
+                                            </div>
+                                        ) : userCurrentBid?.status === 'WINNING' ? (
+                                            /* Already highest bidder — no point showing the form */
+                                            <div style={{
+                                                padding: '0.75rem 1rem',
+                                                borderRadius: 'var(--radius)',
+                                                background: 'var(--primary-50)',
+                                                border: '1px solid var(--primary-light)',
+                                                fontSize: '0.8125rem',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem',
+                                                color: 'var(--primary)',
+                                            }}>
+                                                <FiCheckCircle size={14} />
+                                                You are currently the highest bidder at {formatNaira(userCurrentBid.amount)}. You're winning!
+                                            </div>
+                                        ) : (
+                                            <>
                                         {/* User's current bid indicator */}
                                         {userCurrentBid && (
                                             <div style={{
@@ -733,14 +767,15 @@ export default function AuctionDetailPage() {
                                                 placeBidMutation.isPending ||
                                                 !bidAmount ||
                                                 Number(bidAmount) < minBid ||
-                                                (walletBalance !== null && walletBalance < Number(bidAmount)) ||
-                                                user?.id === seller?.id
+                                                (walletBalance !== null && walletBalance < Number(bidAmount))
                                             }
                                             onClick={() => placeBidMutation.mutate(Number(bidAmount))}
                                             style={{ marginTop: '0.75rem' }}
                                         >
                                             {placeBidMutation.isPending ? 'Placing Bid…' : bidSuccess ? 'Bid Placed! ✓' : 'Place Bid'}
                                         </button>
+                                            </>
+                                        )}
                                     </div>
                                 ) : (
                                     <div className="adp__login-prompt" id="login-to-bid">
