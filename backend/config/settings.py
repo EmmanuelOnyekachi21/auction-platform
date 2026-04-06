@@ -69,6 +69,10 @@ class Settings(BaseSettings):
     cloudinary_api_secret: str
     cloudinary_upload_preset: str
 
+    # --- Auction Rules ---
+    max_auction_duration_hours: int = 24
+    min_auction_duration_hours: int = 1
+
     # --- Pydantic Config ---
     model_config = SettingsConfigDict(
         env_file=".env",

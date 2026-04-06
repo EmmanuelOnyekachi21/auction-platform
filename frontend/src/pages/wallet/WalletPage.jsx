@@ -1,5 +1,5 @@
 /**
- * WalletPage.jsx — Nohans Wallet Dashboard
+ * WalletPage.jsx — KaraKaja Wallet Dashboard
     * Fintech - grade wallet with balance cards, fund / withdraw modals.
  * Uses react - icons exclusively.
  */

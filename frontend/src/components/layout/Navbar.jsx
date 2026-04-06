@@ -1,5 +1,5 @@
 /**
- * Navbar.jsx — Nohans Top Navigation
+ * Navbar.jsx — KaraKaja Top Navigation
  * Fintech-grade: fixed top, white, wallet widget, user avatar dropdown.
  */
 import { useState, useRef, useEffect } from 'react';
@@ -93,7 +93,7 @@ export default function Navbar() {
         {/* Brand */}
         <Link to="/" className="bw-navbar__brand">
           <FiGrid size={22} />
-          <span>Nohans</span>
+          <span className="karakaja-logo">KaraKaja</span>
         </Link>
 
         {/* Nav Links (desktop) */}

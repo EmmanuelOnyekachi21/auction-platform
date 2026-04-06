@@ -1,7 +1,7 @@
 /**
  * auctions.js — Auction & Category API actions
  *
- * All auction-related API calls for the Nohans marketplace.
+ * All auction-related API calls for the KaraKaja marketplace.
  * Integrates with the configured apiClient (handles auth token injection).
  */
 

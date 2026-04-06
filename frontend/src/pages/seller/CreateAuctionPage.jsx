@@ -52,11 +52,10 @@ const CONDITIONS = [
 ];
 
 const DURATION_PILLS = [
-    { label: '1 Day',   days: 1  },
-    { label: '3 Days',  days: 3  },
-    { label: '7 Days',  days: 7  },
-    { label: '14 Days', days: 14 },
-    { label: '30 Days', days: 30 },
+    { label: '6 Hours',  hours: 6  },
+    { label: '12 Hours', hours: 12 },
+    { label: '18 Hours', hours: 18 },
+    { label: '24 Hours', hours: 24 },
 ];
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -460,7 +459,7 @@ function Step3Settings({ itemId, onNext, onBack }) {
     const { showToast } = useToast();
     const [submitting, setSubmitting]     = useState(false);
     const [reserveOn, setReserveOn]       = useState(false);
-    const [activeDuration, setActiveDur]  = useState(null); // days
+    const [activeDuration, setActiveDur]  = useState(null); // hours
 
     const now      = new Date();
     const defaultStart = isoLocal(plusHours(now, 0.05)); // ~3 mins ahead for testing
@@ -489,10 +488,10 @@ function Step3Settings({ itemId, onNext, onBack }) {
 
     const startAt = watch('start_at');
 
-    const applyDuration = (days) => {
+    const applyDuration = (hours) => {
         const start = new Date(startAt || now);
-        setValue('end_at', isoLocal(plusDays(start, days)));
-        setActiveDur(days);
+        setValue('end_at', isoLocal(plusHours(start, hours)));
+        setActiveDur(hours);
     };
 
     const onSubmit = async (data) => {
@@ -544,8 +543,13 @@ function Step3Settings({ itemId, onNext, onBack }) {
                         id="auction-end"
                         type="datetime-local"
                         className={`form-control ${errors.end_at ? 'is-invalid' : ''}`}
+                        readOnly
+                        style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }}
                         {...register('end_at')}
                     />
+                    <p className="cap__hint" style={{ marginTop: '0.25rem' }}>
+                        <FiInfo size={12} /> Calculated from start time + duration selected below
+                    </p>
                     {errors.end_at && <div className="invalid-feedback">{errors.end_at.message}</div>}
                 </div>
             </div>
@@ -554,12 +558,12 @@ function Step3Settings({ itemId, onNext, onBack }) {
             <div className="cap__field">
                 <label className="form-label">Quick Duration</label>
                 <div className="cap__duration-pills">
-                    {DURATION_PILLS.map(({ label, days }) => (
+                    {DURATION_PILLS.map(({ label, hours }) => (
                         <button
-                            key={days}
+                            key={hours}
                             type="button"
-                            className={`cap__duration-pill ${activeDuration === days ? 'cap__duration-pill--active' : ''}`}
-                            onClick={() => applyDuration(days)}
+                            className={`cap__duration-pill ${activeDuration === hours ? 'cap__duration-pill--active' : ''}`}
+                            onClick={() => applyDuration(hours)}
                         >
                             {label}
                         </button>
@@ -683,9 +687,9 @@ function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserv
 
     const duration = (() => {
         if (!settingsData?.start_at || !settingsData?.end_at) return '—';
-        const ms   = new Date(settingsData.end_at) - new Date(settingsData.start_at);
-        const days = Math.round(ms / 86_400_000);
-        return `${days} day${days !== 1 ? 's' : ''}`;
+        const ms    = new Date(settingsData.end_at) - new Date(settingsData.start_at);
+        const hours = Math.round(ms / 3_600_000);
+        return `${hours} hour${hours !== 1 ? 's' : ''}`;
     })();
 
     const summaryRows = [

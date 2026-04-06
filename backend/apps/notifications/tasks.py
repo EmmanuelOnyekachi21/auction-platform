@@ -380,7 +380,7 @@ def notify_transaction_completed(
     body = (
         f"Hello {buyer_name},\n\n"
         f"Your transaction has been completed successfully.\n\n"
-        f"Thank you for using Nohans!\n\n"
+        f"Thank you for using KaraKaja!\n\n"
         f"View your order: {settings.app_url}/orders/{order_id}"
     )
     try:

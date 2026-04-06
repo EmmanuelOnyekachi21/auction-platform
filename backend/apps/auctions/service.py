@@ -6,7 +6,7 @@ and admin moderation workflows.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Sequence
 
 from fastapi import UploadFile
@@ -30,6 +30,7 @@ from common.exceptions import (
     ValidationException,
 )
 from common.schemas import PaginatedResponse
+from config.settings import settings
 
 from .schemas import (
     AttachItemRequest,
@@ -432,6 +433,14 @@ class AuctionService:
             Created auction response
 
         """
+        duration = data.ends_at - data.starts_at
+        if duration > timedelta(hours=settings.max_auction_duration_hours):
+            raise ValidationException(
+                message=(
+                    f"Auction duration cannot exceed "
+                    f"{settings.max_auction_duration_hours} hours"
+                )
+            )
         auction = await self._auction_repo.create_auction(
             seller_id=seller_id, data=data.model_dump()
         )
@@ -555,6 +564,16 @@ class AuctionService:
         if auction.starts_at <= now:
             raise ValidationException(
                 message="Auction start time must be in the future",
+            )
+
+        # Verify duration is still valid
+        duration = auction.ends_at - auction.starts_at
+        if duration > timedelta(hours=settings.max_auction_duration_hours):
+            raise ValidationException(
+                message=(
+                    f"Auction duration cannot exceed "
+                    f"{settings.max_auction_duration_hours} hours"
+                )
             )
 
         # Update auction status to active

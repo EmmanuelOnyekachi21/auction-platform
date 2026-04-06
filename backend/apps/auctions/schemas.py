@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 
 from apps.auctions.enums import AuctionStatus, ItemCondition, ItemStatus
 from apps.users.schemas import PublicUserResponse
+from config.settings import settings
 
 # --- Shared / Nested Helper Schemas ---
 
@@ -89,11 +90,21 @@ class CreateAuctionRequest(BaseModel):
         """
         now = datetime.now(timezone.utc)
         if self.starts_at < now:
-            raise ValueError("Starts_at must be in the future")
-        if self.ends_at < self.starts_at + timedelta(minutes=5):
-            raise ValueError("Auction must last at least 5 minutes")
-        if self.ends_at > self.starts_at + timedelta(days=30):
-            raise ValueError("Auction cannot last longer than 30 days")
+            raise ValueError("Time for auction to begin must be in the future")
+        if self.ends_at < self.starts_at + timedelta(
+            hours=settings.min_auction_duration_hours
+        ):
+            raise ValueError(
+                f"Auction must last at least "
+                f"{settings.min_auction_duration_hours} hour(s)"
+            )
+        if self.ends_at > self.starts_at + timedelta(
+            hours=settings.max_auction_duration_hours
+        ):
+            raise ValueError(
+                f"Auction duration cannot exceed "
+                f"{settings.max_auction_duration_hours} hours"
+            )
         return self
 
 
@@ -104,6 +115,31 @@ class UpdateAuctionRequest(BaseModel):
     ends_at: Optional[datetime] = None
     bid_increment: Optional[Decimal] = Field(None, ge=100.00)
     reserve_price: Optional[Decimal] = Field(None, ge=0)
+
+    @model_validator(mode="after")
+    def validate_update_times(self) -> "UpdateAuctionRequest":
+        """Validate duration constraints when both times are provided.
+
+        Raises:
+            ValueError: If the duration exceeds the maximum or is below minimum.
+
+        """
+        if self.starts_at and self.ends_at:
+            if self.ends_at > self.starts_at + timedelta(
+                hours=settings.max_auction_duration_hours
+            ):
+                raise ValueError(
+                    f"Auction duration cannot exceed "
+                    f"{settings.max_auction_duration_hours} hours"
+                )
+            if self.ends_at < self.starts_at + timedelta(
+                hours=settings.min_auction_duration_hours
+            ):
+                raise ValueError(
+                    f"Auction must last at least "
+                    f"{settings.min_auction_duration_hours} hour(s)"
+                )
+        return self
 
 
 class AttachItemRequest(BaseModel):

@@ -1,6 +1,6 @@
-# Nohans Frontend
+# KaraKaja Frontend
 
-React SPA for the Nohans live auction marketplace. Provides the full user-facing interface — authentication, wallet management, auction browsing, bidding, and seller tools.
+React SPA for the KaraKaja live auction marketplace. Provides the full user-facing interface — authentication, wallet management, auction browsing, bidding, and seller tools.
 
 ---
 
