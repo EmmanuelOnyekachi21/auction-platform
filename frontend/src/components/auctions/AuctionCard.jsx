@@ -65,9 +65,12 @@ export default function AuctionCard({ auction }) {
     const {
         id,
         ends_at,
+        status,
         bid_count = 0,
         highest_bid,
     } = auction;
+
+    const isScheduled = (status || '').toUpperCase() === 'SCHEDULED';
 
     // Title: use auction title if set, otherwise fall back to item title
     const title = auction.title || item?.title || 'Untitled Auction';
@@ -141,6 +144,19 @@ export default function AuctionCard({ auction }) {
                     </span>
                     <span className="auction-card__bid-amount">{formatNaira(displayAmount)}</span>
                 </div>
+                {auction.reserve_progress_percent !== null && auction.reserve_progress_percent !== undefined && (
+                    <div className="auction-card__reserve-bar">
+                        <div className="auction-card__reserve-bar__track">
+                            <div
+                                className={`auction-card__reserve-bar__fill ${auction.reserve_price_met ? 'auction-card__reserve-bar__fill--met' : ''}`}
+                                style={{ width: `${auction.reserve_progress_percent}%` }}
+                            />
+                        </div>
+                        <span className={`auction-card__reserve-bar__label ${auction.reserve_price_met ? 'auction-card__reserve-bar__label--met' : ''}`}>
+                            {auction.reserve_price_met ? 'Reserve Met' : `${auction.reserve_progress_percent}% to reserve`}
+                        </span>
+                    </div>
+                )}
 
                 {/* Footer row */}
                 <div className="auction-card__footer">
@@ -150,20 +166,20 @@ export default function AuctionCard({ auction }) {
                     </div>
                     <div
                         className="auction-card__meta"
-                        style={{ color: isUrgent || isExpired ? 'var(--danger)' : undefined }}
+                        style={{ color: isScheduled ? 'var(--primary)' : isUrgent || isExpired ? 'var(--danger)' : undefined }}
                     >
                         <FiClock size={13} />
-                        <span>{timeText}</span>
+                        <span>{isScheduled ? 'Scheduled' : timeText}</span>
                     </div>
                 </div>
 
                 {/* CTA */}
                 <button
-                    className={`btn w-100 auction-card__cta ${isExpired ? 'auction-card__cta--ended' : 'btn-primary'}`}
-                    onClick={(e) => { e.stopPropagation(); handleBidNow(); }}
-                    disabled={isExpired}
+                    className={`btn w-100 auction-card__cta ${isScheduled ? 'btn-outline-primary' : isExpired ? 'auction-card__cta--ended' : 'btn-primary'}`}
+                    onClick={(e) => { e.stopPropagation(); navigate(`/auctions/${id}`); }}
+                    disabled={isExpired && !isScheduled}
                 >
-                    {isExpired ? 'Auction Ended' : 'Bid Now'}
+                    {isScheduled ? 'View Details' : isExpired ? 'Auction Ended' : 'Bid Now'}
                 </button>
             </div>
         </div>

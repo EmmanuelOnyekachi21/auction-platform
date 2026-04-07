@@ -197,6 +197,13 @@ function StatusBadge({ status }) {
     if (s === 'SETTLEMENT_IN_PROGRESS') {
         return <span className="adp__status adp__status--settling">Settling…</span>;
     }
+    if (s === 'SCHEDULED') {
+        return (
+            <span className="adp__status adp__status--draft">
+                <FiClock size={11} /> Scheduled
+            </span>
+        );
+    }
     // ENDED_NO_BIDS | SETTLED | CANCELLED | unknown
     return <span className="adp__status adp__status--ended">Ended</span>;
 }
@@ -436,6 +443,7 @@ export default function AuctionDetailPage() {
 
     /* Is auction active */
     const isActive = (status ?? '').toUpperCase() === 'ACTIVE';
+    const isScheduled = (status ?? '').toUpperCase() === 'SCHEDULED';
 
     /* Short title for breadcrumb */
     const shortTitle = title?.length > 40 ? title.slice(0, 40) + '…' : (title ?? 'Auction');
@@ -603,7 +611,7 @@ export default function AuctionDetailPage() {
                         {/* ── Countdown + Bid card ── */}
                         <div className="adp__card" id="auction-bid-panel">
                             {/* Countdown */}
-                            {ends_at && <CountdownTimer endTime={ends_at} />}
+                            {!isScheduled && ends_at && <CountdownTimer endTime={ends_at} />}
 
                             {/* Current bid */}
                             <div className="adp__bid-card">
@@ -658,7 +666,25 @@ export default function AuctionDetailPage() {
                             </div>
 
                             {/* ── Place bid section ── */}
-                            {isActive && (
+                            {isScheduled ? (
+                                <div style={{
+                                    padding: '1rem',
+                                    borderRadius: 'var(--radius)',
+                                    background: 'var(--primary-50)',
+                                    border: '1px solid var(--primary-light)',
+                                    fontSize: '0.8125rem',
+                                    color: 'var(--primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                }}>
+                                    <FiClock size={14} />
+                                    <span>
+                                        Bidding opens at{' '}
+                                        <strong>{starts_at ? new Date(starts_at).toLocaleString('en-NG') : '—'}</strong>
+                                    </span>
+                                </div>
+                            ) : isActive && (
                                 isAuthenticated ? (
                                     <div className="adp__place-bid" id="place-bid-section">
                                         <div className="adp__place-bid-title">Place Your Bid</div>

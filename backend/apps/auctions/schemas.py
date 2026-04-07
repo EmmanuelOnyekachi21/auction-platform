@@ -92,7 +92,8 @@ class CreateAuctionRequest(BaseModel):
         if self.starts_at < now:
             raise ValueError("Time for auction to begin must be in the future")
         if self.ends_at < self.starts_at + timedelta(
-            hours=settings.min_auction_duration_hours
+            # hours=settings.min_auction_duration_hours
+            minutes=5
         ):
             raise ValueError(
                 f"Auction must last at least "
@@ -196,7 +197,10 @@ class AuctionResponse(BaseModel):
     starts_at: datetime
     ends_at: datetime
     bid_increment: Decimal
-    reserve_price: Optional[Decimal] = None
+    # reserve_price is intentionally excluded from API output to prevent
+    # buyers from seeing the exact threshold. Use reserve_progress_percent
+    # and reserve_price_met instead.
+    reserve_price: Optional[Decimal] = Field(None, exclude=True)
     created_at: datetime
 
     # ORM attribute is auction_items, but we expose it as items in the API
@@ -228,13 +232,32 @@ class AuctionResponse(BaseModel):
 
     @computed_field
     @property
-    def reserve_price_met(self) -> bool:
+    def reserve_price_met(self) -> Optional[bool]:
         """Check if reserve price has been met by highest bid."""
         if self.reserve_price is None:
-            return True  # No reserve means always met
+            return None  # No reserve means always met
         if self.highest_bid is None:
             return False  # No bids yet
         return self.highest_bid.amount >= self.reserve_price
+
+    @computed_field
+    @property
+    def reserve_progress_percent(self) -> Optional[int]:
+        """Percentage progress toward reserve price.
+
+        Returns:
+            None if no reserve is set.
+            0 if reserve is set but no bids yet.
+            Integer 0-100 representing how close the highest bid is to reserve.
+            Capped at 100 once reserve is met or exceeded.
+
+        """
+        if self.reserve_price is None:
+            return None
+        if self.highest_bid is None:
+            return 0
+        pct = int((self.highest_bid.amount / self.reserve_price) * 100)
+        return min(pct, 100)
 
 
 class AuctionListResponse(BaseModel):

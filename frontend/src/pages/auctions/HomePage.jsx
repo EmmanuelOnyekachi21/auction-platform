@@ -73,6 +73,7 @@ export default function HomePage() {
 
     const [selectedCategory, setSelectedCategory] = useState(null); // null = All
     const [sortBy, setSortBy] = useState('ending_soon');
+    const [view, setView] = useState('active'); // 'active' | 'scheduled' | 'all'
     const [page, setPage] = useState(1);
     const [allAuctions, setAllAuctions] = useState([]);
 
@@ -95,10 +96,11 @@ export default function HomePage() {
         isError,
         refetch,
     } = useQuery({
-        queryKey: ['auctions', { category_id: selectedCategory, sort_by: sortBy, page }],
+        queryKey: ['auctions', { category_id: selectedCategory, sort_by: sortBy, view, page }],
         queryFn: () => getAuctions({
             category_id: selectedCategory,
             sort_by: sortBy,
+            view,
             page,
             limit: PAGE_SIZE,
         }),
@@ -144,6 +146,12 @@ export default function HomePage() {
         setAllAuctions([]);
     }, []);
 
+    const handleViewChange = useCallback((newView) => {
+        setView(newView);
+        setPage(1);
+        setAllAuctions([]);
+    }, []);
+
     const handleLoadMore = useCallback(() => {
         setPage((p) => p + 1);
     }, []);
@@ -151,6 +159,7 @@ export default function HomePage() {
     const handleClearFilters = useCallback(() => {
         setSelectedCategory(null);
         setSortBy('ending_soon');
+        setView('active');
         setPage(1);
         setAllAuctions([]);
     }, []);
@@ -258,6 +267,27 @@ export default function HomePage() {
                 </div>
             </nav>
 
+            {/* ══════════════ VIEW FILTER PILLS ══════════════ */}
+            <div className="home-view-filter">
+                <div className="container">
+                    <div className="home-view-pills">
+                        {[
+                            { value: 'active',    label: 'Live Now' },
+                            { value: 'scheduled', label: 'Coming Soon' },
+                            { value: 'all',       label: 'All' },
+                        ].map(({ value, label }) => (
+                            <button
+                                key={value}
+                                className={`home-view-pill ${view === value ? 'home-view-pill--active' : ''}`}
+                                onClick={() => handleViewChange(value)}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
             {/* ══════════════ AUCTION GRID ══════════════ */}
             <section className="home-auctions" ref={auctionGridRef} id="auction-grid">
                 <div className="container">
@@ -267,7 +297,9 @@ export default function HomePage() {
                         <h2 className="home-auctions__title">
                             {selectedCategory
                                 ? `${categories.find((c) => c.id === selectedCategory)?.name ?? ''} Auctions`
-                                : 'All Auctions'}
+                                : view === 'scheduled' ? 'Coming Soon'
+                                : view === 'all' ? 'All Auctions'
+                                : 'Live Auctions'}
                             {!isLoading && auctionPage?.total != null && (
                                 <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)', marginLeft: '0.5rem' }}>
                                     ({auctionPage.total.toLocaleString()})
@@ -330,7 +362,11 @@ export default function HomePage() {
                             </div>
                             <div className="home-empty__title">No auctions found</div>
                             <p className="home-empty__sub">
-                                There are no active auctions matching your filters right now.
+                                {view === 'scheduled'
+                                    ? 'No upcoming auctions scheduled right now.'
+                                    : view === 'all'
+                                    ? 'No auctions found matching your filters.'
+                                    : 'There are no live auctions matching your filters right now.'}
                             </p>
                             <button
                                 id="clear-filters-btn"

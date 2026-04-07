@@ -75,13 +75,15 @@ const itemSchema = z.object({
     dimensions:  z.string().optional(),
 });
 
-const auctionSchema = z.object({
+const baseAuctionSchema = z.object({
     start_at:       z.string().min(1, 'Start date is required'),
     end_at:         z.string().min(1, 'End date is required'),
     starting_price: z.coerce.number().min(1, 'Starting price must be at least ₦1'),
     bid_increment:  z.coerce.number().min(1, 'Bid increment must be at least ₦1'),
     reserve_price:  z.coerce.number().optional(),
-}).refine((d) => new Date(d.end_at) > new Date(d.start_at), {
+});
+
+const auctionSchema = baseAuctionSchema.refine((d) => new Date(d.end_at) > new Date(d.start_at), {
     message: 'End date must be after start date',
     path: ['end_at'],
 });
@@ -462,7 +464,7 @@ function Step3Settings({ itemId, onNext, onBack }) {
     const [activeDuration, setActiveDur]  = useState(null); // hours
 
     const now      = new Date();
-    const defaultStart = isoLocal(plusHours(now, 0.05)); // ~3 mins ahead for testing
+    const defaultStart = isoLocal(new Date(now.getTime() + 5 * 60_000)); // 5 mins ahead
     const defaultEnd   = isoLocal(new Date(now.getTime() + 10 * 60_000)); // 10 mins from now
 
     const {
@@ -474,7 +476,12 @@ function Step3Settings({ itemId, onNext, onBack }) {
     } = useForm({
         resolver: zodResolver(
             reserveOn
-                ? auctionSchema.extend({ reserve_price: z.coerce.number().min(1, 'Reserve price must be ≥ ₦1') })
+                ? baseAuctionSchema
+                      .extend({ reserve_price: z.coerce.number().min(1, 'Reserve price must be ≥ ₦1') })
+                      .refine((d) => new Date(d.end_at) > new Date(d.start_at), {
+                          message: 'End date must be after start date',
+                          path: ['end_at'],
+                      })
                 : auctionSchema
         ),
         defaultValues: {
@@ -612,7 +619,7 @@ function Step3Settings({ itemId, onNext, onBack }) {
                 <div className="cap__toggle-row">
                     <div>
                         <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Reserve Price</div>
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Set a minimum sale price (hidden from bidders)</div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Set a reserve price — your item only sells if bidding reaches this amount</div>
                     </div>
                     <button
                         type="button"
@@ -624,6 +631,12 @@ function Step3Settings({ itemId, onNext, onBack }) {
                         <span className="cap__toggle-knob" />
                     </button>
                 </div>
+
+                {!reserveOn && (
+                    <p className="cap__hint" style={{ marginTop: '0.5rem' }}>
+                        <FiInfo size={12} /> Item sells to highest bidder regardless of final price.
+                    </p>
+                )}
 
                 {reserveOn && (
                     <div style={{ marginTop: '0.875rem' }}>
@@ -641,7 +654,10 @@ function Step3Settings({ itemId, onNext, onBack }) {
                         </div>
                         {errors.reserve_price && <div className="cap__field-error">{errors.reserve_price.message}</div>}
                         <p className="cap__hint">
-                            <FiInfo size={12} /> Bidding continues below reserve, but the item only sells if the reserve is met.
+                            <FiInfo size={12} /> Your item will only sell if bidding reaches this amount. Buyers will see &quot;Reserve Not Met" until this threshold is crossed.
+                        </p>
+                        <p className="cap__hint" style={{ color: 'var(--warning)', fontWeight: 600 }}>
+                            <FiAlertCircle size={12} /> Reserve price must be higher than your starting price.
                         </p>
                     </div>
                 )}
@@ -674,8 +690,12 @@ function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserv
     const handlePublish = async () => {
         setPublishing(true);
         try {
-            await apiClient.patch(`/auctions/${auctionId}/publish`);
-            showToast('Auction is now live! 🎉', 'success');
+            const res = await apiClient.patch(`/auctions/${auctionId}/publish`);
+            const returnedStatus = res.data?.status ?? res.data?.data?.status ?? 'ACTIVE';
+            const msg = returnedStatus === 'SCHEDULED'
+                ? 'Auction scheduled! It will go live at the start time you set.'
+                : 'Auction is now live!';
+            showToast(msg, 'success');
             navigate(`/auctions/${auctionId}`);
         } catch (err) {
             showToast(err?.response?.data?.detail ?? 'Failed to publish auction.', 'error');
@@ -698,7 +718,7 @@ function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserv
         { label: 'Description',     value: <span style={{ fontStyle: 'italic', fontSize: '0.8125rem' }}>{(itemData?.description ?? '').slice(0, 120)}{itemData?.description?.length > 120 ? '…' : ''}</span> },
         { label: 'Starting Price',  value: formatNaira(settingsData?.starting_price) },
         { label: 'Bid Increment',   value: formatNaira(settingsData?.bid_increment)  },
-        { label: 'Reserve Price',   value: reserveOn ? formatNaira(settingsData?.reserve_price) : 'None' },
+        { label: 'Reserve Price',   value: reserveOn ? 'Set (confidential)' : 'None — sells to highest bidder' },
         { label: 'Starts',          value: settingsData?.start_at ? new Date(settingsData.start_at).toLocaleString('en-NG') : '—' },
         { label: 'Ends',            value: settingsData?.end_at   ? new Date(settingsData.end_at).toLocaleString('en-NG')   : '—' },
         { label: 'Duration',        value: duration },

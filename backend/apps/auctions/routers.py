@@ -335,24 +335,26 @@ async def browse_auctions(
         "newest",
         description="Sort order: newest, ending_soon, lowest_price, highest_price",
     ),
+    view: str = Query(
+        "active",
+        description="Which auctions to show: active, scheduled, all",
+    ),
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
     db: AsyncSession = Depends(get_db),
 ):
-    """Browse active auctions (public).
+    """Browse auctions (public).
 
     Public endpoint - no authentication required.
-    Returns only ACTIVE auctions.
 
     Query parameters:
+    - view: active (default) | scheduled | all
     - category_id: Filter by category UUID
     - min_price: Minimum current bid/starting price
     - max_price: Maximum current bid/starting price
     - sort_by: newest (default), ending_soon, lowest_price, highest_price
     - page: Page number (default: 1)
     - limit: Items per page (default: 20, max: 100)
-
-    Returns paginated response with auction listings.
     """
     service = AuctionService(db)
     filters = {
@@ -360,6 +362,7 @@ async def browse_auctions(
         "min_price": min_price,
         "max_price": max_price,
         "sort_by": sort_by,
+        "view": view,
     }
     return await service.browse_auctions(filters=filters, page=page, limit=limit)
 
@@ -562,6 +565,7 @@ async def publish_auction(
     - AUCTION_NOT_DRAFT: Auction already published
     """
     service = AuctionService(db)
+
     return await service.publish_auction(
         seller_id=current_user.id,
         auction_id=auction_id,

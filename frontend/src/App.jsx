@@ -14,6 +14,7 @@ import { useAuthStore } from './store/authStore';
 // Auction / Browse Pages
 import HomePage from './pages/auctions/HomePage';
 import AuctionDetailPage from './pages/auctions/AuctionDetailPage';
+import HowItWorksPage from './pages/HowItWorksPage';
 
 // Auth Pages
 import LoginPage from './pages/auth/LoginPage';
@@ -225,6 +226,7 @@ function App() {
             {/* Public Auction + Profile Routes (no auth required) */}
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomePage />} />
+              <Route path="/how-it-works" element={<HowItWorksPage />} />
               <Route path="/auctions" element={<HomePage />} />
               <Route path="/auctions/:auctionId" element={<AuctionDetailPage />} />
               <Route path="/users/:userId" element={<PublicProfilePage />} />

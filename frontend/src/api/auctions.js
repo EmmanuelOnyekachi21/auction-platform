@@ -12,10 +12,11 @@ import apiClient from './client';
  * GET /api/v1/auctions
  * @param {{ category_id?: string|number, sort_by?: string, page?: number, limit?: number }} params
  */
-export const getAuctions = async ({ category_id, sort_by, page = 1, limit = 12 } = {}) => {
+export const getAuctions = async ({ category_id, sort_by, view = 'active', page = 1, limit = 12 } = {}) => {
     const query = new URLSearchParams();
     if (category_id) query.set('category_id', String(category_id));
     if (sort_by) query.set('sort_by', sort_by);
+    query.set('view', view);
     query.set('page', String(page));
     query.set('limit', String(limit));
     const response = await apiClient.get(`/auctions?${query.toString()}`);
