@@ -7,6 +7,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { walletActions } from '../../api/wallet';
+import { getKYCStatus } from '../../api/kyc';
 import {
   FiMenu, FiX, FiHome, FiGrid, FiHelpCircle,
   FiCreditCard, FiBell, FiUser, FiLogOut,
@@ -21,11 +22,15 @@ const fmtNaira = (n) => {
 };
 
 /** Initials circle */
-function Avatar({ user, showDot }) {
+function Avatar({ user, showDot, needsKYC }) {
   const initials = `${(user?.first_name?.[0] || '').toUpperCase()}${(user?.last_name?.[0] || '').toUpperCase()}`;
+  const title = [
+    showDot && !needsKYC ? 'You have items awaiting confirmation' : null,
+    needsKYC ? 'Complete identity verification' : null,
+    !showDot ? `${user?.first_name || ''} ${user?.last_name || ''}` : null,
+  ].filter(Boolean).join(' · ');
   return (
-    <div className="bw-avatar" title={showDot ? 'You have items awaiting confirmation' : `${user?.first_name || ''} ${user?.last_name || ''}`}
-         style={{ position: 'relative' }}>
+    <div className="bw-avatar" title={title} style={{ position: 'relative' }}>
       {initials || <FiUser size={14} />}
       {showDot && (
         <span style={{
@@ -67,6 +72,15 @@ export default function Navbar() {
     retry: 1,
   });
   const hasPendingConfirmations = (pendingOrders?.length ?? 0) > 0;
+
+  // KYC status — show amber dot if user is still on Tier 1
+  const { data: kycData } = useQuery({
+    queryKey: ['kyc-status'],
+    queryFn: getKYCStatus,
+    enabled: isAuthenticated,
+    staleTime: 5 * 60_000,
+  });
+  const needsKYC = isAuthenticated && kycData?.current_tier === 'TIER_1';
 
   const balance = parseFloat(wallet?.available_funds ?? wallet?.available_balance ?? 0);
 
@@ -138,7 +152,7 @@ export default function Navbar() {
                   aria-expanded={dropdownOpen}
                   id="navbar-user-dropdown"
                 >
-                  <Avatar user={user} showDot={hasPendingConfirmations} />
+                  <Avatar user={user} showDot={hasPendingConfirmations || needsKYC} needsKYC={needsKYC} />
                   <span className="bw-dropdown__name d-none d-md-inline">
                     {user?.first_name || 'Account'}
                   </span>

@@ -19,6 +19,7 @@ from apps.bids.schemas import (
     BidResponse,
 )
 from apps.notifications.tasks import notify_outbid_user
+from apps.users.kyc_service import KYCService
 from apps.users.repository import UserRepository
 from apps.wallet.enums import (
     BalanceType,
@@ -65,6 +66,7 @@ class BidService:
         self._auction_repo = AuctionRepository(db)
         self._wallet_repo = WalletRepository(db)
         self._bid_repo = BidRepository(db)
+        self._kyc = KYCService(db)
 
     async def place_bid(
         self, auction_id: UUID, bidder_id: UUID, data: BidResponse
@@ -129,6 +131,9 @@ class BidService:
         wallet = await self._wallet_repo.get_by_user_id(bidder_id)
         if not wallet or wallet.available_funds < data.amount:
             raise InsufficientFundsException()
+
+        # ── KYC CHECK ─────────────────────────────────────────
+        await self._kyc.check_bid_limit(bidder_id, data.amount)
 
         # ── ATOMIC TRANSACTION PHASE ─────────────────────────────────────────
         try:

@@ -47,6 +47,9 @@ import SellerDashboardPage from './pages/seller/SellerDashboardPage';
 import SellerPendingPage from './pages/seller/SellerPendingPage';
 import CreateAuctionPage from './pages/seller/CreateAuctionPage';
 
+// KYC
+import KYCPage from './pages/kyc/KYCPage';
+
 const queryClient = new QueryClient();
 
 /** Derive where "Start Selling" should navigate based on seller status */
@@ -220,6 +223,7 @@ function App() {
                 <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
                 <Route path="/seller/pending" element={<SellerPendingPage />} />
                 <Route path="/seller/create-auction" element={<CreateAuctionPage />} />
+                <Route path="/kyc" element={<KYCPage />} />
               </Route>
             </Route>
 

@@ -9,6 +9,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/authStore';
 import apiClient from '../../api/client';
 import { walletActions } from '../../api/wallet';
+import { getKYCStatus } from '../../api/kyc';
 import { useToast } from '../../components/common/Toast';
 import {
     FiDollarSign, FiLock, FiShield, FiBarChart2,
@@ -50,6 +51,7 @@ function BalanceCard({ icon, label, amount, subtitle, colorClass }) {
 function FundModal({ show, onClose }) {
     const [amount, setAmount] = useState('');
     const [amountError, setAmountError] = useState('');
+    const [kycError, setKycError] = useState('');
     const { showToast } = useToast();
 
     const mutation = useMutation({
@@ -64,11 +66,17 @@ function FundModal({ show, onClose }) {
             }
         },
         onError: (error) => {
-            showToast(error?.response?.data?.detail || 'Failed to initiate funding.', 'error');
+            const code = error?.response?.data?.code;
+            const msg = error?.response?.data?.message ?? '';
+            if (code === 'PERMISSION_DENIED' && msg.includes('wallet limit')) {
+                setKycError(msg);
+            } else {
+                showToast(msg || 'Failed to initiate funding.', 'error');
+            }
         },
     });
 
-    const handleClose = () => { setAmount(''); setAmountError(''); onClose(); };
+    const handleClose = () => { setAmount(''); setAmountError(''); setKycError(''); onClose(); };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -110,6 +118,18 @@ function FundModal({ show, onClose }) {
                             <FiInfo size={16} />
                             <span><strong>0% platform fee</strong> — you pay exactly what you enter. Payments are processed securely via Flutterwave.</span>
                         </div>
+                        {kycError && (
+                            <div className="wallet-warning-box" style={{ marginTop: '0.75rem' }}>
+                                <FiAlertCircle size={18} />
+                                <div>
+                                    <strong>Wallet limit reached</strong>
+                                    <p>{kycError}</p>
+                                    <Link to="/kyc" className="wallet-btn wallet-btn--primary wallet-btn--sm mt-2 d-inline-flex" onClick={handleClose}>
+                                        Verify Identity
+                                    </Link>
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <div className="wallet-modal__footer">
                         <button type="button" className="wallet-btn wallet-btn--ghost" onClick={handleClose} disabled={mutation.isPending}>Cancel</button>
@@ -127,6 +147,7 @@ function FundModal({ show, onClose }) {
 function WithdrawModal({ show, onClose, availableBalance, user }) {
     const [amount, setAmount] = useState('');
     const [amountError, setAmountError] = useState('');
+    const [kycError, setKycError] = useState('');
     const { showToast } = useToast();
     const queryClient = useQueryClient();
 
@@ -141,11 +162,17 @@ function WithdrawModal({ show, onClose, availableBalance, user }) {
             handleClose();
         },
         onError: (error) => {
-            showToast(error?.response?.data?.detail || 'Withdrawal failed. Please try again.', 'error');
+            const code = error?.response?.data?.code;
+            const msg = error?.response?.data?.message ?? '';
+            if (code === 'PERMISSION_DENIED' && msg.includes('BVN verification')) {
+                setKycError(msg);
+            } else {
+                showToast(msg || 'Withdrawal failed. Please try again.', 'error');
+            }
         },
     });
 
-    const handleClose = () => { setAmount(''); setAmountError(''); onClose(); };
+    const handleClose = () => { setAmount(''); setAmountError(''); setKycError(''); onClose(); };
 
     const handleSubmit = (e) => {
         e.preventDefault();
@@ -171,7 +198,23 @@ function WithdrawModal({ show, onClose, availableBalance, user }) {
                         <FiX size={18} />
                     </button>
                 </div>
-                {!hasBankDetails ? (
+                {kycError ? (
+                    <div className="wallet-modal__body">
+                        <div className="wallet-warning-box">
+                            <FiAlertCircle size={20} />
+                            <div>
+                                <strong>Withdrawals not available</strong>
+                                <p>{kycError}</p>
+                                <Link to="/kyc" className="wallet-btn wallet-btn--primary wallet-btn--sm mt-2 d-inline-flex" onClick={handleClose}>
+                                    Verify Identity
+                                </Link>
+                            </div>
+                        </div>
+                        <div className="wallet-modal__footer">
+                            <button className="wallet-btn wallet-btn--ghost" onClick={handleClose}>Close</button>
+                        </div>
+                    </div>
+                ) : !hasBankDetails ? (
                     <div className="wallet-modal__body">
                         <div className="wallet-warning-box">
                             <FiAlertCircle size={20} />
@@ -255,6 +298,13 @@ export default function WalletPage() {
         staleTime: 60_000, // Cache for 1 minute
     });
 
+    // Fetch KYC status for upgrade banner
+    const { data: kycStatus } = useQuery({
+        queryKey: ['kyc-status'],
+        queryFn: getKYCStatus,
+        staleTime: 5 * 60_000,
+    });
+
     useEffect(() => {
         const paymentStatus = searchParams.get('payment');
         if (paymentStatus === 'success') {
@@ -309,6 +359,15 @@ export default function WalletPage() {
                             </>
                         )}
                     </div>
+
+                    {/* KYC upgrade banner */}
+                    {!isLoading && kycStatus?.current_tier === 'TIER_1' && (
+                        <div className="wallet-kyc-banner">
+                            <FiAlertCircle size={16} />
+                            <span>Verify your identity to enable withdrawals and higher bid limits.</span>
+                            <Link to="/kyc">Verify Now</Link>
+                        </div>
+                    )}
 
                     <div className="wallet-actions">
                         <button id="fund-wallet-btn" className="wallet-btn wallet-btn--primary wallet-btn--lg" onClick={() => setShowFundModal(true)} disabled={isLoading}>

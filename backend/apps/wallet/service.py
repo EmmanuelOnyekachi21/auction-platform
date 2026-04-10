@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from apps.payments.enums import PaymentProvider, PaymentStatus
 from apps.payments.flutterwave_service import FlutterwaveService
 from apps.payments.models import Payment
+from apps.users.kyc_service import KYCService
 from apps.users.repository import UserRepository
 from apps.wallet.enums import (
     BalanceType,
@@ -71,6 +72,7 @@ class WalletService:
         self._payment_repo = PaymentRepository(db)
         self._user_repo = UserRepository(db)
         self._flutterwave_service = flutterwave_service
+        self._kyc = KYCService(db)
 
     async def get_wallet(self, user_id: UUID) -> WalletResponse:
         """Get user's wallet balance."""
@@ -162,6 +164,9 @@ class WalletService:
                         version=existing_payment.version,
                     )
 
+        # Implementng KYC checks
+        await self._kyc.check_funding_limit(user_id, amount, wallet.available_funds)
+
         # Create Payment record
         payment_data = {
             "transaction_reference": transaction_reference,
@@ -199,8 +204,7 @@ class WalletService:
             )
 
             logger.info(
-                f"Payment initiated for transaction reference: "
-                f"{transaction_reference}"
+                f"Payment initiated for transaction reference: {transaction_reference}"
             )
         except FlutterwavePaymentError as e:
             logger.error(f"Failed to initiate payment: {e}")
@@ -261,7 +265,7 @@ class WalletService:
             )
         except FlutterwaveVerificationError as e:
             logger.error(
-                f"Payment verification failed for " f"{transaction_reference}: {e}"
+                f"Payment verification failed for {transaction_reference}: {e}"
             )
             raise PaymentVerificationException(f"Payment verification failed: {str(e)}")
 
@@ -471,6 +475,9 @@ class WalletService:
 
             raise BankDetailsNotSetupException()
 
+        # Implementng KYC checks
+        await self._kyc.check_withdrawal_limit(user_id, withdrawal_request.amount)
+
         # Get wallet with lock
         wallet = await self._wallet_repo.get_by_user_id_with_lock(user_id)
         if not wallet:
@@ -598,7 +605,7 @@ class WalletService:
 
         # Generate unique reference for Flutterwave transfer
         transfer_reference = (
-            f"APW-{datetime.now().strftime('%Y%m%d')}-" f"{uuid.uuid4().hex[:8]}"
+            f"APW-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8]}"
         )
 
         # Call Flutterwave Transfer API

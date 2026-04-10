@@ -593,3 +593,26 @@
     justify-content: center;
   }
 }
+
+/* KYC Upgrade Banner */
+.wallet-kyc-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.75rem 1rem;
+  background: var(--warning-light, #FEF3C7);
+  border: 1px solid var(--warning, #D97706);
+  border-radius: var(--radius);
+  color: var(--warning, #D97706);
+  font-size: 0.875rem;
+  margin-bottom: 1rem;
+}
+
+.wallet-kyc-banner span { flex: 1; }
+
+.wallet-kyc-banner a {
+  font-weight: 600;
+  color: var(--warning, #D97706);
+  text-decoration: underline;
+  white-space: nowrap;
+}

@@ -11,6 +11,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from apps.users.kyc_models import KYCProfile
 from apps.wallet.models import Wallet
 from common.exceptions import AlreadyExistsException
 
@@ -107,10 +108,13 @@ class UserRepository:
             escrow_funds=0,
             currency="NGN",
         )
+        kyc_profile = KYCProfile(user_id=user.id)
         self._db.add(profile)
         self._db.add(wallet)
+        self._db.add(kyc_profile)
         await self._db.flush()
         await self._db.refresh(user)
+
         return user
 
     async def update(self, user_id: uuid.UUID, data: dict) -> User | None:

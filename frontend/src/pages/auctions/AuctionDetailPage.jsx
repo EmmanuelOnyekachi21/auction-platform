@@ -321,11 +321,23 @@ export default function AuctionDetailPage() {
         },
         onError: (err) => {
             const code = err?.response?.data?.code;
-            const msg = err?.response?.data?.message;
+            const msg = err?.response?.data?.message ?? '';
             if (code === 'INSUFFICIENT_FUNDS') setBidError('Insufficient wallet balance. Fund your wallet to continue.');
             else if (code === 'ALREADY_HIGHEST_BIDDER') setBidError('You are already the highest bidder.');
             else if (code === 'INVALID_BID_AMOUNT') setBidError(msg || 'Bid amount is too low.');
             else if (code === 'AUCTION_NOT_ACTIVE') setBidError('This auction has ended.');
+            else if (
+                code === 'KYC_LIMIT_EXCEEDED' ||
+                (code === 'PERMISSION_DENIED' && msg.includes('KYC tier'))
+            ) {
+                setBidError(
+                    <span>
+                        Your bid exceeds your current limit.{' '}
+                        <Link to="/kyc" style={{ fontWeight: 600 }}>Verify your identity</Link>{' '}
+                        to bid higher.
+                    </span>
+                );
+            }
             else setBidError(msg || 'Failed to place bid. Please try again.');
         },
     });
@@ -779,7 +791,7 @@ export default function AuctionDetailPage() {
                                             <div style={{ fontSize: '0.8125rem', color: 'var(--danger)', marginTop: '0.375rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                                 <FiAlertCircle size={13} />
                                                 {bidError}
-                                                {bidError.includes('Fund your wallet') && (
+                                                {typeof bidError === 'string' && bidError.includes('Fund your wallet') && (
                                                     <Link to="/wallet" style={{ marginLeft: '0.25rem', fontWeight: 600 }}>Fund Wallet</Link>
                                                 )}
                                             </div>
