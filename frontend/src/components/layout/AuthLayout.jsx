@@ -1,6 +1,6 @@
 /**
  * AuthLayout.jsx — Wraps public auth pages (login, register, etc.)
- * Centered card layout with Nohans branding on a subtle --surface background.
+ * Centered card layout with KaraKaja branding on a subtle --surface background.
  */
 import { Outlet } from 'react-router-dom';
 import { FiGrid } from 'react-icons/fi';
@@ -29,7 +29,7 @@ export default function AuthLayout() {
                     marginBottom: '0.25rem',
                 }}>
                     <FiGrid size={28} />
-                    Nohans
+                    <span className="karakaja-logo" style={{ fontSize: 'inherit' }}>KaraKaja</span>
                 </div>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', margin: 0 }}>
                     Nigeria&rsquo;s Premier Auction Marketplace

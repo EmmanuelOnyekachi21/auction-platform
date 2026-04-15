@@ -1,0 +1,67 @@
+E501 Line too long (90 > 88)
+  --> apps/auctions/tasks.py:90:89
+   |
+88 |     reserve_price: Decimal,
+89 | ):
+90 |     """Send an email to the seller when an auction ends without meeting the reserve price.
+   |                                                                                         ^^
+91 |
+92 |     Args:
+   |
+
+E501 Line too long (95 > 88)
+   --> apps/auctions/tasks.py:106:89
+    |
+104 |         f"Highest bid received: ₦{highest_bid:,.2f}\n"
+105 |         f"Your reserve price: ₦{reserve_price:,.2f}\n\n"
+106 |         f"The reserve price was not met, and the item has been returned to your inventory.\n\n"
+    |                                                                                         ^^^^^^^
+107 |         f"Visit your dashboard: {settings.app_url}/seller/dashboard"
+108 |     )
+    |
+
+E501 Line too long (90 > 88)
+   --> apps/auctions/tasks.py:262:89
+    |
+260 |         balance_before = winner_wallet.locked_funds
+261 |         logger.info(
+262 |             "Attempting to unlock %s from wallet %s (locked_funds=%s available_funds=%s)",
+    |                                                                                         ^^
+263 |             highest_bid.amount,
+264 |             winner_wallet.id,
+    |
+
+E501 Line too long (93 > 88)
+   --> apps/auctions/tasks.py:281:89
+    |
+279 |                 "balance_before": balance_before,
+280 |                 "balance_after": updated_wallet.locked_funds,
+281 |                 "description": f"Bid refund - reserve price not met on auction {auction.id}",
+    |                                                                                         ^^^^^
+282 |                 "transaction_type": TransactionType.BID_UNLOCK,
+283 |                 "direction": TransactionDirection.CREDIT,
+    |
+
+E501 Line too long (95 > 88)
+   --> apps/auctions/tasks.py:383:89
+    |
+381 |             if auction.status in terminal_statuses:
+382 |                 logger.warning(
+383 |                     "Auction %s already in terminal status %s — skipping duplicate settlement",
+    |                                                                                         ^^^^^^^
+384 |                     auction_id,
+385 |                     auction.status,
+    |
+
+E501 Line too long (92 > 88)
+   --> apps/auctions/tasks.py:435:89
+    |
+433 |                 if auction.reserve_price > auction.highest_bid.amount:
+434 |                     logger.info(
+435 |                         "Auction %s ended with reserve not met (reserve=%s highest_bid=%s)",
+    |                                                                                         ^^^^
+436 |                         auction_id,
+437 |                         auction.reserve_price,
+    |
+
+Found 6 errors.

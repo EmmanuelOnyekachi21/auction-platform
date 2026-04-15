@@ -6,7 +6,7 @@ and admin moderation workflows.
 """
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Sequence
 
 from fastapi import UploadFile
@@ -30,6 +30,7 @@ from common.exceptions import (
     ValidationException,
 )
 from common.schemas import PaginatedResponse
+from config.settings import settings
 
 from .schemas import (
     AttachItemRequest,
@@ -432,6 +433,15 @@ class AuctionService:
             Created auction response
 
         """
+        duration = data.ends_at - data.starts_at
+        if duration > timedelta(hours=settings.max_auction_duration_hours):
+            raise ValidationException(
+                message=(
+                    f"Auction duration cannot exceed "
+                    f"{settings.max_auction_duration_hours} hours"
+                )
+            )
+
         auction = await self._auction_repo.create_auction(
             seller_id=seller_id, data=data.model_dump()
         )
@@ -477,6 +487,15 @@ class AuctionService:
             raise ValidationException(
                 message="Can only add items to draft auctions", code="AUCTION_NOT_DRAFT"
             )
+
+        if auction.reserve_price:
+            if auction.reserve_price <= data.starting_price:
+                raise ValidationException(
+                    message=(
+                        "Starting price cannot equal or exceed reserve price. "
+                        "Reserve price must be higher than starting price."
+                    ),
+                )
 
         # Verify item exists and belongs to seller
         item = await self._item_repo.get_by_id_with_seller(data.item_id)
@@ -552,13 +571,27 @@ class AuctionService:
 
         # Verify starts_at is still in the future
         now = datetime.now(timezone.utc)
-        if auction.starts_at <= now:
+        if auction.starts_at < now:
             raise ValidationException(
                 message="Auction start time must be in the future",
             )
 
-        # Update auction status to active
-        await self._auction_repo.update_status(auction_id, AuctionStatus.ACTIVE)
+        # Verify duration is still valid
+        duration = auction.ends_at - auction.starts_at
+        if duration > timedelta(hours=settings.max_auction_duration_hours):
+            raise ValidationException(
+                message=(
+                    f"Auction duration cannot exceed "
+                    f"{settings.max_auction_duration_hours} hours"
+                )
+            )
+
+        if auction.starts_at > now + timedelta(minutes=3):
+            # Start time is far enough in the future — schedule it
+            await self._auction_repo.update_status(auction_id, AuctionStatus.SCHEDULED)
+        else:
+            # Start time is imminent — activate immediately
+            await self._auction_repo.update_status(auction_id, AuctionStatus.ACTIVE)
         await self._db.commit()
 
         # Reload auction with relationships
@@ -589,10 +622,11 @@ class AuctionService:
     async def browse_auctions(
         self, filters: dict, page: int, limit: int
     ) -> PaginatedResponse:
-        """Browse active auctions with filters.
+        """Browse auctions with filters.
 
         Args:
-            filters: Dictionary with category_id, min_price, max_price, sort_by
+            filters: Dictionary with category_id, min_price, max_price,
+                     sort_by, view (all | active | scheduled)
             page: Page number
             limit: Items per page
 
@@ -600,7 +634,16 @@ class AuctionService:
             Paginated response with auctions
 
         """
-        result = await self._auction_repo.get_active_auctions(
+        view = filters.get("view", "active")
+        if view == "scheduled":
+            statuses = [AuctionStatus.SCHEDULED]
+        elif view == "all":
+            statuses = [AuctionStatus.ACTIVE, AuctionStatus.SCHEDULED]
+        else:
+            statuses = [AuctionStatus.ACTIVE]
+
+        result = await self._auction_repo.get_browsable_auctions(
+            statuses=statuses,
             category_id=filters.get("category_id"),
             min_price=filters.get("min_price"),
             max_price=filters.get("max_price"),
@@ -608,7 +651,6 @@ class AuctionService:
             page=page,
             limit=limit,
         )
-        # Convert ORM objects to Pydantic schemas so FastAPI can serialize them
         result.data = [AuctionResponse.model_validate(a) for a in result.data]
         return result
 

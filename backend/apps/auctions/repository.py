@@ -1,18 +1,28 @@
 """Repository for auction, item, and category database operations."""
 
+import logging
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from apps.auctions.enums import AuctionStatus, ItemStatus
-from apps.auctions.models import Auction, AuctionItem, Category, Item, ItemImage
+from apps.auctions.models import (
+    Auction,
+    AuctionItem,
+    BidIncrementTier,
+    Category,
+    Item,
+    ItemImage,
+)
 from apps.bids.models import Bid
 from common.pagination import paginate
+
+logger = logging.getLogger(__name__)
 
 
 class CategoryRepository:
@@ -418,6 +428,21 @@ class AuctionRepository:
 
         return await paginate(stmt, page, limit, self._db)
 
+    async def get_scheduled_auctions(self) -> Sequence[Auction]:
+        """Get scheduled auctions whose start time has arrived.
+
+        Returns:
+            Sequence of auctions ready to be activated.
+
+        """
+        now = datetime.now(timezone.utc)
+        stmt = select(Auction).where(
+            Auction.status == AuctionStatus.SCHEDULED,
+            Auction.starts_at <= now,
+        )
+        result = await self._db.execute(stmt)
+        return result.scalars().all()
+
     async def attach_item(
         self,
         auction_id: uuid.UUID,
@@ -515,8 +540,6 @@ class AuctionRepository:
             True if successfully claimed, False if already claimed
 
         """
-        from sqlalchemy import update
-
         stmt = (
             update(Auction)
             .where(Auction.id == auction_id)
@@ -660,6 +683,33 @@ class AuctionRepository:
         result = await self._db.execute(stmt)
         return result.scalars().all()
 
+    async def get_for_reserve_settlement(self, auction_id: uuid.UUID) -> Auction | None:
+        """Get auction with all relationships needed for reserve-not-met settlement.
+
+        Loads bids with bidder, auction items with item, highest bid, and seller.
+        Uses a fresh query intended for use in a dedicated session inside
+        ``_handle_reserve_not_met``.
+
+        Args:
+            auction_id: Auction UUID
+
+        Returns:
+            Auction instance or None if not found
+
+        """
+        stmt = (
+            select(Auction)
+            .where(Auction.id == auction_id)
+            .options(
+                selectinload(Auction.auction_items).selectinload(AuctionItem.item),
+                selectinload(Auction.bids).selectinload(Bid.bidder),
+                selectinload(Auction.highest_bid),
+                selectinload(Auction.seller),
+            )
+        )
+        result = await self._db.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def update_highest_bid(
         self, auction_id: uuid.UUID, bid_id: uuid.UUID
     ) -> Auction | None:
@@ -679,3 +729,102 @@ class AuctionRepository:
             await self._db.flush()
             return auction
         return None
+
+    async def get_browsable_auctions(
+        self,
+        statuses: list[AuctionStatus],
+        category_id: uuid.UUID | None,
+        min_price: Decimal | None,
+        max_price: Decimal | None,
+        sort_by: str,
+        page: int,
+        limit: int,
+    ) -> dict:
+        """Get paginated auctions for browsing, with flexible status filtering.
+
+        Args:
+            statuses: List of statuses to include.
+            category_id: Optional category ID filter.
+            min_price: Optional minimum price filter.
+            max_price: Optional maximum price filter.
+            sort_by: Sort order string.
+            page: Page number for pagination.
+            limit: Number of items per page.
+
+        Returns:
+            Paginated result dictionary.
+
+        """
+        stmt = (
+            select(Auction)
+            .where(Auction.status.in_(statuses))
+            .options(
+                selectinload(Auction.auction_items)
+                .selectinload(AuctionItem.item)
+                .selectinload(Item.category),
+                selectinload(Auction.auction_items)
+                .selectinload(AuctionItem.item)
+                .selectinload(Item.images),
+                selectinload(Auction.seller),
+                selectinload(Auction.highest_bid),
+                selectinload(Auction.bids),
+            )
+        )
+
+        if category_id:
+            stmt = (
+                stmt.join(Auction.auction_items)
+                .join(AuctionItem.item)
+                .where(Item.category_id == category_id)
+            )
+
+        match sort_by:
+            case "lowest_price":
+                stmt = stmt.join(Auction.highest_bid, isouter=True).order_by(
+                    Bid.amount.asc()
+                )
+            case "highest_price":
+                stmt = stmt.join(Auction.highest_bid, isouter=True).order_by(
+                    Bid.amount.desc()
+                )
+            case _:
+                stmt = stmt.order_by(Auction.created_at.desc())
+
+        return await paginate(stmt, page, limit, self._db)
+
+    async def get_increment_for_amount(self, current_bid: Decimal) -> Decimal:
+        """Return the bid increment for a given current bid amount.
+
+        Looks up the active ``BidIncrementTier`` whose range covers
+        ``current_bid`` and returns its ``increment`` value.  Falls back
+        to ₦500 if no matching tier is found.
+
+        Args:
+            current_bid: The current highest bid amount.
+
+        Returns:
+            The minimum increment the next bid must exceed the current by.
+
+        """
+        stmt = (
+            select(BidIncrementTier)
+            .where(BidIncrementTier.is_active)
+            .where(BidIncrementTier.min_value <= current_bid)
+            .where(
+                or_(
+                    BidIncrementTier.max_value.is_(None),
+                    BidIncrementTier.max_value >= current_bid,
+                )
+            )
+            .order_by(BidIncrementTier.min_value.desc())
+            .limit(1)
+        )
+        result = await self._db.execute(stmt)
+        tier = result.scalar_one_or_none()
+        if tier is None:
+            logger.warning(
+                "No active bid increment tier found for %s. Using default ₦500.",
+                current_bid,
+            )
+            return Decimal("500.00")
+        return tier.increment

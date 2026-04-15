@@ -1,5 +1,5 @@
 /**
- * TransactionsPage.jsx — Nohans Transaction History
+ * TransactionsPage.jsx — KaraKaja Transaction History
  * Filter pills, paginated table, react-icons throughout.
  */
 import { useState, useMemo } from 'react';

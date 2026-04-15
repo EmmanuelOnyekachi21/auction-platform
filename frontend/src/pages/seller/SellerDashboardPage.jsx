@@ -36,9 +36,10 @@ const formatNaira = (amount) =>
     `₦${Number(amount || 0).toLocaleString('en-NG', { minimumFractionDigits: 0 })}`;
 
 const TABS = [
-    { key: 'active', label: 'Active',  icon: <FiCheckCircle size={14} /> },
-    { key: 'draft',  label: 'Drafts',  icon: <FiClock size={14} /> },
-    { key: 'ended',  label: 'Ended',   icon: <FiPackage size={14} /> },
+    { key: 'active',     label: 'Active',     icon: <FiCheckCircle size={14} /> },
+    { key: 'scheduled',  label: 'Scheduled',  icon: <FiClock size={14} /> },
+    { key: 'draft',      label: 'Drafts',     icon: <FiPackage size={14} /> },
+    { key: 'ended',      label: 'Ended',      icon: <FiPackage size={14} /> },
 ];
 
 /* ─── Stat card ────────────────────────────────────────────────────────────── */
@@ -88,6 +89,11 @@ export default function SellerDashboardPage() {
         refetchInterval: 30_000,
     });
 
+    const { data: scheduledAuctions = [], isLoading: loadingScheduled } = useQuery({
+        queryKey: ['myAuctions', 'scheduled'],
+        queryFn: () => fetchMyAuctions('scheduled'),
+    });
+
     const { data: draftAuctions = [], isLoading: loadingDraft } = useQuery({
         queryKey: ['myAuctions', 'draft'],
         queryFn: () => fetchMyAuctions('draft'),
@@ -95,7 +101,14 @@ export default function SellerDashboardPage() {
 
     const { data: endedAuctions = [], isLoading: loadingEnded } = useQuery({
         queryKey: ['myAuctions', 'ended'],
-        queryFn: () => fetchMyAuctions('ended'),
+        queryFn: async () => {
+            const [standardEnded, reserveNotMet] = await Promise.all([
+                fetchMyAuctions('ended'),
+                fetchMyAuctions('ended_reserve_not_met'),
+            ]);
+            const merged = [...standardEnded, ...reserveNotMet];
+            return merged.sort((a, b) => new Date(b.ends_at || 0) - new Date(a.ends_at || 0));
+        },
     });
 
     /* Earnings: sum credit transactions of type 'sale' */
@@ -124,19 +137,21 @@ export default function SellerDashboardPage() {
 
     /* ── Resolved list for current tab ── */
     const tabAuctions = {
-        active: activeAuctions,
-        draft:  draftAuctions,
-        ended:  endedAuctions,
+        active:    activeAuctions,
+        scheduled: scheduledAuctions,
+        draft:     draftAuctions,
+        ended:     endedAuctions,
     }[activeTab] ?? [];
 
-    const isLoading = { active: loadingActive, draft: loadingDraft, ended: loadingEnded }[activeTab];
+    const isLoading = { active: loadingActive, scheduled: loadingScheduled, draft: loadingDraft, ended: loadingEnded }[activeTab];
 
     /* ── Action buttons for each auction (injected below AuctionCard) ── */
     const renderActions = (auction) => {
         const status     = (auction.status ?? '').toUpperCase();
         const hasBids    = (auction.bid_count ?? 0) > 0;
-        const canCancel  = (status === 'DRAFT' || status === 'ACTIVE') && !hasBids;
-        const isSettled  = status === 'SETTLED' || status === 'ENDED_NO_BIDS';
+        const canCancel = (status === 'DRAFT' || status === 'ACTIVE' || status === 'SCHEDULED') && !hasBids;
+        const isSettled          = status === 'SETTLED' || status === 'ENDED_NO_BIDS';
+        const isReserveNotMet    = status === 'ENDED_RESERVE_NOT_MET';
 
         return (
             <div className="sdp__card-actions">
@@ -173,6 +188,18 @@ export default function SellerDashboardPage() {
                         <FiShoppingBag size={13} /> View Orders
                     </button>
                 )}
+                {isReserveNotMet && (
+                    <button
+                        className="btn btn-outline-primary sdp__action-btn"
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            navigate('/seller/create-auction');
+                        }}
+                        title="Relist this item"
+                    >
+                        <FiRefreshCw size={13} /> Relist Item
+                    </button>
+                )}
             </div>
         );
     };
@@ -200,7 +227,7 @@ export default function SellerDashboardPage() {
                 <StatCard
                     icon={<FiPackage size={20} />}
                     label="Total Auctions"
-                    value={activeAuctions.length + draftAuctions.length + endedAuctions.length}
+                    value={activeAuctions.length + scheduledAuctions.length + draftAuctions.length + endedAuctions.length}
                     accent="var(--primary)"
                 />
                 <StatCard
@@ -226,7 +253,7 @@ export default function SellerDashboardPage() {
             {/* ─── Tabs ───────────────────────────────────────────────────── */}
             <div className="sdp__tabs">
                 {TABS.map((tab) => {
-                    const count = { active: activeAuctions, draft: draftAuctions, ended: endedAuctions }[tab.key].length;
+                    const count = { active: activeAuctions, scheduled: scheduledAuctions, draft: draftAuctions, ended: endedAuctions }[tab.key].length;
                     return (
                         <button
                             key={tab.key}
@@ -262,11 +289,13 @@ export default function SellerDashboardPage() {
                     </div>
                     <div className="sdp__empty-title">
                         {activeTab === 'active' && 'No active auctions'}
+                        {activeTab === 'scheduled' && 'No scheduled auctions'}
                         {activeTab === 'draft'  && 'No draft auctions'}
                         {activeTab === 'ended'  && 'No ended auctions'}
                     </div>
                     <p className="sdp__empty-sub">
                         {activeTab === 'active' && 'Publish a draft to start accepting bids.'}
+                        {activeTab === 'scheduled' && 'Auctions you have published with a future start time will appear here.'}
                         {activeTab === 'draft'  && "You haven't created any auctions yet."}
                         {activeTab === 'ended'  && 'Completed auctions will appear here.'}
                     </p>

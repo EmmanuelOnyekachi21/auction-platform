@@ -4,7 +4,7 @@ Provides request validation models and response serialization models for
 user profile, seller profile, and wallet operations.
 """
 
-from datetime import datetime
+from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -260,3 +260,65 @@ class WalletBalanceResponse(BaseModel):
     locked_funds: Decimal
     escrow_funds: Decimal
     currency: str
+
+
+# --- KYC Schema ---
+class KYCLimitsResponse(BaseModel):
+    """Transaction limits for a KYC tier."""
+
+    max_bid: Decimal
+    max_wallet_balance: Decimal
+    max_daily_withdrawal: Decimal
+
+
+class KYCStatusResponse(BaseModel):
+    """Current KYC tier status and limits for a user."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    current_tier: str
+    tier_1_complete: bool
+    tier_2_complete: bool
+    tier_3_complete: bool
+    # 'none' | 'pending_review' | 'verified' | 'rejected'
+    # In mock/dev mode this will be 'verified' immediately.
+    # In production with async BVN webhooks it will be 'pending_review'
+    # until the provider confirms.
+    tier_2_verification_status: str
+    limits: KYCLimitsResponse
+    next_steps: list[str]
+
+
+class BVNVerificationRequest(BaseModel):
+    """Request body for BVN verification."""
+
+    bvn: str
+    date_of_birth: date
+
+    @field_validator("bvn")
+    @classmethod
+    def validate_bvn(cls, v: str) -> str:
+        """Validate BVN is exactly 11 numeric digits."""
+        if not v.isdigit() or len(v) != 11:
+            raise ValueError("BVN must be exactly 11 numeric digits.")
+        return v
+
+    @field_validator("date_of_birth")
+    @classmethod
+    def validate_dob(cls, v: date) -> date:
+        """Validate user is at least 18 years old and DOB is in the past.
+
+        Age calculation accounts for whether the birthday has occurred
+        yet this year. For example, on April 10 2026, someone born
+        May 15 2008 is still 17 (birthday hasn't happened yet this year),
+        so they would be rejected.
+        """
+        from datetime import date as date_type
+
+        today = date_type.today()
+        age = today.year - v.year - ((today.month, today.day) < (v.month, v.day))
+        if age < 18:
+            raise ValueError("You must be at least 18 years old.")
+        if v >= today:
+            raise ValueError("Date of birth must be in the past.")
+        return v

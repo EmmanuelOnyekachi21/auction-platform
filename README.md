@@ -1,4 +1,4 @@
-# Nohans — Live Auction Marketplace
+# KaraKaja — Live Auction Marketplace
 
 ![Status](https://img.shields.io/badge/status-in--progress-yellow)
 ![Phase](https://img.shields.io/badge/phase-6.7%20complete-blue)

@@ -19,6 +19,7 @@ from apps.bids.schemas import (
     BidResponse,
 )
 from apps.notifications.tasks import notify_outbid_user
+from apps.users.kyc_service import KYCService
 from apps.users.repository import UserRepository
 from apps.wallet.enums import (
     BalanceType,
@@ -65,6 +66,7 @@ class BidService:
         self._auction_repo = AuctionRepository(db)
         self._wallet_repo = WalletRepository(db)
         self._bid_repo = BidRepository(db)
+        self._kyc = KYCService(db)
 
     async def place_bid(
         self, auction_id: UUID, bidder_id: UUID, data: BidResponse
@@ -116,7 +118,10 @@ class BidService:
             raise AlreadyHighestBidderException()
 
         if current_highest:
-            minimum = current_highest.amount + auction.bid_increment
+            increment = await self._auction_repo.get_increment_for_amount(
+                current_highest.amount
+            )
+            minimum = current_highest.amount + increment
         else:
             auction_items = await self._auction_repo.get_auction_items(auction_id)
             if not auction_items:
@@ -129,6 +134,9 @@ class BidService:
         wallet = await self._wallet_repo.get_by_user_id(bidder_id)
         if not wallet or wallet.available_funds < data.amount:
             raise InsufficientFundsException()
+
+        # ── KYC CHECK ─────────────────────────────────────────
+        await self._kyc.check_bid_limit(bidder_id, data.amount)
 
         # ── ATOMIC TRANSACTION PHASE ─────────────────────────────────────────
         try:
@@ -261,7 +269,11 @@ class BidService:
         highest_bid = await self._bid_repo.get_highest_bid(auction_id)
 
         if highest_bid:
-            minimum_next_bid = highest_bid.amount + auction.bid_increment
+            increment = await self._auction_repo.get_increment_for_amount(
+                highest_bid.amount
+            )
+            minimum_next_bid = highest_bid.amount + increment
+
         else:
             auction_items = await self._auction_repo.get_auction_items(auction_id)
             minimum_next_bid = (

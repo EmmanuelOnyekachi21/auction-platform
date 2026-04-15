@@ -166,7 +166,6 @@ class Auction(BaseModel):
         title: Short descriptive title.
         description: Detailed auction description.
         reserve_price: Minimum price required for a sale.
-        bid_increment: Minimum amount each new bid must exceed the current high.
         starts_at: Starting timestamp (UTC).
         ends_at: Ending timestamp (UTC).
         seller: Relationship to the host User.
@@ -202,7 +201,6 @@ class Auction(BaseModel):
     title: Mapped[str] = mapped_column(String(255), nullable=True)
     description: Mapped[str] = mapped_column(Text, nullable=True)
     reserve_price: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=True)
-    bid_increment: Mapped[Decimal] = mapped_column(Numeric(10, 2), nullable=False)
     starts_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     ends_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, index=True
@@ -266,3 +264,26 @@ class AuctionItem(BaseModel):
     # Relationships
     auction: Mapped["Auction"] = relationship("Auction", back_populates="auction_items")
     item: Mapped["Item"] = relationship("Item", back_populates="auction_items")
+
+
+class BidIncrementTier(BaseModel):
+    """Platform-controlled bid increment tiers based on current bid amount.
+
+    Attributes:
+        min_value: Lower bound of the price range (inclusive).
+        max_value: Upper bound of the price range. NULL means no upper limit.
+        increment: Minimum amount each new bid must exceed the current highest.
+        is_active: Whether this tier is currently in use.
+
+    """
+
+    __tablename__ = "bid_increment_tiers"
+    __table_args__ = (
+        CheckConstraint("min_value >= 0", name="ck_bid_tier_min_value_non_negative"),
+        CheckConstraint("increment > 0", name="ck_bid_tier_increment_positive"),
+    )
+
+    min_value: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    max_value: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=True)
+    increment: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)

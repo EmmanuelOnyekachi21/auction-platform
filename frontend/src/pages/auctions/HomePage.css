@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   HomePage.css — Styles for the Nohans Auction Home / Browse Page
+   HomePage.css — Styles for the KaraKaja Auction Home / Browse Page
    ═══════════════════════════════════════════════════════════════════════════ */
 
 /* ── Hero ────────────────────────────────────────────────────────────────────── */
@@ -414,4 +414,39 @@
     display: flex;
     flex-direction: column;
     gap: 0.6rem;
+}
+
+/* ── View filter pills ──────────────────────────────────────────────────────── */
+.home-view-filter {
+    background: var(--card-bg);
+    border-bottom: 1px solid var(--border);
+    padding: 0.625rem 0;
+}
+
+.home-view-pills {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.home-view-pill {
+    padding: 0.375rem 1rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    border-radius: var(--radius-full);
+    border: 1.5px solid var(--border);
+    background: transparent;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.home-view-pill:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.home-view-pill--active {
+    background: var(--primary);
+    color: #fff;
+    border-color: var(--primary);
 }

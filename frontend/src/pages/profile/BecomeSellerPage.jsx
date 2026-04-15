@@ -43,7 +43,7 @@ export default function BecomeSellerPage() {
         <div className="page-container" style={{ maxWidth: 700 }}>
             <div className="mb-4">
                 <h1 style={{ fontWeight: 800, fontSize: '1.75rem', margin: '0 0 0.25rem' }}>Become a Seller</h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem', margin: 0 }}>Start listing items on Nohans and reach thousands of buyers.</p>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.9375rem', margin: 0 }}>Start listing items on KaraKaja and reach thousands of buyers.</p>
             </div>
 
             <div className="card" style={{ borderRadius: 'var(--radius-xl)' }}>

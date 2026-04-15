@@ -5,6 +5,8 @@ configuration via environment variables. It leverages Pydantic for
 validation and type safety.
 """
 
+from decimal import Decimal
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -68,6 +70,24 @@ class Settings(BaseSettings):
     cloudinary_api_key: str
     cloudinary_api_secret: str
     cloudinary_upload_preset: str
+
+    # --- BVN Verification ---
+    bvn_verification_enabled: bool = False
+    max_auction_duration_hours: int = 24
+    min_auction_duration_hours: int = 1
+
+    # --- Transaction Limits
+    tier_1_max_bid: Decimal = Decimal("50000.00")
+    tier_1_max_wallet_balance: Decimal = Decimal("100000.00")
+    tier_1_max_withdrawal: Decimal = Decimal("0.00")
+
+    tier_2_max_bid: Decimal = Decimal("500000.00")
+    tier_2_max_wallet_balance: Decimal = Decimal("2000000.00")
+    tier_2_max_daily_withdrawal: Decimal = Decimal("500000.00")
+
+    tier_3_max_bid: Decimal = Decimal("999999999.00")
+    tier_3_max_wallet_balance: Decimal = Decimal("999999999.00")
+    tier_3_max_daily_withdrawal: Decimal = Decimal("5000000.00")
 
     # --- Pydantic Config ---
     model_config = SettingsConfigDict(

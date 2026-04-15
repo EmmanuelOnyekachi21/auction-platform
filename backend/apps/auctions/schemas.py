@@ -9,6 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validat
 
 from apps.auctions.enums import AuctionStatus, ItemCondition, ItemStatus
 from apps.users.schemas import PublicUserResponse
+from config.settings import settings
 
 # --- Shared / Nested Helper Schemas ---
 
@@ -76,7 +77,6 @@ class CreateAuctionRequest(BaseModel):
 
     starts_at: datetime
     ends_at: datetime
-    bid_increment: Decimal = Field(Decimal("100.00"), ge=100.00)
     reserve_price: Optional[Decimal] = Field(None, ge=0)
 
     @model_validator(mode="after")
@@ -89,11 +89,22 @@ class CreateAuctionRequest(BaseModel):
         """
         now = datetime.now(timezone.utc)
         if self.starts_at < now:
-            raise ValueError("Starts_at must be in the future")
-        if self.ends_at < self.starts_at + timedelta(minutes=5):
-            raise ValueError("Auction must last at least 5 minutes")
-        if self.ends_at > self.starts_at + timedelta(days=30):
-            raise ValueError("Auction cannot last longer than 30 days")
+            raise ValueError("Time for auction to begin must be in the future")
+        if self.ends_at < self.starts_at + timedelta(
+            # hours=settings.min_auction_duration_hours
+            minutes=5
+        ):
+            raise ValueError(
+                f"Auction must last at least "
+                f"{settings.min_auction_duration_hours} hour(s)"
+            )
+        if self.ends_at > self.starts_at + timedelta(
+            hours=settings.max_auction_duration_hours
+        ):
+            raise ValueError(
+                f"Auction duration cannot exceed "
+                f"{settings.max_auction_duration_hours} hours"
+            )
         return self
 
 
@@ -102,8 +113,32 @@ class UpdateAuctionRequest(BaseModel):
 
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
-    bid_increment: Optional[Decimal] = Field(None, ge=100.00)
     reserve_price: Optional[Decimal] = Field(None, ge=0)
+
+    @model_validator(mode="after")
+    def validate_update_times(self) -> "UpdateAuctionRequest":
+        """Validate duration constraints when both times are provided.
+
+        Raises:
+            ValueError: If the duration exceeds the maximum or is below minimum.
+
+        """
+        if self.starts_at and self.ends_at:
+            if self.ends_at > self.starts_at + timedelta(
+                hours=settings.max_auction_duration_hours
+            ):
+                raise ValueError(
+                    f"Auction duration cannot exceed "
+                    f"{settings.max_auction_duration_hours} hours"
+                )
+            if self.ends_at < self.starts_at + timedelta(
+                hours=settings.min_auction_duration_hours
+            ):
+                raise ValueError(
+                    f"Auction must last at least "
+                    f"{settings.min_auction_duration_hours} hour(s)"
+                )
+        return self
 
 
 class AttachItemRequest(BaseModel):
@@ -159,8 +194,10 @@ class AuctionResponse(BaseModel):
     status: AuctionStatus
     starts_at: datetime
     ends_at: datetime
-    bid_increment: Decimal
-    reserve_price: Optional[Decimal] = None
+    # reserve_price is intentionally excluded from API output to prevent
+    # buyers from seeing the exact threshold. Use reserve_progress_percent
+    # and reserve_price_met instead.
+    reserve_price: Optional[Decimal] = Field(None, exclude=True)
     created_at: datetime
 
     # ORM attribute is auction_items, but we expose it as items in the API
@@ -192,13 +229,32 @@ class AuctionResponse(BaseModel):
 
     @computed_field
     @property
-    def reserve_price_met(self) -> bool:
+    def reserve_price_met(self) -> Optional[bool]:
         """Check if reserve price has been met by highest bid."""
         if self.reserve_price is None:
-            return True  # No reserve means always met
+            return None  # No reserve means always met
         if self.highest_bid is None:
             return False  # No bids yet
         return self.highest_bid.amount >= self.reserve_price
+
+    @computed_field
+    @property
+    def reserve_progress_percent(self) -> Optional[int]:
+        """Percentage progress toward reserve price.
+
+        Returns:
+            None if no reserve is set.
+            0 if reserve is set but no bids yet.
+            Integer 0-100 representing how close the highest bid is to reserve.
+            Capped at 100 once reserve is met or exceeded.
+
+        """
+        if self.reserve_price is None:
+            return None
+        if self.highest_bid is None:
+            return 0
+        pct = int((self.highest_bid.amount / self.reserve_price) * 100)
+        return min(pct, 100)
 
 
 class AuctionListResponse(BaseModel):

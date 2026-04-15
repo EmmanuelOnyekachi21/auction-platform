@@ -126,7 +126,7 @@ const PaymentConfirmPage = () => {
 
       <div className="text-center mt-4">
         <Link to="/how-it-works" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', textDecoration: 'none' }}>
-          Need help? Contact Nohans Support
+          Need help? Contact KaraKaja Support
         </Link>
       </div>
 

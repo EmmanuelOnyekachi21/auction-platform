@@ -1,6 +1,6 @@
-# Nohans Backend
+# KaraKaja Backend
 
-FastAPI-based REST API for the Nohans live auction marketplace. Handles authentication, user profiles, wallet operations, auction lifecycle, image uploads, payment processing, and background job scheduling.
+FastAPI-based REST API for the KaraKaja live auction marketplace. Handles authentication, user profiles, wallet operations, auction lifecycle, image uploads, payment processing, and background job scheduling.
 
 ---
 

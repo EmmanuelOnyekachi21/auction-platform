@@ -1,0 +1,231 @@
+I001 [*] Import block is un-sorted or un-formatted
+  --> alembic/versions/0e7589e1c450_add_kyc_models_and_user_tier.py:8:1
+   |
+ 7 |   """
+ 8 | / from typing import Sequence, Union
+ 9 | |
+10 | | from alembic import op
+11 | | import sqlalchemy as sa
+   | |_______________________^
+   |
+help: Organize imports
+
+E501 Line too long (167 > 88)
+  --> alembic/versions/0e7589e1c450_add_kyc_models_and_user_tier.py:26:89
+   |
+24 | …
+25 | …
+26 | …S_LICENSE', 'PASSPORT', 'BANK_STATEMENT', 'UTILITY_BILL', 'SELFIE', name='kycdocuments'), nullable=False),
+   |                             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+27 | …=False),
+28 | …TED', 'EXPIRED', name='kycstatus'), nullable=False),
+   |
+
+E501 Line too long (113 > 88)
+  --> alembic/versions/0e7589e1c450_add_kyc_models_and_user_tier.py:28:89
+   |
+26 |     sa.Column('document_type', sa.Enum('NATIONAL_ID', 'DRIVERS_LICENSE', 'PASSPORT', 'BANK_STATEMENT', 'UTILITY_BILL', 'SELFIE', name=…
+27 |     sa.Column('document_url', sa.String(length=500), nullable=False),
+28 |     sa.Column('status', sa.Enum('PENDING', 'VERIFIED', 'REJECTED', 'EXPIRED', name='kycstatus'), nullable=False),
+   |                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+29 |     sa.Column('verified_by_id', sa.UUID(), nullable=True),
+30 |     sa.Column('verified_at', sa.DateTime(timezone=True), nullable=True),
+   |
+
+E501 Line too long (105 > 88)
+  --> alembic/versions/0e7589e1c450_add_kyc_models_and_user_tier.py:34:89
+   |
+32 |     sa.Column('expires_at', sa.DateTime(timezone=True), nullable=True),
+33 |     sa.Column('id', sa.UUID(), nullable=False),
+34 |     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+   |                                                                                         ^^^^^^^^^^^^^^^^^
+35 |     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+36 |     sa.ForeignKeyConstraint(['verified_by_id'], ['users.id'], ),
+   |
+
+E501 Line too long (95 > 88)
+  --> alembic/versions/0e7589e1c450_add_kyc_models_and_user_tier.py:39:89
+   |
+37 |     sa.PrimaryKeyConstraint('id')
+38 |     )
+39 |     op.create_index(op.f('ix_kyc_document_user_id'), 'kyc_document', ['user_id'], unique=False)
+   |                                                                                         ^^^^^^^
+40 |     op.create_table('kyc_profiles',
+41 |     sa.Column('user_id', sa.UUID(), nullable=False),
+   |
+
+E501 Line too long (101 > 88)
+  --> alembic/versions/0e7589e1c450_add_kyc_models_and_user_tier.py:42:89
+   |
+40 |     op.create_table('kyc_profiles',
+41 |     sa.Column('user_id', sa.UUID(), nullable=False),
+42 |     sa.Column('current_tier', sa.Enum('TIER_1', 'TIER_2', 'TIER_3', name='kyctier'), nullable=False),
+   |                                                                                         ^^^^^^^^^^^^^
+43 |     sa.Column('email_verified', sa.Boolean(), nullable=False),
+44 |     sa.Column('phone_verified', sa.Boolean(), nullable=False),
+   |
+
+E501 Line too long (105 > 88)
+  --> alembic/versions/0e7589e1c450_add_kyc_models_and_user_tier.py:59:89
+   |
+57 |     sa.Column('rejection_reason', sa.Text(), nullable=True),
+58 |     sa.Column('id', sa.UUID(), nullable=False),
+59 |     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+   |                                                                                         ^^^^^^^^^^^^^^^^^
+60 |     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+61 |     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+   |
+
+E501 Line too long (105 > 88)
+  --> alembic/versions/0e7589e1c450_add_kyc_models_and_user_tier.py:60:89
+   |
+58 |     sa.Column('id', sa.UUID(), nullable=False),
+59 |     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+60 |     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+   |                                                                                         ^^^^^^^^^^^^^^^^^
+61 |     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+62 |     sa.PrimaryKeyConstraint('id')
+   |
+
+E501 Line too long (94 > 88)
+  --> alembic/versions/0e7589e1c450_add_kyc_models_and_user_tier.py:64:89
+   |
+62 |     sa.PrimaryKeyConstraint('id')
+63 |     )
+64 |     op.create_index(op.f('ix_kyc_profiles_user_id'), 'kyc_profiles', ['user_id'], unique=True)
+   |                                                                                         ^^^^^^
+65 |     op.add_column('users', sa.Column('kyc_tier', sa.Enum('TIER_1', 'TIER_2', 'TIER_3', name='kyctier'), nullable=False, server_default…
+66 |     op.alter_column('users', 'kyc_tier', server_default=None)
+   |
+
+E501 Line too long (145 > 88)
+  --> alembic/versions/0e7589e1c450_add_kyc_models_and_user_tier.py:65:89
+   |
+63 | …
+64 | …), 'kyc_profiles', ['user_id'], unique=True)
+65 | …a.Enum('TIER_1', 'TIER_2', 'TIER_3', name='kyctier'), nullable=False, server_default='TIER_1'))
+   |                                        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+66 | …fault=None)
+67 | …ers', ['kyc_tier'], unique=False)
+   |
+
+E501 Line too long (94 > 88)
+   --> apps/users/bvn_service.py:103:89
+    |
+102 |         # Production — call Flutterwave BVN verification API
+103 |         return await self._call_flutterwave_bvn_api(bvn, first_name, last_name, date_of_birth)
+    |                                                                                         ^^^^^^
+104 |
+105 |     async def _call_flutterwave_bvn_api(
+    |
+
+E501 Line too long (91 > 88)
+   --> apps/users/bvn_service.py:152:89
+    |
+150 |             # Check name match from Flutterwave response
+151 |             bvn_data = data.get("data", {})
+152 |             first_name_match = first_name.lower() in bvn_data.get("first_name", "").lower()
+    |                                                                                         ^^^
+153 |             last_name_match = last_name.lower() in bvn_data.get("last_name", "").lower()
+154 |             is_match = first_name_match and last_name_match
+    |
+
+E501 Line too long (95 > 88)
+   --> apps/users/kyc_repository.py:98:89
+    |
+ 97 |         # Reset counter if the daily window has expired or never been set
+ 98 |         if kyc_profile.bvn_attempt_reset_at is None or kyc_profile.bvn_attempt_reset_at <= now:
+    |                                                                                         ^^^^^^^
+ 99 |             kyc_profile.bvn_attempt_count = 0
+100 |             tomorrow_midnight = (now + timedelta(days=1)).replace(
+    |
+
+E501 Line too long (99 > 88)
+   --> apps/users/kyc_repository.py:107:89
+    |
+105 |         if kyc_profile.bvn_attempt_count >= 3:
+106 |             raise ValidationException(
+107 |                 message="Maximum BVN verification attempts reached for today. Try again tomorrow.",
+    |                                                                                         ^^^^^^^^^^^
+108 |             )
+    |
+
+E501 Line too long (116 > 88)
+   --> apps/users/kyc_router.py:102:89
+    |
+100 |             "kyc_tier": user.kyc_tier.value if user.kyc_tier else "TIER_1",
+101 |             "bvn_verified": kyc.bvn_verified if kyc else False,
+102 |             "tier_1_completed_at": kyc.tier_1_completed_at.isoformat() if kyc and kyc.tier_1_completed_at else None,
+    |                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+103 |             "tier_2_completed_at": kyc.tier_2_completed_at.isoformat() if kyc and kyc.tier_2_completed_at else None,
+104 |             "created_at": user.created_at.isoformat(),
+    |
+
+E501 Line too long (116 > 88)
+   --> apps/users/kyc_router.py:103:89
+    |
+101 |             "bvn_verified": kyc.bvn_verified if kyc else False,
+102 |             "tier_1_completed_at": kyc.tier_1_completed_at.isoformat() if kyc and kyc.tier_1_completed_at else None,
+103 |             "tier_2_completed_at": kyc.tier_2_completed_at.isoformat() if kyc and kyc.tier_2_completed_at else None,
+    |                                                                                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+104 |             "created_at": user.created_at.isoformat(),
+105 |         }
+    |
+
+E501 Line too long (95 > 88)
+   --> apps/users/kyc_service.py:128:89
+    |
+126 |             )
+127 |             raise ValidationException(
+128 |                 message="BVN verification failed. Ensure your details match your BVN records.",
+    |                                                                                         ^^^^^^^
+129 |
+130 |             )
+    |
+
+E501 Line too long (91 > 88)
+   --> apps/users/kyc_service.py:157:89
+    |
+155 |         if amount > limits.max_bid:
+156 |             raise PermissionDeniedException(
+157 |                 message=f"Your current KYC tier allows bids up to ₦{limits.max_bid:,.0f}. "
+    |                                                                                         ^^^
+158 |                         f"Complete BVN verification to increase your limit."
+159 |             )
+    |
+
+E501 Line too long (100 > 88)
+   --> apps/users/kyc_service.py:167:89
+    |
+165 |         if user.kyc_tier == KYCTier.TIER_1:
+166 |             raise PermissionDeniedException(
+167 |                 message="Withdrawals require BVN verification. Please complete Tier 2 verification."
+    |                                                                                         ^^^^^^^^^^^^
+168 |             )
+169 |         today_total = await self._kyc.get_daily_withdrawal_total(user_id)
+    |
+
+E501 Line too long (98 > 88)
+   --> apps/users/kyc_service.py:173:89
+    |
+171 |         if today_total + amount > limits.max_daily_withdrawal:
+172 |             raise PermissionDeniedException(
+173 |                 message=f"Daily withdrawal limit of ₦{limits.max_daily_withdrawal:,.0f} reached. "
+    |                                                                                         ^^^^^^^^^^
+174 |                         f"Resets at midnight."
+175 |             )
+    |
+
+E501 Line too long (104 > 88)
+   --> apps/users/kyc_service.py:186:89
+    |
+184 |         if current_balance + amount > limits.max_wallet_balance:
+185 |             raise PermissionDeniedException(
+186 |                 message=f"Funding would exceed your wallet limit of ₦{limits.max_wallet_balance:,.0f}. "
+    |                                                                                         ^^^^^^^^^^^^^^^^
+187 |                         f"Complete KYC verification to increase your limit."
+188 |             )
+    |
+
+Found 21 errors.
+[*] 1 fixable with the `--fix` option.

@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════════════════════════════
-   Nohans — Global Design System
+   KaraKaja — Global Design System
    Professional fintech-grade CSS variables + base styles
    ═══════════════════════════════════════════════════════════════════════════════ */
 
@@ -52,6 +52,18 @@
 
     /* Navbar */
     --navbar-height: 64px;
+}
+
+/* ─── KaraKaja Logo Class ──────────────────────────────────────────────────────── */
+.karakaja-logo {
+    font-family: 'Outfit', sans-serif;
+    font-weight: 800;
+    font-size: 1.4rem;
+    background: linear-gradient(135deg, var(--primary) 0%, #8B5CF6 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.02em;
 }
 
 /* ─── Base Reset ──────────────────────────────────────────────────────────────── */

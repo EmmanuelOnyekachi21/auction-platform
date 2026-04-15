@@ -1,7 +1,7 @@
 /**
  * orders.js — Order API actions
  *
- * All order-related API calls for the Nohans marketplace.
+ * All order-related API calls for the KaraKaja marketplace.
  * Integrates with the configured apiClient (handles auth token injection).
  */
 

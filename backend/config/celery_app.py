@@ -64,5 +64,9 @@ celery.conf.update(
             "task": "apps.escrow.tasks.process_overdue_shipments",
             "schedule": 1800.0,  # Every 30 minutes
         },
+        "activate-scheduled-tasks": {
+            "task": "apps.auctions.tasks.activate_scheduled_auctions",
+            "schedule": 60.0,
+        },
     },
 )

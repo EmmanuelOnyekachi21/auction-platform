@@ -19,12 +19,13 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from config.database import BaseModel
 
-from .enums import AccountStatus, OnboardingIntent, SellerType, UserRole
+from .enums import AccountStatus, KYCTier, OnboardingIntent, SellerType, UserRole
 
 if TYPE_CHECKING:
     from apps.auctions.models import Auction, Bid, Item
     from apps.authentication.models import EmailVerificationToken, PasswordResetToken
     from apps.notifications.models import Notification
+    from apps.users.kyc_models import KYCDocumentModel, KYCProfile
     from apps.wallet.models import Wallet
 
 
@@ -66,6 +67,10 @@ class User(BaseModel):
         DateTime(timezone=True), nullable=True
     )
 
+    kyc_tier: Mapped[KYCTier] = mapped_column(
+        nullable=False, default=KYCTier.TIER_1, index=True
+    )
+
     # Relationships
     profile: Mapped["UserProfile"] = relationship(
         "UserProfile", back_populates="user", uselist=False
@@ -90,6 +95,15 @@ class User(BaseModel):
     )
     email_verification: Mapped[list["EmailVerificationToken"]] = relationship(
         "EmailVerificationToken", back_populates="user"
+    )
+
+    kyc_profile: Mapped["KYCProfile"] = relationship(
+        "KYCProfile", uselist=False, back_populates="user"
+    )
+    kyc_documents: Mapped[list["KYCDocumentModel"]] = relationship(
+        "KYCDocumentModel",
+        back_populates="user",
+        foreign_keys="KYCDocumentModel.user_id",
     )
 
 

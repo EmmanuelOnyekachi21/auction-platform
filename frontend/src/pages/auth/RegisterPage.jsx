@@ -81,7 +81,7 @@ export default function RegisterPage() {
                     Create your account
                 </h2>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.75rem' }}>
-                    Join thousands of Nigerians trading on Nohans
+                    Join thousands of Nigerians trading on KaraKaja
                 </p>
 
                 {apiError && (

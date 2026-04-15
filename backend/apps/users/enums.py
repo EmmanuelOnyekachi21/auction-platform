@@ -39,3 +39,27 @@ class OnboardingIntent(str, Enum):
     BUY = "BUY"
     SELL = "SELL"
     BOTH = "BOTH"
+
+
+class KYCTier(str, Enum):
+    """Tier of Know Your Customer verification."""
+
+    TIER_1 = "TIER_1"  # Email + Phone verified
+    TIER_2 = "TIER_2"  # BVN verified
+    TIER_3 = "TIER_3"  # address + bank statement
+
+
+class KYCStatus(str, Enum):
+    PENDING = "PENDING"
+    VERIFIED = "VERIFIED"
+    REJECTED = "REJECTED"
+    EXPIRED = "EXPIRED"
+
+
+class KYCDocuments(str, Enum):
+    NATIONAL_ID = "NATIONAL_ID"
+    DRIVERS_LICENSE = "DRIVERS_LICENSE"
+    PASSPORT = "PASSPORT"
+    BANK_STATEMENT = "BANK_STATEMENT"
+    UTILITY_BILL = "UTILITY_BILL"
+    SELFIE = "SELFIE"

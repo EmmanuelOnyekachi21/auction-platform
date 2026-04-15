@@ -45,3 +45,5 @@ WALLET_*
 ISSUE_*
 testresults*
 celerybeat-schedule
+os
+Procfile

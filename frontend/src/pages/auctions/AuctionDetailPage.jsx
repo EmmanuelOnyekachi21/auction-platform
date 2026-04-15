@@ -197,6 +197,13 @@ function StatusBadge({ status }) {
     if (s === 'SETTLEMENT_IN_PROGRESS') {
         return <span className="adp__status adp__status--settling">Settling…</span>;
     }
+    if (s === 'SCHEDULED') {
+        return (
+            <span className="adp__status adp__status--draft">
+                <FiClock size={11} /> Scheduled
+            </span>
+        );
+    }
     // ENDED_NO_BIDS | SETTLED | CANCELLED | unknown
     return <span className="adp__status adp__status--ended">Ended</span>;
 }
@@ -314,11 +321,23 @@ export default function AuctionDetailPage() {
         },
         onError: (err) => {
             const code = err?.response?.data?.code;
-            const msg = err?.response?.data?.message;
+            const msg = err?.response?.data?.message ?? '';
             if (code === 'INSUFFICIENT_FUNDS') setBidError('Insufficient wallet balance. Fund your wallet to continue.');
             else if (code === 'ALREADY_HIGHEST_BIDDER') setBidError('You are already the highest bidder.');
             else if (code === 'INVALID_BID_AMOUNT') setBidError(msg || 'Bid amount is too low.');
             else if (code === 'AUCTION_NOT_ACTIVE') setBidError('This auction has ended.');
+            else if (
+                code === 'KYC_LIMIT_EXCEEDED' ||
+                (code === 'PERMISSION_DENIED' && msg.includes('KYC tier'))
+            ) {
+                setBidError(
+                    <span>
+                        Your bid exceeds your current limit.{' '}
+                        <Link to="/kyc" style={{ fontWeight: 600 }}>Verify your identity</Link>{' '}
+                        to bid higher.
+                    </span>
+                );
+            }
             else setBidError(msg || 'Failed to place bid. Please try again.');
         },
     });
@@ -436,6 +455,7 @@ export default function AuctionDetailPage() {
 
     /* Is auction active */
     const isActive = (status ?? '').toUpperCase() === 'ACTIVE';
+    const isScheduled = (status ?? '').toUpperCase() === 'SCHEDULED';
 
     /* Short title for breadcrumb */
     const shortTitle = title?.length > 40 ? title.slice(0, 40) + '…' : (title ?? 'Auction');
@@ -603,7 +623,7 @@ export default function AuctionDetailPage() {
                         {/* ── Countdown + Bid card ── */}
                         <div className="adp__card" id="auction-bid-panel">
                             {/* Countdown */}
-                            {ends_at && <CountdownTimer endTime={ends_at} />}
+                            {!isScheduled && ends_at && <CountdownTimer endTime={ends_at} />}
 
                             {/* Current bid */}
                             <div className="adp__bid-card">
@@ -658,7 +678,25 @@ export default function AuctionDetailPage() {
                             </div>
 
                             {/* ── Place bid section ── */}
-                            {isActive && (
+                            {isScheduled ? (
+                                <div style={{
+                                    padding: '1rem',
+                                    borderRadius: 'var(--radius)',
+                                    background: 'var(--primary-50)',
+                                    border: '1px solid var(--primary-light)',
+                                    fontSize: '0.8125rem',
+                                    color: 'var(--primary)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.5rem',
+                                }}>
+                                    <FiClock size={14} />
+                                    <span>
+                                        Bidding opens at{' '}
+                                        <strong>{starts_at ? new Date(starts_at).toLocaleString('en-NG') : '—'}</strong>
+                                    </span>
+                                </div>
+                            ) : isActive && (
                                 isAuthenticated ? (
                                     <div className="adp__place-bid" id="place-bid-section">
                                         <div className="adp__place-bid-title">Place Your Bid</div>
@@ -753,7 +791,7 @@ export default function AuctionDetailPage() {
                                             <div style={{ fontSize: '0.8125rem', color: 'var(--danger)', marginTop: '0.375rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                                                 <FiAlertCircle size={13} />
                                                 {bidError}
-                                                {bidError.includes('Fund your wallet') && (
+                                                {typeof bidError === 'string' && bidError.includes('Fund your wallet') && (
                                                     <Link to="/wallet" style={{ marginLeft: '0.25rem', fontWeight: 600 }}>Fund Wallet</Link>
                                                 )}
                                             </div>

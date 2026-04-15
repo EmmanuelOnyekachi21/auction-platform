@@ -346,7 +346,8 @@ class OrderService:
             data={
                 "amount": escrow.commission_amount,
                 "balance_before": seller_wallet.available_funds,
-                "balance_after": seller_wallet.available_funds,
+                "balance_after": seller_wallet.available_funds
+                - escrow.commission_amount,
                 "description": (f"Platform commission for order {escrow.order_id}"),
                 "transaction_type": TransactionType.COMMISION,
                 "direction": TransactionDirection.DEBIT,

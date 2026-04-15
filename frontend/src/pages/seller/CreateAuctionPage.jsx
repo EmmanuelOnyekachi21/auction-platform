@@ -52,11 +52,10 @@ const CONDITIONS = [
 ];
 
 const DURATION_PILLS = [
-    { label: '1 Day',   days: 1  },
-    { label: '3 Days',  days: 3  },
-    { label: '7 Days',  days: 7  },
-    { label: '14 Days', days: 14 },
-    { label: '30 Days', days: 30 },
+    { label: '6 Hours',  hours: 6  },
+    { label: '12 Hours', hours: 12 },
+    { label: '18 Hours', hours: 18 },
+    { label: '24 Hours', hours: 24 },
 ];
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -76,13 +75,14 @@ const itemSchema = z.object({
     dimensions:  z.string().optional(),
 });
 
-const auctionSchema = z.object({
+const baseAuctionSchema = z.object({
     start_at:       z.string().min(1, 'Start date is required'),
     end_at:         z.string().min(1, 'End date is required'),
     starting_price: z.coerce.number().min(1, 'Starting price must be at least ₦1'),
-    bid_increment:  z.coerce.number().min(1, 'Bid increment must be at least ₦1'),
     reserve_price:  z.coerce.number().optional(),
-}).refine((d) => new Date(d.end_at) > new Date(d.start_at), {
+});
+
+const auctionSchema = baseAuctionSchema.refine((d) => new Date(d.end_at) > new Date(d.start_at), {
     message: 'End date must be after start date',
     path: ['end_at'],
 });
@@ -460,10 +460,10 @@ function Step3Settings({ itemId, onNext, onBack }) {
     const { showToast } = useToast();
     const [submitting, setSubmitting]     = useState(false);
     const [reserveOn, setReserveOn]       = useState(false);
-    const [activeDuration, setActiveDur]  = useState(null); // days
+    const [activeDuration, setActiveDur]  = useState(null); // hours
 
     const now      = new Date();
-    const defaultStart = isoLocal(plusHours(now, 0.05)); // ~3 mins ahead for testing
+    const defaultStart = isoLocal(new Date(now.getTime() + 5 * 60_000)); // 5 mins ahead
     const defaultEnd   = isoLocal(new Date(now.getTime() + 10 * 60_000)); // 10 mins from now
 
     const {
@@ -475,24 +475,28 @@ function Step3Settings({ itemId, onNext, onBack }) {
     } = useForm({
         resolver: zodResolver(
             reserveOn
-                ? auctionSchema.extend({ reserve_price: z.coerce.number().min(1, 'Reserve price must be ≥ ₦1') })
+                ? baseAuctionSchema
+                      .extend({ reserve_price: z.coerce.number().min(1, 'Reserve price must be ≥ ₦1') })
+                      .refine((d) => new Date(d.end_at) > new Date(d.start_at), {
+                          message: 'End date must be after start date',
+                          path: ['end_at'],
+                      })
                 : auctionSchema
         ),
         defaultValues: {
             start_at:       defaultStart,
             end_at:         defaultEnd,
             starting_price: '',
-            bid_increment:  500,
             reserve_price:  '',
         },
     });
 
     const startAt = watch('start_at');
 
-    const applyDuration = (days) => {
+    const applyDuration = (hours) => {
         const start = new Date(startAt || now);
-        setValue('end_at', isoLocal(plusDays(start, days)));
-        setActiveDur(days);
+        setValue('end_at', isoLocal(plusHours(start, hours)));
+        setActiveDur(hours);
     };
 
     const onSubmit = async (data) => {
@@ -502,7 +506,6 @@ function Step3Settings({ itemId, onNext, onBack }) {
             const auctionPayload = {
                 starts_at:      new Date(data.start_at).toISOString(),
                 ends_at:        new Date(data.end_at).toISOString(),
-                bid_increment:  data.bid_increment,
                 ...(reserveOn && data.reserve_price ? { reserve_price: data.reserve_price } : {}),
             };
             const auctionRes = await apiClient.post('/auctions', auctionPayload);
@@ -544,8 +547,13 @@ function Step3Settings({ itemId, onNext, onBack }) {
                         id="auction-end"
                         type="datetime-local"
                         className={`form-control ${errors.end_at ? 'is-invalid' : ''}`}
+                        readOnly
+                        style={{ backgroundColor: 'var(--bg-secondary)', cursor: 'not-allowed' }}
                         {...register('end_at')}
                     />
+                    <p className="cap__hint" style={{ marginTop: '0.25rem' }}>
+                        <FiInfo size={12} /> Calculated from start time + duration selected below
+                    </p>
                     {errors.end_at && <div className="invalid-feedback">{errors.end_at.message}</div>}
                 </div>
             </div>
@@ -554,12 +562,12 @@ function Step3Settings({ itemId, onNext, onBack }) {
             <div className="cap__field">
                 <label className="form-label">Quick Duration</label>
                 <div className="cap__duration-pills">
-                    {DURATION_PILLS.map(({ label, days }) => (
+                    {DURATION_PILLS.map(({ label, hours }) => (
                         <button
-                            key={days}
+                            key={hours}
                             type="button"
-                            className={`cap__duration-pill ${activeDuration === days ? 'cap__duration-pill--active' : ''}`}
-                            onClick={() => applyDuration(days)}
+                            className={`cap__duration-pill ${activeDuration === hours ? 'cap__duration-pill--active' : ''}`}
+                            onClick={() => applyDuration(hours)}
                         >
                             {label}
                         </button>
@@ -568,39 +576,21 @@ function Step3Settings({ itemId, onNext, onBack }) {
             </div>
 
             {/* Prices row */}
-            <div className="row g-3">
-                <div className="col-sm-6 cap__field">
-                    <label className="form-label" htmlFor="starting-price">Starting Price (₦) *</label>
-                    <div className="cap__price-wrapper">
-                        <span className="cap__price-prefix">₦</span>
-                        <input
-                            id="starting-price"
-                            type="number"
-                            min="1"
-                            step="1"
-                            className={`form-control cap__price-input ${errors.starting_price ? 'is-invalid' : ''}`}
-                            placeholder="e.g. 5000"
-                            {...register('starting_price')}
-                        />
-                    </div>
-                    {errors.starting_price && <div className="cap__field-error">{errors.starting_price.message}</div>}
+            <div className="cap__field">
+                <label className="form-label" htmlFor="starting-price">Starting Price (₦) *</label>
+                <div className="cap__price-wrapper">
+                    <span className="cap__price-prefix">₦</span>
+                    <input
+                        id="starting-price"
+                        type="number"
+                        min="1"
+                        step="1"
+                        className={`form-control cap__price-input ${errors.starting_price ? 'is-invalid' : ''}`}
+                        placeholder="e.g. 5000"
+                        {...register('starting_price')}
+                    />
                 </div>
-                <div className="col-sm-6 cap__field">
-                    <label className="form-label" htmlFor="bid-increment">Bid Increment (₦) *</label>
-                    <div className="cap__price-wrapper">
-                        <span className="cap__price-prefix">₦</span>
-                        <input
-                            id="bid-increment"
-                            type="number"
-                            min="1"
-                            step="1"
-                            className={`form-control cap__price-input ${errors.bid_increment ? 'is-invalid' : ''}`}
-                            placeholder="500"
-                            {...register('bid_increment')}
-                        />
-                    </div>
-                    {errors.bid_increment && <div className="cap__field-error">{errors.bid_increment.message}</div>}
-                </div>
+                {errors.starting_price && <div className="cap__field-error">{errors.starting_price.message}</div>}
             </div>
 
             {/* Reserve price toggle */}
@@ -608,7 +598,7 @@ function Step3Settings({ itemId, onNext, onBack }) {
                 <div className="cap__toggle-row">
                     <div>
                         <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Reserve Price</div>
-                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Set a minimum sale price (hidden from bidders)</div>
+                        <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>Set a reserve price — your item only sells if bidding reaches this amount</div>
                     </div>
                     <button
                         type="button"
@@ -620,6 +610,12 @@ function Step3Settings({ itemId, onNext, onBack }) {
                         <span className="cap__toggle-knob" />
                     </button>
                 </div>
+
+                {!reserveOn && (
+                    <p className="cap__hint" style={{ marginTop: '0.5rem' }}>
+                        <FiInfo size={12} /> Item sells to highest bidder regardless of final price.
+                    </p>
+                )}
 
                 {reserveOn && (
                     <div style={{ marginTop: '0.875rem' }}>
@@ -637,7 +633,10 @@ function Step3Settings({ itemId, onNext, onBack }) {
                         </div>
                         {errors.reserve_price && <div className="cap__field-error">{errors.reserve_price.message}</div>}
                         <p className="cap__hint">
-                            <FiInfo size={12} /> Bidding continues below reserve, but the item only sells if the reserve is met.
+                            <FiInfo size={12} /> Your item will only sell if bidding reaches this amount. Buyers will see &quot;Reserve Not Met" until this threshold is crossed.
+                        </p>
+                        <p className="cap__hint" style={{ color: 'var(--warning)', fontWeight: 600 }}>
+                            <FiAlertCircle size={12} /> Reserve price must be higher than your starting price.
                         </p>
                     </div>
                 )}
@@ -670,8 +669,12 @@ function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserv
     const handlePublish = async () => {
         setPublishing(true);
         try {
-            await apiClient.patch(`/auctions/${auctionId}/publish`);
-            showToast('Auction is now live! 🎉', 'success');
+            const res = await apiClient.patch(`/auctions/${auctionId}/publish`);
+            const returnedStatus = res.data?.status ?? res.data?.data?.status ?? 'ACTIVE';
+            const msg = returnedStatus === 'SCHEDULED'
+                ? 'Auction scheduled! It will go live at the start time you set.'
+                : 'Auction is now live!';
+            showToast(msg, 'success');
             navigate(`/auctions/${auctionId}`);
         } catch (err) {
             showToast(err?.response?.data?.detail ?? 'Failed to publish auction.', 'error');
@@ -683,9 +686,9 @@ function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserv
 
     const duration = (() => {
         if (!settingsData?.start_at || !settingsData?.end_at) return '—';
-        const ms   = new Date(settingsData.end_at) - new Date(settingsData.start_at);
-        const days = Math.round(ms / 86_400_000);
-        return `${days} day${days !== 1 ? 's' : ''}`;
+        const ms    = new Date(settingsData.end_at) - new Date(settingsData.start_at);
+        const hours = Math.round(ms / 3_600_000);
+        return `${hours} hour${hours !== 1 ? 's' : ''}`;
     })();
 
     const summaryRows = [
@@ -693,8 +696,7 @@ function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserv
         { label: 'Condition',       value: condLabel },
         { label: 'Description',     value: <span style={{ fontStyle: 'italic', fontSize: '0.8125rem' }}>{(itemData?.description ?? '').slice(0, 120)}{itemData?.description?.length > 120 ? '…' : ''}</span> },
         { label: 'Starting Price',  value: formatNaira(settingsData?.starting_price) },
-        { label: 'Bid Increment',   value: formatNaira(settingsData?.bid_increment)  },
-        { label: 'Reserve Price',   value: reserveOn ? formatNaira(settingsData?.reserve_price) : 'None' },
+        { label: 'Reserve Price',   value: reserveOn ? 'Set (confidential)' : 'None — sells to highest bidder' },
         { label: 'Starts',          value: settingsData?.start_at ? new Date(settingsData.start_at).toLocaleString('en-NG') : '—' },
         { label: 'Ends',            value: settingsData?.end_at   ? new Date(settingsData.end_at).toLocaleString('en-NG')   : '—' },
         { label: 'Duration',        value: duration },

@@ -36,9 +36,9 @@ export default function MainLayout() {
         <div className="container d-flex flex-column flex-md-row align-items-center justify-content-between gap-2">
           <div className="d-flex align-items-center gap-2" style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>
             <FiGrid size={16} style={{ color: 'var(--primary)' }} />
-            Nohans
+            <span className="karakaja-logo" style={{ fontSize: '1rem' }}>KaraKaja</span>
           </div>
-          <div>&copy; {new Date().getFullYear()} Nohans. All rights reserved.</div>
+          <div>&copy; {new Date().getFullYear()} KaraKaja. All rights reserved.</div>
         </div>
       </footer>
     </div>

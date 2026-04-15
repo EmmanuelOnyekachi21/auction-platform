@@ -14,6 +14,7 @@ import { useAuthStore } from './store/authStore';
 // Auction / Browse Pages
 import HomePage from './pages/auctions/HomePage';
 import AuctionDetailPage from './pages/auctions/AuctionDetailPage';
+import HowItWorksPage from './pages/HowItWorksPage';
 
 // Auth Pages
 import LoginPage from './pages/auth/LoginPage';
@@ -45,6 +46,9 @@ import AdminDisputesPage from './pages/admin/AdminDisputesPage';
 import SellerDashboardPage from './pages/seller/SellerDashboardPage';
 import SellerPendingPage from './pages/seller/SellerPendingPage';
 import CreateAuctionPage from './pages/seller/CreateAuctionPage';
+
+// KYC
+import KYCPage from './pages/kyc/KYCPage';
 
 const queryClient = new QueryClient();
 
@@ -219,12 +223,14 @@ function App() {
                 <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
                 <Route path="/seller/pending" element={<SellerPendingPage />} />
                 <Route path="/seller/create-auction" element={<CreateAuctionPage />} />
+                <Route path="/kyc" element={<KYCPage />} />
               </Route>
             </Route>
 
             {/* Public Auction + Profile Routes (no auth required) */}
             <Route element={<MainLayout />}>
               <Route path="/" element={<HomePage />} />
+              <Route path="/how-it-works" element={<HowItWorksPage />} />
               <Route path="/auctions" element={<HomePage />} />
               <Route path="/auctions/:auctionId" element={<AuctionDetailPage />} />
               <Route path="/users/:userId" element={<PublicProfilePage />} />
