@@ -77,7 +77,6 @@ class CreateAuctionRequest(BaseModel):
 
     starts_at: datetime
     ends_at: datetime
-    bid_increment: Decimal = Field(Decimal("100.00"), ge=100.00)
     reserve_price: Optional[Decimal] = Field(None, ge=0)
 
     @model_validator(mode="after")
@@ -114,7 +113,6 @@ class UpdateAuctionRequest(BaseModel):
 
     starts_at: Optional[datetime] = None
     ends_at: Optional[datetime] = None
-    bid_increment: Optional[Decimal] = Field(None, ge=100.00)
     reserve_price: Optional[Decimal] = Field(None, ge=0)
 
     @model_validator(mode="after")
@@ -196,7 +194,6 @@ class AuctionResponse(BaseModel):
     status: AuctionStatus
     starts_at: datetime
     ends_at: datetime
-    bid_increment: Decimal
     # reserve_price is intentionally excluded from API output to prevent
     # buyers from seeing the exact threshold. Use reserve_progress_percent
     # and reserve_price_met instead.

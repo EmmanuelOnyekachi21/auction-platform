@@ -412,7 +412,6 @@ async def create_auction(
     - ends_at must be after starts_at
     - Minimum duration: 1 hour
     - Maximum duration: 30 days
-    - bid_increment minimum: ₦100
     """
     service = AuctionService(db)
     return await service.create_auction(seller_id=current_user.id, data=data)

@@ -12,7 +12,14 @@ Import order generally follows dependency hierarchy to avoid resolution
 issues during initialization.
 """
 
-from apps.auctions.models import Auction, AuctionItem, Category, Item, ItemImage
+from apps.auctions.models import (
+    Auction,
+    AuctionItem,
+    BidIncrementTier,
+    Category,
+    Item,
+    ItemImage,
+)
 from apps.authentication.models import EmailVerificationToken, PasswordResetToken
 from apps.bids.models import Bid
 from apps.disputes.models import Dispute, DisputeEvidence
@@ -33,6 +40,7 @@ __all__ = [
     "VerificationDoc",
     "KYCProfile",
     "KYCDocumentModel",
+    "BidIncrementTier",
     "Wallet",
     "WalletTransactions",
     "Payment",

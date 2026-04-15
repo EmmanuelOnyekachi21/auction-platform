@@ -79,7 +79,6 @@ const baseAuctionSchema = z.object({
     start_at:       z.string().min(1, 'Start date is required'),
     end_at:         z.string().min(1, 'End date is required'),
     starting_price: z.coerce.number().min(1, 'Starting price must be at least ₦1'),
-    bid_increment:  z.coerce.number().min(1, 'Bid increment must be at least ₦1'),
     reserve_price:  z.coerce.number().optional(),
 });
 
@@ -488,7 +487,6 @@ function Step3Settings({ itemId, onNext, onBack }) {
             start_at:       defaultStart,
             end_at:         defaultEnd,
             starting_price: '',
-            bid_increment:  500,
             reserve_price:  '',
         },
     });
@@ -508,7 +506,6 @@ function Step3Settings({ itemId, onNext, onBack }) {
             const auctionPayload = {
                 starts_at:      new Date(data.start_at).toISOString(),
                 ends_at:        new Date(data.end_at).toISOString(),
-                bid_increment:  data.bid_increment,
                 ...(reserveOn && data.reserve_price ? { reserve_price: data.reserve_price } : {}),
             };
             const auctionRes = await apiClient.post('/auctions', auctionPayload);
@@ -579,39 +576,21 @@ function Step3Settings({ itemId, onNext, onBack }) {
             </div>
 
             {/* Prices row */}
-            <div className="row g-3">
-                <div className="col-sm-6 cap__field">
-                    <label className="form-label" htmlFor="starting-price">Starting Price (₦) *</label>
-                    <div className="cap__price-wrapper">
-                        <span className="cap__price-prefix">₦</span>
-                        <input
-                            id="starting-price"
-                            type="number"
-                            min="1"
-                            step="1"
-                            className={`form-control cap__price-input ${errors.starting_price ? 'is-invalid' : ''}`}
-                            placeholder="e.g. 5000"
-                            {...register('starting_price')}
-                        />
-                    </div>
-                    {errors.starting_price && <div className="cap__field-error">{errors.starting_price.message}</div>}
+            <div className="cap__field">
+                <label className="form-label" htmlFor="starting-price">Starting Price (₦) *</label>
+                <div className="cap__price-wrapper">
+                    <span className="cap__price-prefix">₦</span>
+                    <input
+                        id="starting-price"
+                        type="number"
+                        min="1"
+                        step="1"
+                        className={`form-control cap__price-input ${errors.starting_price ? 'is-invalid' : ''}`}
+                        placeholder="e.g. 5000"
+                        {...register('starting_price')}
+                    />
                 </div>
-                <div className="col-sm-6 cap__field">
-                    <label className="form-label" htmlFor="bid-increment">Bid Increment (₦) *</label>
-                    <div className="cap__price-wrapper">
-                        <span className="cap__price-prefix">₦</span>
-                        <input
-                            id="bid-increment"
-                            type="number"
-                            min="1"
-                            step="1"
-                            className={`form-control cap__price-input ${errors.bid_increment ? 'is-invalid' : ''}`}
-                            placeholder="500"
-                            {...register('bid_increment')}
-                        />
-                    </div>
-                    {errors.bid_increment && <div className="cap__field-error">{errors.bid_increment.message}</div>}
-                </div>
+                {errors.starting_price && <div className="cap__field-error">{errors.starting_price.message}</div>}
             </div>
 
             {/* Reserve price toggle */}
@@ -717,7 +696,6 @@ function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserv
         { label: 'Condition',       value: condLabel },
         { label: 'Description',     value: <span style={{ fontStyle: 'italic', fontSize: '0.8125rem' }}>{(itemData?.description ?? '').slice(0, 120)}{itemData?.description?.length > 120 ? '…' : ''}</span> },
         { label: 'Starting Price',  value: formatNaira(settingsData?.starting_price) },
-        { label: 'Bid Increment',   value: formatNaira(settingsData?.bid_increment)  },
         { label: 'Reserve Price',   value: reserveOn ? 'Set (confidential)' : 'None — sells to highest bidder' },
         { label: 'Starts',          value: settingsData?.start_at ? new Date(settingsData.start_at).toLocaleString('en-NG') : '—' },
         { label: 'Ends',            value: settingsData?.end_at   ? new Date(settingsData.end_at).toLocaleString('en-NG')   : '—' },

@@ -118,7 +118,10 @@ class BidService:
             raise AlreadyHighestBidderException()
 
         if current_highest:
-            minimum = current_highest.amount + auction.bid_increment
+            increment = await self._auction_repo.get_increment_for_amount(
+                current_highest.amount
+            )
+            minimum = current_highest.amount + increment
         else:
             auction_items = await self._auction_repo.get_auction_items(auction_id)
             if not auction_items:
@@ -266,7 +269,11 @@ class BidService:
         highest_bid = await self._bid_repo.get_highest_bid(auction_id)
 
         if highest_bid:
-            minimum_next_bid = highest_bid.amount + auction.bid_increment
+            increment = await self._auction_repo.get_increment_for_amount(
+                highest_bid.amount
+            )
+            minimum_next_bid = highest_bid.amount + increment
+
         else:
             auction_items = await self._auction_repo.get_auction_items(auction_id)
             minimum_next_bid = (

@@ -1,18 +1,28 @@
 """Repository for auction, item, and category database operations."""
 
+import logging
 import uuid
 from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Sequence
 
-from sqlalchemy import select
+from sqlalchemy import or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from apps.auctions.enums import AuctionStatus, ItemStatus
-from apps.auctions.models import Auction, AuctionItem, Category, Item, ItemImage
+from apps.auctions.models import (
+    Auction,
+    AuctionItem,
+    BidIncrementTier,
+    Category,
+    Item,
+    ItemImage,
+)
 from apps.bids.models import Bid
 from common.pagination import paginate
+
+logger = logging.getLogger(__name__)
 
 
 class CategoryRepository:
@@ -530,8 +540,6 @@ class AuctionRepository:
             True if successfully claimed, False if already claimed
 
         """
-        from sqlalchemy import update
-
         stmt = (
             update(Auction)
             .where(Auction.id == auction_id)
@@ -783,3 +791,40 @@ class AuctionRepository:
                 stmt = stmt.order_by(Auction.created_at.desc())
 
         return await paginate(stmt, page, limit, self._db)
+
+    async def get_increment_for_amount(self, current_bid: Decimal) -> Decimal:
+        """Return the bid increment for a given current bid amount.
+
+        Looks up the active ``BidIncrementTier`` whose range covers
+        ``current_bid`` and returns its ``increment`` value.  Falls back
+        to ₦500 if no matching tier is found.
+
+        Args:
+            current_bid: The current highest bid amount.
+
+        Returns:
+            The minimum increment the next bid must exceed the current by.
+
+        """
+        stmt = (
+            select(BidIncrementTier)
+            .where(BidIncrementTier.is_active)
+            .where(BidIncrementTier.min_value <= current_bid)
+            .where(
+                or_(
+                    BidIncrementTier.max_value.is_(None),
+                    BidIncrementTier.max_value >= current_bid,
+                )
+            )
+            .order_by(BidIncrementTier.min_value.desc())
+            .limit(1)
+        )
+        result = await self._db.execute(stmt)
+        tier = result.scalar_one_or_none()
+        if tier is None:
+            logger.warning(
+                "No active bid increment tier found for %s. Using default ₦500.",
+                current_bid,
+            )
+            return Decimal("500.00")
+        return tier.increment
