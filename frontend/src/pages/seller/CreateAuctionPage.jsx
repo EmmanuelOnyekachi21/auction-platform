@@ -770,9 +770,11 @@ export default function CreateAuctionPage() {
     const navigate = useNavigate();
     const { user, isAuthenticated } = useAuthStore();
 
-    /* Gate: must be authenticated and a verified seller */
+    /* Gate: must be authenticated and a verified seller (admins bypass) */
     useEffect(() => {
         if (!isAuthenticated) { navigate('/login', { replace: true }); return; }
+        const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERUSER';
+        if (isAdmin) return;
         const profile = user?.seller_profile;
         if (!profile)                  { navigate('/become-seller', { replace: true }); return; }
         if (!profile.is_verified)      { navigate('/seller/pending', { replace: true }); return; }
@@ -790,7 +792,8 @@ export default function CreateAuctionPage() {
 
     const merge = (patch) => setState((prev) => ({ ...prev, ...patch }));
 
-    if (!isAuthenticated || !user?.seller_profile?.is_verified) return null;
+    const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERUSER';
+    if (!isAuthenticated || (!isAdmin && !user?.seller_profile?.is_verified)) return null;
 
     return (
         <div className="cap page-container" style={{ maxWidth: 720 }}>
