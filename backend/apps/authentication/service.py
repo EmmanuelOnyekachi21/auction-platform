@@ -178,8 +178,11 @@ class AuthService:
             AccountBannedException: If the account is permanently banned.
 
         """
-        user = await self._user_repo.get_by_email(data.email)
-
+        try:
+            user = await self._user_repo.get_by_email(data.email)
+        except Exception:
+            logger.exception("DB error during login email lookup")
+            raise InvalidCredentialsException()
         if not user or not verify_password(data.password, user.password_hash):
             raise InvalidCredentialsException()
 

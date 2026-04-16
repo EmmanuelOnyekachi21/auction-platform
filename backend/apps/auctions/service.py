@@ -116,10 +116,18 @@ class AuctionService:
         """
         # Verify seller has verified SellerProfile
         user = await self._user_repo.get_with_profile(seller_id)
-        if not user or not user.seller_profile or not user.seller_profile.is_verified:
-            raise ValidationException(
-                message="You must be a verified seller to create items",
-            )
+
+        # Admins and superusers bypass seller verification
+        is_admin = user and user.role.value in ("ADMIN", "SUPERUSER")
+        if not is_admin:
+            if (
+                not user
+                or not user.seller_profile
+                or not user.seller_profile.is_verified
+            ):
+                raise ValidationException(
+                    message="You must be a verified seller to create items",
+                )
 
         # Verify category exists
         category = await self._category_repo.get_by_id(data.category_id)
