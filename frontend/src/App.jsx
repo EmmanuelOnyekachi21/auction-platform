@@ -54,6 +54,8 @@ const queryClient = new QueryClient();
 
 /** Derive where "Start Selling" should navigate based on seller status */
 const getSellerRoute = (user) => {
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERUSER';
+  if (isAdmin) return '/seller/create-auction';
   if (!user?.seller_profile)               return '/become-seller';
   if (!user.seller_profile.is_verified)    return '/seller/pending';
   return '/seller/dashboard';
@@ -64,9 +66,11 @@ const Dashboard = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const sellerRoute = getSellerRoute(user);
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERUSER';
 
   // Smart seller label for the quick-actions list
   const sellerAction = (() => {
+    if (isAdmin)                           return { label: 'Seller Dashboard', desc: 'Create and manage auctions' };
     if (!user?.seller_profile)             return { label: 'Start Selling', desc: 'Register as a seller to list items' };
     if (!user.seller_profile.is_verified)  return { label: 'Seller Status',  desc: 'Check the status of your application' };
     return { label: 'Seller Dashboard', desc: 'Manage your auctions and earnings' };
