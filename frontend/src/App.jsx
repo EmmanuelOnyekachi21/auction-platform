@@ -55,7 +55,7 @@ const queryClient = new QueryClient();
 /** Derive where "Start Selling" should navigate based on seller status */
 const getSellerRoute = (user) => {
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERUSER';
-  if (isAdmin) return '/seller/create-auction';
+  if (isAdmin) return '/seller/dashboard';
   if (!user?.seller_profile)               return '/become-seller';
   if (!user.seller_profile.is_verified)    return '/seller/pending';
   return '/seller/dashboard';

@@ -226,7 +226,8 @@ def process_overdue_shipments(self):
                     buyer_wallet = await wallet_repo.get_by_user_id_with_lock(
                         order.buyer_id
                     )
-                    balance_before = buyer_wallet.escrow_funds
+                    # available_funds before refund
+                    balance_before = buyer_wallet.available_funds
 
                     buyer_wallet = await wallet_repo.update_balances(
                         wallet_id=buyer_wallet.id,

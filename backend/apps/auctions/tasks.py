@@ -259,7 +259,7 @@ async def _handle_reserve_not_met(
                 f"Wallet not found for highest bidder {highest_bid.bidder_id}"
             )
 
-        balance_before = winner_wallet.locked_funds
+        balance_before = winner_wallet.available_funds
         logger.info(
             "Attempting to unlock %s from wallet %s "
             "(locked_funds=%s available_funds=%s)",
@@ -275,12 +275,13 @@ async def _handle_reserve_not_met(
             escrow_delta=Decimal("0"),
         )
 
+        # Total after unlock — locked decreased, available increased, total same
         await wallet_repo.create_transaction(
             wallet_id=winner_wallet.id,
             data={
                 "amount": highest_bid.amount,
                 "balance_before": balance_before,
-                "balance_after": updated_wallet.locked_funds,
+                "balance_after": updated_wallet.available_funds,
                 "description": (
                     f"Bid refund - reserve price not met on auction {auction.id}"
                 ),
@@ -500,7 +501,8 @@ def process_auction_settlement(self, auction_id: str):
 
             wallet_repo = WalletRepository(db)
             winner_wallet = await wallet_repo.get_by_user_id_with_lock(winner_id)
-            balance_before = winner_wallet.locked_funds
+            # available_funds before escrow move (doesn't change during locked→escrow)
+            balance_before = winner_wallet.available_funds
 
             updated_winner_wallet = await wallet_repo.update_balances(
                 wallet_id=winner_wallet.id,
@@ -509,12 +511,15 @@ def process_auction_settlement(self, auction_id: str):
                 escrow_delta=bid_amount,
             )
 
+            # available_funds after — same as before since available wasn't touched
+            balance_after = updated_winner_wallet.available_funds
+
             await wallet_repo.create_transaction(
                 wallet_id=winner_wallet.id,
                 data={
                     "amount": bid_amount,
                     "balance_before": balance_before,
-                    "balance_after": updated_winner_wallet.locked_funds,
+                    "balance_after": balance_after,
                     "description": f"Escrow hold for auction {auction_id}",
                     "transaction_type": TransactionType.ESCROW_MOVE,
                     "direction": TransactionDirection.DEBIT,

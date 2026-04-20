@@ -400,6 +400,7 @@ export default function AuctionDetailPage() {
         bid_count      = 0,
         bid_increment  = 0,
         reserve_price_met,
+        reserve_progress_percent,
         bids           = [],
         seller,
     } = auction;
@@ -631,14 +632,16 @@ export default function AuctionDetailPage() {
                                     <span className="adp__bid-label">
                                         {hasBids ? 'Current Bid' : 'Starting Bid'}
                                     </span>
-                                    {/* Reserve indicator — commented out until reserve price feature is complete
-                                    {reserve_price_met !== null && reserve_price_met !== undefined && (
-                                        <span className={`adp__reserve ${reserve_price_met ? 'adp__reserve--met' : 'adp__reserve--not-met'}`}>
-                                            <FiCheckCircle size={11} />
-                                            {reserve_price_met ? 'Reserve Met' : 'Reserve Not Met'}
+                                    {reserve_price_met === false && (
+                                        <span className="adp__reserve adp__reserve--not-met">
+                                            <FiAlertCircle size={11} /> Reserve Not Met
                                         </span>
                                     )}
-                                    */}
+                                    {reserve_price_met === true && (
+                                        <span className="adp__reserve adp__reserve--met">
+                                            <FiCheckCircle size={11} /> Reserve Met
+                                        </span>
+                                    )}
                                 </div>
 
                                 {hasBids ? (
@@ -676,6 +679,46 @@ export default function AuctionDetailPage() {
                                     )}
                                 </div>
                             </div>
+
+                            {/* ── Reserve Price Progress Bar ── */}
+                            {reserve_progress_percent !== null && reserve_progress_percent !== undefined && (
+                                <div style={{
+                                    margin: '0.75rem 1.25rem',
+                                    padding: '0.875rem 1rem',
+                                    borderRadius: 'var(--radius)',
+                                    background: 'var(--surface)',
+                                    border: '1px solid var(--border)',
+                                }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                                        <span style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>
+                                            Reserve Price
+                                        </span>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.75rem', fontWeight: 700, color: reserve_price_met ? 'var(--success)' : 'var(--warning)' }}>
+                                            {reserve_price_met
+                                                ? <><FiCheckCircle size={12} /> Met</>
+                                                : <><FiAlertCircle size={12} /> Not Met</>
+                                            }
+                                        </span>
+                                    </div>
+                                    <div style={{ height: 8, background: 'var(--border)', borderRadius: 'var(--radius-full)', overflow: 'hidden' }}>
+                                        <div style={{
+                                            height: '100%',
+                                            width: `${reserve_progress_percent}%`,
+                                            background: reserve_price_met ? 'var(--success)' : 'var(--warning)',
+                                            borderRadius: 'var(--radius-full)',
+                                            transition: 'width 0.6s ease',
+                                        }} />
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '0.375rem', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
+                                        <span>{reserve_progress_percent}% of reserve reached</span>
+                                        {!reserve_price_met && (
+                                            <span style={{ color: 'var(--text-muted)', fontSize: '0.6875rem' }}>
+                                                Item only sells if reserve is met
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* ── Place bid section ── */}
                             {isScheduled ? (
