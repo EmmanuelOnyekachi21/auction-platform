@@ -337,7 +337,7 @@ class WalletService:
             user_first_name = wallet.user.first_name
             user_last_name = wallet.user.last_name
 
-            # Record balance before
+            # Record balance before — available_funds only
             balance_before = wallet.available_funds
 
             # Update wallet balance (use verified amount, not webhook amount)
@@ -348,11 +348,14 @@ class WalletService:
                 escrow_delta=Decimal("0.00"),
             )
 
+            # Refresh to get updated available_funds for balance_after
+            await self._db.refresh(wallet)
+
             # Create wallet transaction (use verified amount)
             transaction_data = {
                 "amount": verified_amount,
                 "balance_before": balance_before,
-                "balance_after": balance_before + verified_amount,
+                "balance_after": wallet.available_funds,
                 "description": f"Wallet funding via {payment.provider}",
                 "transaction_type": TransactionType.DEPOSIT.value,
                 "direction": TransactionDirection.CREDIT.value,
@@ -491,7 +494,7 @@ class WalletService:
                 f"₦{withdrawal_request.amount}"
             )
 
-        # Record balance before
+        # Record balance before — available_funds only
         balance_before = wallet.available_funds
 
         # Debit available funds
@@ -502,11 +505,14 @@ class WalletService:
             escrow_delta=Decimal("0.00"),
         )
 
+        # Refresh to get updated available_funds
+        await self._db.refresh(wallet)
+
         # Create withdrawal transaction with PENDING status
         transaction_data = {
             "amount": withdrawal_request.amount,
             "balance_before": balance_before,
-            "balance_after": balance_before - withdrawal_request.amount,
+            "balance_after": wallet.available_funds,
             "description": (
                 f"Withdrawal to {user.profile.bank_code} - "
                 f"{user.profile.account_number}"

@@ -153,6 +153,7 @@ class BidService:
                 amount=data.amount,
             )
 
+            # available_funds before bid lock
             balance_before = wallet.available_funds
             wallet = await self._wallet_repo.update_balances(
                 wallet_id=wallet.id,
@@ -160,6 +161,7 @@ class BidService:
                 locked_delta=data.amount,
                 escrow_delta=Decimal("0"),
             )
+            # available_funds after bid lock — shows the deduction clearly
             wallet_txn = await self._wallet_repo.create_transaction(
                 wallet_id=wallet.id,
                 data={
@@ -187,7 +189,7 @@ class BidService:
                 prev_wallet = await self._wallet_repo.get_by_user_id_with_lock(
                     current_highest.bidder_id
                 )
-                prev_balance_before = prev_wallet.locked_funds
+                prev_balance_before = prev_wallet.available_funds
                 prev_wallet = await self._wallet_repo.update_balances(
                     wallet_id=prev_wallet.id,
                     available_delta=current_highest.amount,

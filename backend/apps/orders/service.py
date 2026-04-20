@@ -296,8 +296,6 @@ class OrderService:
         if not escrow:
             raise ValidationException(message="Escrow not found")
 
-        seller_payout = escrow.amount - escrow.commission_amount
-
         buyer_wallet = await self._wallet_repo.get_by_user_id_with_lock(
             escrow.winner_id
         )
@@ -317,8 +315,12 @@ class OrderService:
         if not seller_wallet:
             raise ValidationException(message="Seller wallet not found")
 
+        seller_payout = escrow.amount - escrow.commission_amount
         balance_before = seller_wallet.available_funds
 
+        # Credit seller with net payout (full amount minus commission) in one step.
+        # Commission is an internal platform deduction — showing it as a separate
+        # transaction confuses sellers. One clean line: "you received ₦X".
         seller_wallet = await self._wallet_repo.update_balances(
             wallet_id=seller_wallet.id,
             available_delta=seller_payout,
@@ -332,25 +334,12 @@ class OrderService:
                 "amount": seller_payout,
                 "balance_before": balance_before,
                 "balance_after": seller_wallet.available_funds,
-                "description": f"Escrow released for order {escrow.order_id}",
+                "description": (
+                    f"Sale proceeds for order {escrow.order_id} "
+                    f"(₦{escrow.amount:,.2f} - 5% commission)"
+                ),
                 "transaction_type": TransactionType.ESCROW_RELEASE,
                 "direction": TransactionDirection.CREDIT,
-                "balance_type": BalanceType.AVAILABLE,
-                "reference_id": str(escrow.id),
-                "reference_type": ReferenceType.ESCROW,
-            },
-        )
-
-        await self._wallet_repo.create_transaction(
-            wallet_id=seller_wallet.id,
-            data={
-                "amount": escrow.commission_amount,
-                "balance_before": seller_wallet.available_funds,
-                "balance_after": seller_wallet.available_funds
-                - escrow.commission_amount,
-                "description": (f"Platform commission for order {escrow.order_id}"),
-                "transaction_type": TransactionType.COMMISION,
-                "direction": TransactionDirection.DEBIT,
                 "balance_type": BalanceType.AVAILABLE,
                 "reference_id": str(escrow.id),
                 "reference_type": ReferenceType.ESCROW,
@@ -478,7 +467,8 @@ class OrderService:
 
         try:
             buyer_wallet = await self._wallet_repo.get_by_user_id_with_lock(buyer_id)
-            balance_before = buyer_wallet.escrow_funds
+            # available_funds before refund
+            balance_before = buyer_wallet.available_funds
 
             buyer_wallet = await self._wallet_repo.update_balances(
                 wallet_id=buyer_wallet.id,
