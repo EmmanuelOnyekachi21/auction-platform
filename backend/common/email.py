@@ -1,68 +1,49 @@
-"""Email utilities using FastAPI-Mail.
+"""Email utilities using Resend.
 
-Provides centralized email configuration and sending functionality.
-Supports both development (Mailtrap) and production SMTP servers.
+Provides centralized email sending functionality via the Resend API.
+The sender domain must be verified in the Resend dashboard.
 """
 
 import logging
 from typing import List
 
-from fastapi_mail import ConnectionConfig, FastMail, MessageSchema, MessageType
+import resend
 
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
-
-def get_mail_config() -> ConnectionConfig:
-    """Create FastAPI-Mail connection configuration from settings."""
-    validate_certs = not settings.mail_server.endswith("mailtrap.io")
-
-    return ConnectionConfig(
-        MAIL_USERNAME=settings.mail_username,
-        MAIL_PASSWORD=settings.mail_password,
-        MAIL_FROM=settings.mail_from,
-        MAIL_PORT=settings.mail_port,
-        MAIL_SERVER=settings.mail_server,
-        MAIL_FROM_NAME=settings.mail_from_name,
-        MAIL_STARTTLS=settings.mail_starttls,
-        MAIL_SSL_TLS=settings.mail_ssl_tls,
-        USE_CREDENTIALS=True,
-        VALIDATE_CERTS=validate_certs,
-    )
-
-
-def get_mail_client() -> FastMail:
-    """Get configured FastMail client instance."""
-    return FastMail(get_mail_config())
+resend.api_key = settings.resend_api_key
 
 
 async def send_email(
     subject: str,
     recipients: List[str],
     body: str,
-    subtype: MessageType = MessageType.plain,
 ) -> None:
-    """Send an email using configured SMTP settings."""
-    message = MessageSchema(
-        subject=subject,
-        recipients=recipients,
-        body=body,
-        subtype=subtype,
-    )
+    """Send a plain-text email via Resend.
 
-    fm = get_mail_client()
+    Args:
+        subject: Email subject line.
+        recipients: List of recipient email addresses.
+        body: Plain text email body.
 
-    logger.info(
-        "Sending email to %s via %s:%s (subject: %s)",
-        recipients,
-        settings.mail_server,
-        settings.mail_port,
-        subject,
-    )
+    Raises:
+        Exception: If the Resend API call fails.
+
+    """
+    logger.info("Sending email to %s (subject: %s)", recipients, subject)
 
     try:
-        await fm.send_message(message)
+        # resend.Emails.send is synchronous — do not await
+        resend.Emails.send(
+            {
+                "from": settings.mail_from,
+                "to": recipients,
+                "subject": subject,
+                "text": body,
+            }
+        )
         logger.info("Email sent successfully to %s", recipients)
     except Exception as exc:
         logger.error("Failed to send email to %s: %s", recipients, exc)
@@ -74,10 +55,26 @@ async def send_html_email(
     recipients: List[str],
     html_body: str,
 ) -> None:
-    """Send an HTML email."""
-    await send_email(
-        subject=subject,
-        recipients=recipients,
-        body=html_body,
-        subtype=MessageType.html,
-    )
+    """Send an HTML email via Resend.
+
+    Args:
+        subject: Email subject line.
+        recipients: List of recipient email addresses.
+        html_body: HTML email body.
+
+    """
+    logger.info("Sending HTML email to %s (subject: %s)", recipients, subject)
+
+    try:
+        resend.Emails.send(
+            {
+                "from": settings.mail_from,
+                "to": recipients,
+                "subject": subject,
+                "html": html_body,
+            }
+        )
+        logger.info("HTML email sent successfully to %s", recipients)
+    except Exception as exc:
+        logger.error("Failed to send HTML email to %s: %s", recipients, exc)
+        raise
