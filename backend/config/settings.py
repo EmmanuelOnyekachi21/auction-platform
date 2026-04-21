@@ -39,21 +39,10 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:3000"
     allowed_hosts: str = "localhost,127.0.0.1"
 
-    # --- Email (SMTP) ---
-    mail_username: str
-    mail_password: str
-    mail_from: str = "noreply@auction-platform.com"
-    mail_port: int
-    mail_server: str
-    mail_from_name: str = "Auction Platform"
-    mail_starttls: bool = True
-    mail_ssl_tls: bool = False
+    mail_from: str
 
     # --- Resend ---
     resend_api_key: str = ""
-
-    # --- Brevo ---
-    brevo_api_key: str = ""
 
     # --- Flutterwave ---
     flutterwave_secret_key: str = ""
