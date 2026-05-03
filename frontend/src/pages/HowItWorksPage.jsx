@@ -19,7 +19,7 @@ export default function HowItWorksPage() {
             num: '02',
             icon: <FiLock size={32} />,
             title: 'Fund Your Wallet',
-            desc: 'Top up your KaraKaja wallet securely via Flutterwave before you start bidding.',
+            desc: 'Top up your KaraKaja wallet securely via Paystack before you start bidding.',
             color: '#0D9488'
         },
         {

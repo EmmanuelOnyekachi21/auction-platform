@@ -233,6 +233,14 @@ class SellerProfileNotFoundException(NotFoundException):
         super().__init__(message=message, code="SELLER_PROFILE_NOT_FOUND")
 
 
+class DisputeNotFoundException(NotFoundException):
+    """Raised when a dispute cannot be found by the given identifier."""
+
+    def __init__(self, message: str = "Dispute not found") -> None:
+        """Initialise with error code ``DISPUTE_NOT_FOUND``."""
+        super().__init__(message=message, code="DISPUTE_NOT_FOUND")
+
+
 # ---------------------------------------------------------------------------
 # Validation  (HTTP 422)
 # ---------------------------------------------------------------------------
@@ -381,16 +389,28 @@ class PaymentVerificationException(AuctionPlatformException):
         )
 
 
-# Flutterwave errors
-class FlutterwaveError(AuctionPlatformException):
-    """Base exception for Flutterwave errors."""
+class FileMismatchException(AuctionPlatformException):
+    """Raised when a payment gateway callback cannot be verified."""
 
-    def __init__(self, message: str = "Flutterwave error occurred") -> None:
+    def __init__(self, message: str = "File Type Mismatch") -> None:
+        """Initialise with error code ``FILE_MISMATCH`` and HTTP 400."""
+        super().__init__(
+            message=message,
+            code="FILE_MISMATCH",
+            status_code=400,
+        )
+
+
+# Paystack errors
+class PaystackError(AuctionPlatformException):
+    """Base exception for Paystack errors."""
+
+    def __init__(self, message: str = "Paystack error occurred") -> None:
         """Initialise with error code and HTTP 500."""
-        super().__init__(message=message, code="FLUTTERWAVE_ERROR", status_code=500)
+        super().__init__(message=message, code="PAYSTACK_ERROR", status_code=500)
 
 
-class FlutterwavePaymentError(FlutterwaveError):
+class PaystackPaymentError(PaystackError):
     """Raised when payment initiation fails."""
 
     def __init__(self, message: str = "Payment initiation failed") -> None:
@@ -398,7 +418,7 @@ class FlutterwavePaymentError(FlutterwaveError):
         super().__init__(message=message)
 
 
-class FlutterwaveVerificationError(FlutterwaveError):
+class PaystackVerificationError(PaystackError):
     """Raised when payment verification fails."""
 
     def __init__(self, message: str = "Payment verification failed") -> None:

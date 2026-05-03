@@ -6,7 +6,7 @@ import {
     FiCheckCircle, FiAlertCircle, FiXCircle,
     FiInbox, FiTruck, FiPackage, FiRotateCcw, FiHelpCircle, FiX
 } from 'react-icons/fi';
-import { getMyOrders, shipOrder, confirmDelivery, raiseDispute } from '../../api/orders';
+import { getMyOrders, shipOrder, confirmDelivery, raiseDispute, uploadEvidenceFile } from '../../api/orders';
 import { useAuthStore } from '../../store/authStore';
 import { useToast } from '../../components/common/Toast';
 
@@ -136,11 +136,25 @@ function ConfirmDeliveryModal({ show, onClose, orderId }) {
 function RaiseDisputeModal({ show, onClose, orderId }) {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [files, setFiles] = useState([]);
     const { showToast } = useToast();
     const queryClient = useQueryClient();
 
     const mutation = useMutation({
-        mutationFn: (data) => raiseDispute(orderId, data),
+        mutationFn: async (data) => {
+            const dispute = await raiseDispute(orderId, data);
+            // Upload any attached files after dispute is created
+            if (files.length > 0) {
+                for (const f of files) {
+                    try {
+                        await uploadEvidenceFile(dispute.id, f);
+                    } catch {
+                        // Don't fail the whole dispute if a file upload fails
+                    }
+                }
+            }
+            return dispute;
+        },
         onSuccess: () => {
             showToast('Dispute raised successfully', 'success');
             queryClient.invalidateQueries({ queryKey: ['order', orderId] });
@@ -196,6 +210,27 @@ function RaiseDisputeModal({ show, onClose, orderId }) {
                                 {description.length < 50 ? `Minimum 50 characters: ${description.length}/50` : `${description.length} characters`}
                             </span>
                         </div>
+                    </div>
+                    <div className="mb-3">
+                        <label className="form-label" style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                            Attach Evidence <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional, up to 10 files)</span>
+                        </label>
+                        <input
+                            type="file"
+                            className="form-control"
+                            accept="image/jpeg,image/png,image/webp,video/mp4,video/avi,video/mov,video/mkv"
+                            multiple
+                            onChange={e => setFiles(Array.from(e.target.files).slice(0, 10))}
+                            disabled={mutation.isPending}
+                        />
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                            Images (JPG, PNG, WebP) or Videos (MP4, AVI, MOV, MKV)
+                        </div>
+                        {files.length > 0 && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.25rem', fontWeight: 600 }}>
+                                {files.length} file{files.length > 1 ? 's' : ''} selected
+                            </div>
+                        )}
                     </div>
                 </div>
                 <div style={{ padding: '1.25rem', borderTop: '1px solid var(--border)', backgroundColor: 'var(--surface)', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>

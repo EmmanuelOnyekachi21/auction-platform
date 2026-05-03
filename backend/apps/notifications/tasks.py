@@ -2,16 +2,72 @@
 
 Uses centralized email utilities to send formatted emails for
 verification, password resets, and other system alerts.
+Also creates in-app Notification records for user-facing events.
 """
 
 import asyncio
 import logging
+from uuid import UUID
 
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+import config.model_registry  # noqa: F401
+from apps.notifications.enums import NotificationReferenceType, NotificationType
+from apps.notifications.models import Notification
 from common.email import send_email
 from config.celery_app import celery
 from config.settings import settings
 
 logger = logging.getLogger(__name__)
+
+
+async def _create_notification(
+    user_id: str,
+    title: str,
+    message: str,
+    notification_type: str,
+    reference_id: str | None = None,
+    reference_type: str | None = None,
+) -> None:
+    """Create an in-app notification record in a fresh DB session.
+
+    Called from synchronous Celery tasks via ``asyncio.run()``.
+    Uses a dedicated session so it does not interfere with other task sessions.
+
+    Args:
+        user_id: UUID string of the recipient user.
+        title: Short notification title.
+        message: Full notification message body.
+        notification_type: String value of the ``NotificationType`` enum.
+        reference_id: Optional UUID string of the related entity.
+        reference_type: Optional string value of the ``NotificationReferenceType`` enum.
+
+    """
+    engine = create_async_engine(settings.database_url, echo=False)
+    factory = async_sessionmaker(engine, expire_on_commit=False)
+
+    try:
+        async with factory() as session:
+            notification = Notification(
+                user_id=UUID(user_id),
+                title=title,
+                message=message,
+                notification_type=NotificationType(notification_type),
+                reference_id=UUID(reference_id) if reference_id else None,
+                reference_type=(
+                    NotificationReferenceType(reference_type)
+                    if reference_type
+                    else None
+                ),
+            )
+            session.add(notification)
+            await session.commit()
+    except Exception as exc:
+        logger.error(
+            "Failed to create in-app notification for user %s: %s", user_id, exc
+        )
+    finally:
+        await engine.dispose()
 
 
 @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
@@ -242,7 +298,12 @@ def send_item_rejected_notification(
 
 @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def notify_outbid_user(
-    self, user_email: str, user_name: str, auction_id: str, new_highest_bid: str
+    self,
+    user_email: str,
+    user_name: str,
+    auction_id: str,
+    new_highest_bid: str,
+    user_id: str | None = None,
 ):
     """Send email notification when a user has been outbid.
 
@@ -252,6 +313,7 @@ def notify_outbid_user(
         user_name: The outbid user's name for personalization.
         auction_id: UUID string of the auction.
         new_highest_bid: The new highest bid amount as string (Decimal-safe).
+        user_id: UUID string of the user (for in-app notification).
 
     Raises:
         Exception: If the email fails to send (triggered for retry).
@@ -279,6 +341,21 @@ def notify_outbid_user(
         logger.error("Error sending outbid notification to %s: %s", user_email, exc)
         raise exc
 
+    if user_id:
+        asyncio.run(
+            _create_notification(
+                user_id=user_id,
+                title="You've been outbid",
+                message=(
+                    f"Someone placed a higher bid of ₦{new_highest_bid}. "
+                    f"Your funds have been returned."
+                ),
+                notification_type="OUTBID",
+                reference_id=auction_id,
+                reference_type="AUCTION",
+            )
+        )
+
 
 # ── Order Notifications ───────────────────────────────────────────────────────
 
@@ -290,6 +367,7 @@ def notify_item_shipped(
     buyer_name: str,
     order_id: str,
     tracking_number: str | None,
+    user_id: str | None = None,
 ):
     """Notify buyer that their item has been shipped.
 
@@ -299,6 +377,7 @@ def notify_item_shipped(
         buyer_name: The buyer's name for personalisation.
         order_id: UUID string of the order.
         tracking_number: Optional carrier tracking number.
+        user_id: Optional UUID string for in-app notification.
 
     """
     tracking_line = f"Tracking: {tracking_number}\n\n" if tracking_number else ""
@@ -324,11 +403,27 @@ def notify_item_shipped(
             "Failed to send item shipped notification to %s: %s", buyer_email, exc
         )
         raise exc
+    if user_id:
+        asyncio.run(
+            _create_notification(
+                user_id=user_id,
+                title="Your item has been shipped",
+                message="Your item is on its way. Confirm delivery once received.",
+                notification_type="ORDER_SHIPPED",
+                reference_id=order_id,
+                reference_type="ORDER",
+            )
+        )
 
 
 @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def notify_payment_released(
-    self, seller_email: str, seller_name: str, order_id: str, amount: str
+    self,
+    seller_email: str,
+    seller_name: str,
+    order_id: str,
+    amount: str,
+    user_id: str | None = None,
 ):
     """Notify seller that escrow funds have been released to their wallet.
 
@@ -338,6 +433,7 @@ def notify_payment_released(
         seller_name: The seller's name for personalisation.
         order_id: UUID string of the order.
         amount: Payout amount as a string.
+        user_id: Optional UUID string for in-app notification.
 
     """
     body = (
@@ -362,11 +458,26 @@ def notify_payment_released(
             exc,
         )
         raise exc
+    if user_id:
+        asyncio.run(
+            _create_notification(
+                user_id=user_id,
+                title="Payment released",
+                message=f"₦{amount} has been released to your wallet.",
+                notification_type="ESCROW_RELEASED",
+                reference_id=order_id,
+                reference_type="ORDER",
+            )
+        )
 
 
 @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def notify_transaction_completed(
-    self, buyer_email: str, buyer_name: str, order_id: str
+    self,
+    buyer_email: str,
+    buyer_name: str,
+    order_id: str,
+    user_id: str | None = None,
 ):
     """Notify buyer that their transaction has been completed.
 
@@ -375,6 +486,7 @@ def notify_transaction_completed(
         buyer_email: The buyer's email address.
         buyer_name: The buyer's name for personalisation.
         order_id: UUID string of the order.
+        user_id: Optional UUID string for in-app notification.
 
     """
     body = (
@@ -399,11 +511,26 @@ def notify_transaction_completed(
             exc,
         )
         raise exc
+    if user_id:
+        asyncio.run(
+            _create_notification(
+                user_id=user_id,
+                title="Transaction completed",
+                message="Your order has been completed. Thank you for using KaraKaja!",
+                notification_type="ORDER_DELIVERED",
+                reference_id=order_id,
+                reference_type="ORDER",
+            )
+        )
 
 
 @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def notify_order_cancelled_buyer(
-    self, buyer_email: str, buyer_name: str, order_id: str
+    self,
+    buyer_email: str,
+    buyer_name: str,
+    order_id: str,
+    user_id: str | None = None,
 ):
     """Notify buyer that their order was cancelled and a refund issued.
 
@@ -412,6 +539,7 @@ def notify_order_cancelled_buyer(
         buyer_email: The buyer's email address.
         buyer_name: The buyer's name for personalisation.
         order_id: UUID string of the order.
+        user_id: Optional UUID string for in-app notification.
 
     """
     body = (
@@ -435,43 +563,20 @@ def notify_order_cancelled_buyer(
             "Failed to send order cancelled notification to %s: %s", buyer_email, exc
         )
         raise exc
-
-
-@celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
-def notify_order_cancelled_seller(
-    self, seller_email: str, seller_name: str, order_id: str
-):
-    """Notify seller that their order was cancelled due to non-shipment.
-
-    Args:
-        self: Celery task instance (injected via ``bind=True``).
-        seller_email: The seller's email address.
-        seller_name: The seller's name for personalisation.
-        order_id: UUID string of the order.
-
-    """
-    body = (
-        f"Hello {seller_name},\n\n"
-        f"Your order has been cancelled due to non-shipment within the deadline.\n\n"
-        f"Please ensure you ship items promptly to avoid future cancellations.\n\n"
-        f"View your orders: {settings.app_url}/my-orders"
-    )
-    try:
+    if user_id:
         asyncio.run(
-            send_email(
-                subject="Order cancelled due to non-shipment",
-                recipients=[seller_email],
-                body=body,
+            _create_notification(
+                user_id=user_id,
+                title="Order cancelled — refund issued",
+                message=(
+                    "Your order was cancelled. "
+                    "A full refund has been issued to your wallet."
+                ),
+                notification_type="ORDER_DELIVERED",
+                reference_id=order_id,
+                reference_type="ORDER",
             )
         )
-        logger.info("Order cancelled (seller) notification sent to %s", seller_email)
-    except Exception as exc:
-        logger.error(
-            "Failed to send order cancelled (seller) notification to %s: %s",
-            seller_email,
-            exc,
-        )
-        raise exc
 
 
 # ── Dispute Notifications ─────────────────────────────────────────────────────
@@ -479,7 +584,12 @@ def notify_order_cancelled_seller(
 
 @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def notify_dispute_raised_seller(
-    self, seller_email: str, seller_name: str, order_id: str, dispute_id: str
+    self,
+    seller_email: str,
+    seller_name: str,
+    order_id: str,
+    dispute_id: str,
+    user_id: str | None = None,
 ):
     """Notify seller that a dispute has been raised on their order.
 
@@ -489,6 +599,7 @@ def notify_dispute_raised_seller(
         seller_name: The seller's name for personalisation.
         order_id: UUID string of the order.
         dispute_id: UUID string of the dispute.
+        user_id: Optional UUID string for in-app notification.
 
     """
     body = (
@@ -511,11 +622,27 @@ def notify_dispute_raised_seller(
             "Failed to send dispute raised notification to %s: %s", seller_email, exc
         )
         raise exc
+    if user_id:
+        asyncio.run(
+            _create_notification(
+                user_id=user_id,
+                title="Dispute raised on your order",
+                message="A buyer has raised a dispute. Please submit evidence.",
+                notification_type="DISPUTE_OPENED",
+                reference_id=dispute_id,
+                reference_type="DISPUTE",
+            )
+        )
 
 
 @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def notify_dispute_resolved_buyer(
-    self, buyer_email: str, buyer_name: str, dispute_id: str, in_favour: bool
+    self,
+    buyer_email: str,
+    buyer_name: str,
+    dispute_id: str,
+    in_favour: bool,
+    user_id: str | None = None,
 ):
     """Notify buyer of the dispute resolution outcome.
 
@@ -525,6 +652,7 @@ def notify_dispute_resolved_buyer(
         buyer_name: The buyer's name for personalisation.
         dispute_id: UUID string of the dispute.
         in_favour: ``True`` if resolved in the buyer's favour.
+        user_id: Optional UUID string for in-app notification.
 
     """
     outcome = "in your favour" if in_favour else "in the seller's favour"
@@ -552,11 +680,27 @@ def notify_dispute_resolved_buyer(
             "Failed to send dispute resolved notification to %s: %s", buyer_email, exc
         )
         raise exc
+    if user_id:
+        asyncio.run(
+            _create_notification(
+                user_id=user_id,
+                title="Dispute resolved",
+                message=f"Your dispute has been resolved {outcome}. {fund_msg}",
+                notification_type="DISPUTE_RESOLVED",
+                reference_id=dispute_id,
+                reference_type="DISPUTE",
+            )
+        )
 
 
 @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def notify_dispute_resolved_seller(
-    self, seller_email: str, seller_name: str, dispute_id: str, in_favour: bool
+    self,
+    seller_email: str,
+    seller_name: str,
+    dispute_id: str,
+    in_favour: bool,
+    user_id: str | None = None,
 ):
     """Notify seller of the dispute resolution outcome.
 
@@ -566,6 +710,7 @@ def notify_dispute_resolved_seller(
         seller_name: The seller's name for personalisation.
         dispute_id: UUID string of the dispute.
         in_favour: ``True`` if resolved in the seller's favour.
+        user_id: Optional UUID string for in-app notification.
 
     """
     outcome = "in your favour" if in_favour else "in the buyer's favour"
@@ -595,6 +740,17 @@ def notify_dispute_resolved_seller(
             exc,
         )
         raise exc
+    if user_id:
+        asyncio.run(
+            _create_notification(
+                user_id=user_id,
+                title="Dispute resolved",
+                message=f"The dispute has been resolved {outcome}. {fund_msg}",
+                notification_type="DISPUTE_RESOLVED",
+                reference_id=dispute_id,
+                reference_type="DISPUTE",
+            )
+        )
 
 
 @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)

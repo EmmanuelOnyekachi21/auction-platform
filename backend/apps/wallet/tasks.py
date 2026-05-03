@@ -119,7 +119,7 @@ def process_withdrawal_transfer(self, transaction_id: str):
     """Process bank transfer for a pending withdrawal.
 
     This task runs in the background after wallet has been debited.
-    It calls Flutterwave Transfer API and updates transaction status.
+    It calls Paystack Transfer API and updates transaction status.
 
     Args:
         self: Celery task instance
@@ -128,14 +128,14 @@ def process_withdrawal_transfer(self, transaction_id: str):
     """
 
     async def run():
-        from apps.payments.flutterwave_service import FlutterwaveService
+        from apps.payments.flutterwave_service import PaystackService
         from apps.wallet.repository import WalletRepository
         from apps.wallet.service import WalletService
-        from common.exceptions import BankDetailsNotSetupException, FlutterwaveError
+        from common.exceptions import BankDetailsNotSetupException, PaystackError
 
         async with get_async_db_session() as db:
             # Initialize services
-            flutterwave_service = FlutterwaveService(
+            flutterwave_service = PaystackService(
                 base_url=settings.flutterwave_base_url,
                 secret_key=settings.flutterwave_secret_key,
             )
@@ -197,9 +197,9 @@ def process_withdrawal_transfer(self, transaction_id: str):
                 # Don't retry - user needs to set up bank details
                 raise
 
-            except FlutterwaveError as e:
+            except PaystackError as e:
                 logger.error(
-                    f"Flutterwave error processing withdrawal " f"{transaction_id}: {e}"
+                    f"Paystack error processing withdrawal " f"{transaction_id}: {e}"
                 )
 
                 # Send failure notification with 2s delay

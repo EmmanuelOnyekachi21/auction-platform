@@ -4,14 +4,16 @@
  */
 import { useState, useRef, useEffect } from 'react';
 import { Link, NavLink, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/authStore';
 import { walletActions } from '../../api/wallet';
 import { getKYCStatus } from '../../api/kyc';
+import { getUnreadCount, getNotifications, markAllNotificationsRead, markNotificationRead } from '../../api/notifications';
 import {
   FiMenu, FiX, FiHome, FiGrid, FiHelpCircle,
   FiCreditCard, FiBell, FiUser, FiLogOut,
   FiShield, FiSettings, FiShoppingBag, FiChevronDown, FiList, FiAlertCircle,
+  FiCheck,
 } from 'react-icons/fi';
 import './Navbar.css';
 
@@ -82,6 +84,44 @@ export default function Navbar() {
   });
   const needsKYC = isAuthenticated && kycData?.current_tier === 'TIER_1';
 
+  // Notification bell state
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef(null);
+  const qc = useQueryClient();
+
+  const { data: unreadData } = useQuery({
+    queryKey: ['notifications-unread-count'],
+    queryFn: getUnreadCount,
+    enabled: isAuthenticated,
+    refetchInterval: 30_000,
+  });
+  const unreadCount = unreadData?.count ?? 0;
+
+  const { data: notifData } = useQuery({
+    queryKey: ['notifications-recent'],
+    queryFn: () => getNotifications({ page: 1, limit: 8 }),
+    enabled: isAuthenticated && notifOpen,
+    staleTime: 10_000,
+  });
+  const notifications = notifData?.data ?? [];
+
+  const handleMarkAllRead = async () => {
+    await markAllNotificationsRead();
+    qc.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+    qc.invalidateQueries({ queryKey: ['notifications-recent'] });
+  };
+
+  // Close notification dropdown on outside click
+  useEffect(() => {
+    const handler = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   const balance = parseFloat(wallet?.available_funds ?? wallet?.available_balance ?? 0);
 
   // Close dropdown on outside click
@@ -139,10 +179,64 @@ export default function Navbar() {
               </Link>
 
               {/* Notification Bell */}
-              <button className="bw-icon-btn" aria-label="Notifications" id="navbar-notifications-btn">
-                <FiBell size={18} />
-                <span className="bw-badge">0</span>
-              </button>
+              <div className="bw-notif-wrapper" ref={notifRef}>
+                <button
+                  className="bw-icon-btn"
+                  aria-label="Notifications"
+                  id="navbar-notifications-btn"
+                  onClick={() => setNotifOpen((p) => !p)}
+                >
+                  <FiBell size={18} />
+                  {unreadCount > 0 && (
+                    <span className="bw-badge">{unreadCount > 99 ? '99+' : unreadCount}</span>
+                  )}
+                </button>
+
+                {notifOpen && (
+                  <div className="bw-notif-dropdown">
+                    <div className="bw-notif-header">
+                      <span className="bw-notif-title">Notifications</span>
+                      {unreadCount > 0 && (
+                        <button className="bw-notif-mark-all" onClick={handleMarkAllRead}>
+                          <FiCheck size={12} /> Mark all read
+                        </button>
+                      )}
+                    </div>
+                    <div className="bw-notif-list">
+                      {notifications.length === 0 ? (
+                        <div className="bw-notif-empty">No notifications yet</div>
+                      ) : (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            className={`bw-notif-item ${!n.is_read ? 'bw-notif-item--unread' : ''}`}
+                            onClick={async () => {
+                              if (!n.is_read) {
+                                await markNotificationRead(n.id);
+                                qc.invalidateQueries({ queryKey: ['notifications-unread-count'] });
+                                qc.invalidateQueries({ queryKey: ['notifications-recent'] });
+                              }
+                              // Navigate to the relevant page based on reference type
+                              if (n.reference_id && n.reference_type) {
+                                setNotifOpen(false);
+                                if (n.reference_type === 'DISPUTE') navigate(`/disputes/${n.reference_id}`);
+                                else if (n.reference_type === 'ORDER') navigate(`/orders/${n.reference_id}`);
+                                else if (n.reference_type === 'AUCTION') navigate(`/auctions/${n.reference_id}`);
+                              }
+                            }}
+                          >
+                            <div className="bw-notif-item__title">{n.title}</div>
+                            <div className="bw-notif-item__message">{n.message}</div>
+                            <div className="bw-notif-item__time">
+                              {new Date(n.created_at).toLocaleString('en-NG', { dateStyle: 'short', timeStyle: 'short' })}
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* User Dropdown */}
               <div className="bw-dropdown" ref={dropdownRef}>

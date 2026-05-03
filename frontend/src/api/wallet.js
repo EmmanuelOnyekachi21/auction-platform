@@ -18,7 +18,7 @@ export const walletActions = {
     },
 
     /**
-     * Initiate a wallet funding request (Flutterwave redirect).
+     * Initiate a wallet funding request (Paystack redirect).
      * POST /api/v1/wallets/fund
      * @param {number} amount - Amount in Naira (min ₦100)
      */

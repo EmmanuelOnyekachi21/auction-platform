@@ -20,11 +20,13 @@ export default function MyDisputesPage() {
     const { user } = useAuthStore();
     const { showToast } = useToast();
 
-    const { data: disputes, isLoading, isError, refetch } = useQuery({
+    const { data: disputesData, isLoading, isError, refetch } = useQuery({
         queryKey: ['my-disputes'],
         queryFn: getMyDisputes,
         staleTime: 30_000,
     });
+
+    const disputes = Array.isArray(disputesData) ? disputesData : (disputesData?.data ?? []);
 
     if (isError) {
         showToast('Failed to load disputes', 'error');

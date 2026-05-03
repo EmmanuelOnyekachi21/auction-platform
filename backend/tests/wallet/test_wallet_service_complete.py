@@ -3,7 +3,7 @@
 Tests cover:
 - Transaction status (PENDING, COMPLETED, FAILED)
 - Bank details from user profile
-- Withdrawal processing with Flutterwave
+- Withdrawal processing with Paystack
 - Refund logic for failed withdrawals
 - Email notifications integration
 """
@@ -20,9 +20,9 @@ from apps.wallet.schemas import WithdrawalRequest
 from apps.wallet.service import WalletService
 from common.exceptions import (
     BankDetailsNotSetupException,
-    FlutterwaveError,
     InsufficientFundsException,
     PaymentVerificationException,
+    PaystackError,
     WalletNotFoundException,
 )
 
@@ -77,7 +77,7 @@ class TestWalletServiceComplete:
         assert "flutterwave.com" in result.payment_link
         assert result.version == 1
 
-        # Verify Flutterwave was called
+        # Verify Paystack was called
         mock_flutterwave.initiate_payment.assert_called_once()
 
     async def test_initiate_funding_no_wallet(self, db_session):
@@ -327,7 +327,7 @@ class TestWalletServiceComplete:
         assert "Transfer Ref:" in result.description
         assert "Transfer ID: 12345" in result.description
 
-        # Verify Flutterwave was called with correct bank details
+        # Verify Paystack was called with correct bank details
         mock_flutterwave.initiate_transfer.assert_called_once()
         call_args = mock_flutterwave.initiate_transfer.call_args[1]
         assert call_args["account_bank"] == "044"
@@ -343,7 +343,7 @@ class TestWalletServiceComplete:
         """Test failed withdrawal refunds wallet and marks transaction as FAILED."""
         mock_flutterwave = AsyncMock()
         mock_flutterwave.initiate_transfer = AsyncMock(
-            side_effect=FlutterwaveError("Transfer failed: Invalid account")
+            side_effect=PaystackError("Transfer failed: Invalid account")
         )
 
         service = WalletService(db_session, mock_flutterwave)
@@ -351,7 +351,7 @@ class TestWalletServiceComplete:
         # Get initial balance
         initial_balance = test_wallet.available_funds
 
-        with pytest.raises(FlutterwaveError):
+        with pytest.raises(PaystackError):
             await service.process_withdrawal_transfer(
                 transaction_id=pending_withdrawal_transaction.id
             )

@@ -1,5 +1,6 @@
 """HTTP endpoints for wallet operations."""
 
+import hashlib
 import hmac
 import logging
 from decimal import Decimal
@@ -8,7 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.payments.flutterwave_service import FlutterwaveService
+from apps.payments.paystack_service import PaystackService
 from apps.users.models import User
 from apps.wallet.schemas import (
     InitiatePaymentRequest,
@@ -28,32 +29,40 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def verify_flutterwave_signature(signature: str, secret: str) -> bool:
-    """Verify webhook signature from Flutterwave.
+def verify_paystack_signature(
+    payload_bytes: bytes, signature: str, secret: str
+) -> bool:
+    """Verify Paystack webhook signature using HMAC-SHA512.
 
     Args:
-        signature: verif-hash header from request
-        secret: Webhook secret from settings
+        payload_bytes: Raw request body bytes
+        signature: x-paystack-signature header value
+        secret: Paystack secret key
 
     Returns:
-        True if signature matches, False otherwise
+        True if signature is valid
 
     """
-    return hmac.compare_digest(signature, secret)
+    expected = hmac.new(
+        secret.encode("utf-8"),
+        payload_bytes,
+        hashlib.sha512,
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
 
 
 @router.get("/me", response_model=WalletResponse)
 async def get_my_wallet(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
-    flutterwave_service: FlutterwaveService = Depends(get_flutterwave_service),
+    flutterwave_service: PaystackService = Depends(get_flutterwave_service),
 ):
     """Get current user's wallet balance.
 
     Args:
         current_user: Authenticated user from dependency
         db: Database session from dependency
-        flutterwave_service: Flutterwave service from dependency
+        flutterwave_service: Paystack service from dependency
 
     Returns:
         WalletResponse with balance details
@@ -68,18 +77,18 @@ async def initiate_funding(
     request: InitiatePaymentRequest,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
-    flutterwave_service: FlutterwaveService = Depends(get_flutterwave_service),
+    flutterwave_service: PaystackService = Depends(get_flutterwave_service),
 ):
-    """Initiate wallet funding via Flutterwave.
+    """Initiate wallet funding via Paystack.
 
-    Creates a payment record and returns Flutterwave checkout link.
+    Creates a payment record and returns Paystack checkout link.
     User visits the link to complete payment.
 
     Args:
         request: Payment details (amount, currency)
         current_user: Authenticated user from dependency
         db: Database session from dependency
-        flutterwave_service: Flutterwave service from dependency
+        flutterwave_service: Paystack service from dependency
 
     Returns:
         PaymentInitiationResponse with payment link
@@ -93,43 +102,29 @@ async def initiate_funding(
     )
 
 
-@router.post("/webhooks/flutterwave", response_model=SuccessResponse)
-async def flutterwave_webhook(
+@router.post("/webhooks/paystack", response_model=SuccessResponse)
+async def paystack_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db),
-    flutterwave_service: FlutterwaveService = Depends(get_flutterwave_service),
+    flutterwave_service: PaystackService = Depends(get_flutterwave_service),
 ):
-    """Handle Flutterwave payment webhook.
+    """Handle Paystack payment webhook.
 
-    This endpoint is called by Flutterwave when payment status changes.
-
-    Security:
-    - No JWT auth (webhook from Flutterwave, not user)
-    - Signature verification prevents spoofing
-    - Always verifies with Flutterwave API before trusting
-    - Idempotent (safe to retry)
-
-    Args:
-        request: FastAPI request object
-        db: Database session from dependency
-        flutterwave_service: Flutterwave service from dependency
-
-    Returns:
-        Success response or error details
-
+    Security: HMAC-SHA512 signature verification using x-paystack-signature header.
     """
-    logger.info("Flutter webhook came in")
+    raw_body = await request.body()
+
     # 1. Verify signature
-    signature = request.headers.get("verif-hash")
+    signature = request.headers.get("x-paystack-signature")
     if not signature:
-        logger.error("Missing webhook signature")
+        logger.error("Missing Paystack webhook signature")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Missing signature",
         )
 
-    if not verify_flutterwave_signature(signature, settings.flutterwave_webhook_secret):
-        logger.error("Invalid webhook signature")
+    if not verify_paystack_signature(raw_body, signature, settings.paystack_secret_key):
+        logger.error("Invalid Paystack webhook signature")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid signature",
@@ -137,61 +132,43 @@ async def flutterwave_webhook(
 
     # 2. Parse payload
     payload = await request.json()
-    logger.info(f"Webhook received: {payload.get('txRef')}")
+    event = payload.get("event", "")
+    logger.info(f"Paystack webhook received: {event}")
 
-    # Check event type
-    event_type = payload.get("event.type")
-    if not event_type:
-        logger.warning("Missing event.type")
+    # Only process charge.success events
+    if event != "charge.success":
         return SuccessResponse(
-            message="Ignored: missing event type",
-            data={"status": "ignored", "reason": "missing_event_type"},
+            message="Ignored",
+            data={"status": "ignored", "event": event},
         )
 
-    # Extract payment details
-    tx_ref = payload.get("txRef")
-    flw_ref = payload.get("flwRef")
-    webhook_status = payload.get("status")
-    webhook_amount = payload.get("amount")
+    data = payload.get("data", {})
+    tx_ref = data.get("reference")
+    webhook_status = data.get("status")
+    webhook_amount = data.get("amount", 0)
 
     if not tx_ref:
-        logger.error("Missing txRef")
         return SuccessResponse(
-            message="Error: missing transaction reference",
-            data={"status": "error", "message": "Missing txRef"},
-        )
-
-    # Only process successful payments
-    if webhook_status != "successful":
-        logger.info(f"Ignoring non-successful payment: {tx_ref}")
-        return SuccessResponse(
-            message="Ignored: payment not successful",
-            data={
-                "status": "ignored",
-                "reason": f"status_{webhook_status}",
-            },
+            message="Error: missing reference", data={"status": "error"}
         )
 
     # 3. Process webhook
     service = WalletService(db, flutterwave_service)
-
     try:
         await service.handle_webhook(
             transaction_reference=tx_ref,
-            provider_reference=flw_ref,
+            provider_reference=tx_ref,
             status=webhook_status,
-            amount=Decimal(str(webhook_amount)),
+            amount=Decimal(str(webhook_amount)) / 100,  # kobo to naira
             provider_response=payload,
         )
-
-        logger.info(f"Webhook processed successfully: {tx_ref}")
+        logger.info(f"Paystack webhook processed: {tx_ref}")
         return SuccessResponse(
             message="Webhook processed successfully",
             data={"status": "success"},
         )
-
     except Exception as e:
-        logger.error(f"Webhook processing failed for {tx_ref}: {e}")
+        logger.error(f"Paystack webhook processing failed for {tx_ref}: {e}")
         return SuccessResponse(
             message="Webhook processing failed",
             data={"status": "error", "message": str(e)},
@@ -206,7 +183,7 @@ async def get_transactions(
     limit: int = 20,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
-    flutterwave_service: FlutterwaveService = Depends(get_flutterwave_service),
+    flutterwave_service: PaystackService = Depends(get_flutterwave_service),
 ):
     """Get user's transaction history with pagination.
 
@@ -217,7 +194,7 @@ async def get_transactions(
         limit: Items per page (default: 20)
         current_user: Authenticated user from dependency
         db: Database session from dependency
-        flutterwave_service: Flutterwave service from dependency
+        flutterwave_service: Paystack service from dependency
 
     Returns:
         Paginated response with transactions
@@ -239,7 +216,7 @@ async def initiate_withdrawal(
     request: WithdrawalRequest,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
-    flutterwave_service: FlutterwaveService = Depends(get_flutterwave_service),
+    flutterwave_service: PaystackService = Depends(get_flutterwave_service),
 ):
     """Initiate withdrawal from wallet to bank account.
 
@@ -250,7 +227,7 @@ async def initiate_withdrawal(
         request: Withdrawal details (amount, bank_code, account_number)
         current_user: Authenticated user from dependency
         db: Database session from dependency
-        flutterwave_service: Flutterwave service from dependency
+        flutterwave_service: Paystack service from dependency
 
     Returns:
         TransactionResponse for the withdrawal

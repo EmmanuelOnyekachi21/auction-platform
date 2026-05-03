@@ -10,7 +10,6 @@ from common.exceptions import (
     PaystackPaymentError,
     PaystackVerificationError,
 )
-from config.settings import settings
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +40,6 @@ class PaystackService:
         user_email: str,
         user_name: str,
         redirect_url: str,
-        description: str,
         metadata: dict,
     ) -> str:
         """Initiate payment with Paystack.
@@ -63,19 +61,23 @@ class PaystackService:
             PaystackPaymentError: If payment initiation fails
 
         """
-        # Build payload
+        # Build payload — Paystack amount is in kobo (multiply NGN by 100)
         payload = {
-            "tx_ref": transaction_reference,
-            "amount": amount,
+            "reference": transaction_reference,
+            "amount": int(amount * 100),
             "currency": currency,
-            "redirect_url": redirect_url,
-            "customer": {"email": user_email, "name": user_name},
-            "customizations": {
-                "title": "Auction Platform Payment",
-                "description": description,
-                # "logo": "https://yourdomain.com/logo.png"
+            "callback_url": redirect_url,
+            "email": user_email,
+            "metadata": {
+                "custom_fields": [
+                    {
+                        "display_name": "Customer Name",
+                        "variable_name": "user_name",
+                        "value": user_name,
+                    }
+                ],
+                **metadata,
             },
-            "meta": metadata,
         }
 
         logger.info(
@@ -85,17 +87,18 @@ class PaystackService:
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
                 response = await client.post(
-                    f"{self.base_url}/payments", json=payload, headers=self.headers
+                    f"{self.base_url}/transaction/initialize",
+                    json=payload,
+                    headers=self.headers,
                 )
 
                 response.raise_for_status()
 
                 data = response.json()
 
-                # collect flutter payment link
-                if data.get("status") == "success":
-                    payment_link = data["data"]["link"]
-
+                # Paystack returns status as boolean True, not string "true"
+                if data.get("status") is True:
+                    payment_link = data["data"]["authorization_url"]
                     return payment_link
 
                 error_msg = data.get("message", "Unknown error")
@@ -130,23 +133,26 @@ class PaystackService:
 
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                # Paystack verify endpoint uses tx_ref in URL
+                # Paystack verify endpoint: GET /transaction/verify/:reference
                 response = await client.get(
-                    f"{self.base_url}/transactions/verify_by_reference",
-                    params={"tx_ref": transaction_reference},
+                    f"{self.base_url}/transaction/verify/{transaction_reference}",
                     headers=self.headers,
                 )
                 response.raise_for_status()
                 data = response.json()
 
-                if data.get("status") == "success":
+                if data.get("status") is True:
                     payment_data = data["data"]
+                    # Convert amount from kobo to naira
+                    if "amount" in payment_data:
+                        payment_data["amount"] = (
+                            Decimal(str(payment_data["amount"])) / 100
+                        )
                     logger.info(
                         f"Payment verified for {transaction_reference}: "
                         f"status={payment_data.get('status')}, "
                         f"amount={payment_data.get('amount')}"
                     )
-
                     return payment_data
                 else:
                     error_msg = data.get("message", "Verification failed")
@@ -170,12 +176,16 @@ class PaystackService:
     ) -> dict:
         """Initiate bank transfer via Paystack.
 
+        Paystack requires two steps:
+        1. Create a transfer recipient
+        2. Initiate the transfer using the recipient code
+
         Args:
             account_bank: Bank code (e.g., "044" for Access Bank)
             account_number: Recipient's account number
-            amount: Amount to transfer
+            amount: Amount to transfer in naira
             currency: Currency code (e.g., "NGN")
-            narration: Transfer description (max 100 chars)
+            narration: Transfer description
             reference: Unique transaction reference
 
         Returns:
@@ -185,49 +195,65 @@ class PaystackService:
             PaystackError: If transfer initiation fails
 
         """
-        # Building Payload
-        payload = {
-            "account_bank": account_bank,
+        # Step 1: Create transfer recipient
+        recipient_payload = {
+            "type": "nuban",
+            "name": narration,
             "account_number": account_number,
-            "amount": float(amount),  # flutterwave expects float
+            "bank_code": account_bank,
             "currency": currency,
-            "narration": narration[:100],  # Max 100 chars
-            "reference": reference,
-            "callback_url": (f"{settings.app_url}/api/v1/wallets/webhooks/transfer"),
-            "debit_currency": currency,  # Same as currency for NGN
         }
 
-        # Making API call
         try:
             async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.post(
-                    f"{self.base_url}/transfers",
-                    json=payload,
+                recipient_response = await client.post(
+                    f"{self.base_url}/transferrecipient",
+                    json=recipient_payload,
                     headers=self.headers,
                 )
+                recipient_response.raise_for_status()
+                recipient_data = recipient_response.json()
 
+                if not recipient_data.get("status"):
+                    raise PaystackError(
+                        recipient_data.get("message", "Failed to create recipient")
+                    )
+
+                recipient_code = recipient_data["data"]["recipient_code"]
+
+            # Step 2: Initiate transfer — amount in kobo
+            transfer_payload = {
+                "source": "balance",
+                "amount": int(amount * 100),
+                "recipient": recipient_code,
+                "reason": narration[:100],
+                "reference": reference,
+                "currency": currency,
+            }
+
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/transfer",
+                    json=transfer_payload,
+                    headers=self.headers,
+                )
                 response.raise_for_status()
-
                 data = response.json()
 
-                if data.get("status") == "success":
+                if data.get("status") is True:
                     logger.info(f"Transfer initiated: {reference}")
-
                     return data["data"]
-
                 else:
-                    # Paystack returned error
                     error_msg = data.get("message", "Transfer failed")
                     logger.error(f"Transfer failed: {error_msg}")
                     raise PaystackError(error_msg)
+
         except httpx.HTTPStatusError as e:
-            # HTTP error (4xx, 5xx)
             logger.error(f"Transfer HTTP error: {e.response.text}")
             raise PaystackError(f"Transfer request failed: {e.response.text}")
         except httpx.HTTPError as e:
             logger.error(f"Transfer HTTP error: {e}")
             raise PaystackError(f"Transfer request failed: {e}")
         except httpx.RequestError as e:
-            # Network error
             logger.error(f"Transfer network error: {e}")
             raise PaystackError(f"Network error during transfer: {e}")

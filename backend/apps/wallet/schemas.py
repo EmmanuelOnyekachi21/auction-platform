@@ -26,7 +26,7 @@ class InitiatePaymentRequest(BaseModel):
 
 
 class WebhookData(BaseModel):
-    """Flutterwave webhook data structure."""
+    """Paystack webhook data structure."""
 
     id: int
     tx_ref: str
@@ -39,7 +39,7 @@ class WebhookData(BaseModel):
 
 
 class WebhookPayload(BaseModel):
-    """Flutterwave webhook payload structure."""
+    """Paystack webhook payload structure."""
 
     event: str
     data: WebhookData

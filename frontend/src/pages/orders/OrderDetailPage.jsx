@@ -6,7 +6,7 @@ import {
     FiShield, FiUser, FiAlertCircle, FiInfo, FiClock,
     FiMapPin, FiHash, FiCreditCard, FiX
 } from 'react-icons/fi';
-import { getOrder, shipOrder, confirmDelivery, raiseDispute, cancelOrder } from '../../api/orders';
+import { getOrder, shipOrder, confirmDelivery, raiseDispute, cancelOrder, uploadEvidenceFile } from '../../api/orders';
 import { useAuthStore } from '../../store/authStore';
 import { useToast } from '../../components/common/Toast';
 
@@ -103,10 +103,19 @@ function ConfirmDeliveryModal({ show, onClose, orderId, onSuccess }) {
 function RaiseDisputeModal({ show, onClose, orderId, onSuccess }) {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
+    const [files, setFiles] = useState([]);
     const { showToast } = useToast();
     const queryClient = useQueryClient();
     const mutation = useMutation({
-        mutationFn: (data) => raiseDispute(orderId, data),
+        mutationFn: async (data) => {
+            const dispute = await raiseDispute(orderId, data);
+            if (files.length > 0) {
+                for (const f of files) {
+                    try { await uploadEvidenceFile(dispute.id, f); } catch { /* non-fatal */ }
+                }
+            }
+            return dispute;
+        },
         onSuccess: () => {
             showToast('Dispute raised successfully', 'success');
             queryClient.invalidateQueries({ queryKey: ['order', orderId] });
@@ -126,12 +135,34 @@ function RaiseDisputeModal({ show, onClose, orderId, onSuccess }) {
                 </div>
                 <div style={{ padding: '1.5rem' }}>
                     <input type="text" className="form-control mb-3" placeholder="Dispute Title" value={title} onChange={e => setTitle(e.target.value)} />
-                    <textarea className="form-control" rows={4} placeholder="Describe the issue (min 50 chars)" value={description} onChange={e => setDescription(e.target.value)} />
-                    <div className="mt-1" style={{ fontSize: '0.75rem', color: description.length < 50 ? 'var(--danger)' : 'var(--success)' }}>{description.length}/50 chars</div>
+                    <textarea className="form-control mb-2" rows={4} placeholder="Describe the issue (min 50 chars)" value={description} onChange={e => setDescription(e.target.value)} />
+                    <div className="mb-3" style={{ fontSize: '0.75rem', color: description.length < 50 ? 'var(--danger)' : 'var(--success)' }}>{description.length}/50 chars</div>
+                    <div>
+                        <label className="form-label" style={{ fontSize: '0.875rem', fontWeight: 600 }}>
+                            Attach Evidence <span style={{ fontWeight: 400, color: 'var(--text-muted)' }}>(optional)</span>
+                        </label>
+                        <input
+                            type="file"
+                            className="form-control"
+                            accept="image/jpeg,image/png,image/webp,video/mp4,video/avi,video/mov,video/mkv"
+                            multiple
+                            onChange={e => setFiles(Array.from(e.target.files).slice(0, 10))}
+                        />
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                            Images or Videos · up to 10 files
+                        </div>
+                        {files.length > 0 && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--primary)', marginTop: '0.25rem', fontWeight: 600 }}>
+                                {files.length} file{files.length > 1 ? 's' : ''} selected
+                            </div>
+                        )}
+                    </div>
                 </div>
                 <div style={{ padding: '1.25rem', borderTop: '1px solid var(--border)', display: 'flex', gap: '0.75rem', justifyContent: 'flex-end' }}>
                     <button className="btn btn-light" onClick={onClose}>Cancel</button>
-                    <button className="btn btn-danger" onClick={() => mutation.mutate({ title, description })} disabled={mutation.isPending || description.length < 50 || !title.trim()}>Raise Dispute</button>
+                    <button className="btn btn-danger" onClick={() => mutation.mutate({ title, description })} disabled={mutation.isPending || description.length < 50 || !title.trim()}>
+                        {mutation.isPending ? 'Submitting...' : 'Raise Dispute'}
+                    </button>
                 </div>
             </div>
         </div>
@@ -413,11 +444,46 @@ export default function OrderDetailPage() {
                                             <div style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
                                                 Opened: {new Date(order.dispute.created_at).toLocaleDateString('en-NG', { day: '2-digit', month: 'short', year: 'numeric' })}
                                             </div>
+                                            {/* Evidence thumbnails preview */}
+                                            {order.dispute.evidence?.length > 0 && (
+                                                <div style={{ marginTop: '0.75rem' }}>
+                                                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+                                                        {order.dispute.evidence.length} evidence file{order.dispute.evidence.length > 1 ? 's' : ''} attached
+                                                    </div>
+                                                    <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap' }}>
+                                                        {order.dispute.evidence.slice(0, 4).map((ev) => (
+                                                            ev.file_type === 'IMAGE' ? (
+                                                                <a key={ev.id} href={ev.url} target="_blank" rel="noopener noreferrer">
+                                                                    <img src={ev.url} alt="evidence" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }} />
+                                                                </a>
+                                                            ) : (
+                                                                <a key={ev.id} href={ev.url} target="_blank" rel="noopener noreferrer" style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '0.6875rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+                                                                    VID
+                                                                </a>
+                                                            )
+                                                        ))}
+                                                        {order.dispute.evidence.length > 4 && (
+                                                            <div style={{ width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)', fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: 700 }}>
+                                                                +{order.dispute.evidence.length - 4}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            )}
                                         </div>
                                     )}
-                                    <p className="text-muted" style={{ fontSize: '0.8125rem', margin: 0 }}>
+                                    <p className="text-muted" style={{ fontSize: '0.8125rem', margin: '0 0 1rem' }}>
                                         Our support team is reviewing this dispute. Both parties will be notified of the outcome.
                                     </p>
+                                    {order.dispute?.id && (
+                                        <button
+                                            className="btn btn-outline-danger w-100"
+                                            style={{ fontWeight: 600 }}
+                                            onClick={() => navigate(`/disputes/${order.dispute.id}`)}
+                                        >
+                                            View Dispute Details
+                                        </button>
+                                    )}
                                 </div>
                             )}
                             {status === 'completed' && (

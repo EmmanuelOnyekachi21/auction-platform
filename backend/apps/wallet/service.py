@@ -14,8 +14,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.payments.enums import PaymentProvider, PaymentStatus
-from apps.payments.flutterwave_service import FlutterwaveService
 from apps.payments.models import Payment
+from apps.payments.paystack_service import PaystackService
 from apps.users.kyc_service import KYCService
 from apps.users.repository import UserRepository
 from apps.wallet.enums import (
@@ -35,11 +35,11 @@ from apps.wallet.schemas import (
     WithdrawalRequest,
 )
 from common.exceptions import (
-    FlutterwaveError,
-    FlutterwavePaymentError,
-    FlutterwaveVerificationError,
     InsufficientFundsException,
     PaymentVerificationException,
+    PaystackError,
+    PaystackPaymentError,
+    PaystackVerificationError,
     UserNotFoundException,
     WalletNotFoundException,
 )
@@ -53,18 +53,18 @@ class WalletService:
     """Service layer for wallet operations.
 
     Handles business logic for:
-    - Wallet funding (via Flutterwave)
+    - Wallet funding (via Paystack)
     - Withdrawals
     - Transaction history
     - Balance queries
     """
 
-    def __init__(self, db: AsyncSession, flutterwave_service: FlutterwaveService):
+    def __init__(self, db: AsyncSession, flutterwave_service: PaystackService):
         """Initialize wallet service.
 
         Args:
             db: Async database session
-            flutterwave_service: Flutterwave service instance
+            flutterwave_service: Paystack service instance
 
         """
         self._db = db
@@ -114,7 +114,7 @@ class WalletService:
     async def initiate_funding(
         self, user_id: UUID, amount: Decimal, currency: str = "NGN"
     ) -> PaymentInitiationResponse:
-        """Initiate wallet funding via Flutterwave.
+        """Initiate wallet funding via Paystack.
 
         Creates a Payment record and returns payment link.
         Does NOT create WalletTransaction yet (that happens in webhook).
@@ -155,9 +155,8 @@ class WalletService:
             ):
                 now = datetime.now(timezone.utc)
                 if existing_payment.payment_link_expires_at > now:
-                    # Return existing payment details
                     return PaymentInitiationResponse(
-                        payment_link=f"https://checkout.flutterwave.com/v3/hosted/pay/{transaction_reference}",
+                        payment_link=existing_payment.payment_link,
                         transaction_reference=transaction_reference,
                         amount=existing_payment.amount,
                         expires_at=existing_payment.created_at + timedelta(hours=1),
@@ -170,7 +169,7 @@ class WalletService:
         # Create Payment record
         payment_data = {
             "transaction_reference": transaction_reference,
-            "provider": PaymentProvider.FLUTTERWAVE.value,
+            "provider": PaymentProvider.PAYSTACK.value,
             "wallet_id": wallet.id,
             "amount": amount,
             "currency": currency,
@@ -186,16 +185,15 @@ class WalletService:
         if not user:
             raise UserNotFoundException()
 
-        # Call Flutterwave API to get actual payment link
+        # Call Paystack API to get actual payment link
         try:
             payment_link = await self._flutterwave_service.initiate_payment(
                 transaction_reference=transaction_reference,
-                amount=str(amount),
+                amount=amount,
                 currency=currency,
                 user_email=wallet.user.email,
                 user_name=f"{user.first_name} {user.last_name}",
                 redirect_url=f"{settings.frontend_url}/payment/{payment.id}/confirm",
-                description=f"Wallet funding - {amount} {currency}",
                 metadata={
                     "user_id": str(user_id),
                     "wallet_id": str(wallet.id),
@@ -206,7 +204,7 @@ class WalletService:
             logger.info(
                 f"Payment initiated for transaction reference: {transaction_reference}"
             )
-        except FlutterwavePaymentError as e:
+        except PaystackPaymentError as e:
             logger.error(f"Failed to initiate payment: {e}")
             raise  # Re-raise the original exception
 
@@ -233,13 +231,13 @@ class WalletService:
         amount: Decimal,
         provider_response: dict,
     ) -> PaymentResponse:
-        """Handle Flutterwave webhook for payment completion.
+        """Handle Paystack webhook for payment completion.
 
         Updates Payment status and creates WalletTransaction on success.
 
         Args:
             transaction_reference: Our transaction reference
-            provider_reference: Flutterwave's reference
+            provider_reference: Paystack's reference
             status: Payment status from provider
             amount: Amount paid
             provider_response: Full webhook payload
@@ -258,12 +256,12 @@ class WalletService:
         if not payment:
             raise PaymentVerificationException("Payment not found")
 
-        # Verify payment with Flutterwave API
+        # Verify payment with Paystack API
         try:
             verified_data = await self._flutterwave_service.verify_payment(
                 transaction_reference
             )
-        except FlutterwaveVerificationError as e:
+        except PaystackVerificationError as e:
             logger.error(
                 f"Payment verification failed for {transaction_reference}: {e}"
             )
@@ -273,7 +271,7 @@ class WalletService:
         verified_status = verified_data.get("status")
         verified_amount = Decimal(str(verified_data.get("amount")))
         verified_currency = verified_data.get("currency")
-        verified_flw_ref = verified_data.get("flw_ref")
+        verified_reference = verified_data.get("reference")
 
         # Validate amount matches
         if verified_amount != payment.amount:
@@ -296,18 +294,18 @@ class WalletService:
                 f"got {verified_currency}"
             )
 
-        # Determine payment status from verified data
+        # Determine payment status — Paystack uses "success" for completed payments
         now = datetime.now(timezone.utc)
         payment_status = (
             PaymentStatus.COMPLETED.value
-            if verified_status == "successful"
+            if verified_status == "success"
             else PaymentStatus.FAILED.value
         )
 
         updated_payment = await self._payment_repo.update_payment_status(
             payment_id=payment.id,
             status=payment_status,
-            provider_reference=verified_flw_ref,
+            provider_reference=verified_reference,
             provider_response=json.dumps(provider_response),
             webhook_received_at=now,
             verified_at=now,
@@ -385,7 +383,7 @@ class WalletService:
             # ORM relationships. This prevents lazy loading errors and
             # ensures Celery task receives serializable data, not ORM
             # objects.
-            from apps.wallet.tasks import send_wallet_funded_email
+            from apps.wallet.tasks import send_wallet_funded_email  # noqa: F811
 
             send_wallet_funded_email.delay(
                 user_email=user_email,
@@ -532,7 +530,7 @@ class WalletService:
         await self._db.commit()
 
         # Trigger Celery task for bank transfer
-        from apps.wallet.tasks import process_withdrawal_transfer
+        from apps.wallet.tasks import process_withdrawal_transfer  # noqa: F811
 
         process_withdrawal_transfer.delay(str(transaction.id))
 
@@ -609,13 +607,13 @@ class WalletService:
 
             raise BankDetailsNotSetupException()
 
-        # Generate unique reference for Flutterwave transfer
+        # Generate unique reference for Paystack transfer
         transfer_reference = (
             f"APW-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:8]}"
         )
 
-        # Call Flutterwave Transfer API
-        logger.info(f"Initiating Flutterwave transfer for tx: {transaction_id}")
+        # Call Paystack Transfer API
+        logger.info(f"Initiating Paystack transfer for tx: {transaction_id}")
         try:
             transfer_data = await self._flutterwave_service.initiate_transfer(
                 account_bank=profile.bank_code,
@@ -651,7 +649,7 @@ class WalletService:
 
             return transaction
 
-        except FlutterwaveError as e:
+        except PaystackError as e:
             # Failure - refund wallet and mark as failed
             logger.error(f"Withdrawal transfer failed for {transaction_id}: {e}")
 

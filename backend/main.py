@@ -22,6 +22,7 @@ from apps.auctions.routers import router as auctions_router
 from apps.authentication.routers import router as auth_router
 from apps.bids.router import router as bids_router
 from apps.disputes.router import router as disputes_router
+from apps.notifications.routers import router as notifications_router
 from apps.orders.router import router as orders_router
 from apps.users.kyc_router import router as kyc_router
 from apps.users.routers import router as users_router
@@ -117,6 +118,9 @@ app.add_exception_handler(Exception, handle_generic_exception)
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(kyc_router, prefix="/api/v1/kyc", tags=["KYC"])
+app.include_router(
+    notifications_router, prefix="/api/v1/notifications", tags=["Notifications"]
+)
 app.include_router(wallet_router, prefix="/api/v1/wallets", tags=["Wallets"])
 app.include_router(auctions_router, prefix="/api/v1", tags=["Auctions"])
 app.include_router(bids_router, prefix="/api/v1", tags=["Bids"])

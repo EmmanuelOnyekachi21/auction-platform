@@ -116,7 +116,7 @@ function FundModal({ show, onClose }) {
                         </div>
                         <div className="wallet-fee-notice">
                             <FiInfo size={16} />
-                            <span><strong>0% platform fee</strong> — you pay exactly what you enter. Payments are processed securely via Flutterwave.</span>
+                            <span><strong>0% platform fee</strong> — you pay exactly what you enter. Payments are processed securely via Paystack.</span>
                         </div>
                         {kycError && (
                             <div className="wallet-warning-box" style={{ marginTop: '0.75rem' }}>

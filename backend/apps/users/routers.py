@@ -202,10 +202,10 @@ async def get_my_wallet(
         dict: Wallet balance information.
 
     """
-    from apps.payments.flutterwave_service import FlutterwaveService
+    from apps.payments.flutterwave_service import PaystackService
     from config.settings import settings
 
-    flutterwave_service = FlutterwaveService(
+    flutterwave_service = PaystackService(
         base_url=settings.flutterwave_base_url,
         secret_key=settings.flutterwave_secret_key,
     )

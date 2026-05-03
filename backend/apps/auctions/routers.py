@@ -594,10 +594,15 @@ async def list_my_auctions(
     service = AuctionService(db)
     auction_status = None
     if status:
+        # Map frontend shorthand values to actual enum values
+        status_upper = status.upper()
+        # "ended" is a frontend convenience — maps to all terminal statuses
+        # The frontend handles this by making separate calls, but we support
+        # direct status values too
         try:
-            auction_status = AuctionStatus(status)
+            auction_status = AuctionStatus(status_upper)
         except ValueError:
-            pass  # Invalid status — return all
+            pass  # Unknown status — return all
 
     return await service.get_seller_auctions(
         seller_id=current_user.id,

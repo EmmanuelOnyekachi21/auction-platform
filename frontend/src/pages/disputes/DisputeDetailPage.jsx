@@ -7,7 +7,7 @@ import {
     FiPackage, FiArrowRight, FiShield, FiAlertCircle, FiXCircle,
     FiMail, FiPhone
 } from 'react-icons/fi';
-import { getDispute, submitEvidence, resolveDispute, markDisputeUnderReview } from '../../api/orders';
+import { getDispute, uploadEvidenceFile, resolveDispute, markDisputeUnderReview } from '../../api/orders';
 import { useAuthStore } from '../../store/authStore';
 import { useToast } from '../../components/common/Toast';
 
@@ -38,10 +38,9 @@ export default function DisputeDetailPage() {
     const { showToast } = useToast();
     const queryClient = useQueryClient();
 
-    // Evidence form state
-    const [evidenceUrl, setEvidenceUrl] = useState('');
-    const [fileType, setFileType] = useState('IMAGE');
+    const [evidenceFile, setEvidenceFile] = useState(null);
     const [evidenceDesc, setEvidenceDesc] = useState('');
+    const [evidencePreview, setEvidencePreview] = useState(null);
 
     // Admin resolution state
     const [resolution, setResolution] = useState('in_favour_of_buyer');
@@ -54,15 +53,16 @@ export default function DisputeDetailPage() {
     });
 
     const evidenceMutation = useMutation({
-        mutationFn: (data) => submitEvidence(disputeId, data),
+        mutationFn: () => uploadEvidenceFile(disputeId, evidenceFile, evidenceDesc || null),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['dispute', disputeId] });
-            showToast('Evidence submitted successfully', 'success');
-            setEvidenceUrl('');
+            showToast('Evidence uploaded successfully', 'success');
+            setEvidenceFile(null);
+            setEvidencePreview(null);
             setEvidenceDesc('');
         },
         onError: (error) => {
-            showToast(error?.response?.data?.detail || 'Failed to submit evidence', 'error');
+            showToast(error?.response?.data?.detail || 'Failed to upload evidence', 'error');
         }
     });
 
@@ -132,7 +132,10 @@ export default function DisputeDetailPage() {
     }
 
     const statusConfig = DISPUTE_STATUS[dispute.status] || DISPUTE_STATUS.OPEN;
-    const isOwner = String(user?.id) === String(dispute.raised_by_id) || String(user?.id) === String(dispute.against_id);
+    const isOwner = String(user?.id) === String(dispute.raised_by_id)
+        || String(user?.id) === String(dispute.against_id)
+        || String(user?.id) === String(dispute.raised_by?.id)
+        || String(user?.id) === String(dispute.against?.id);
     const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERUSER';
     const canSubmitEvidence = (dispute.status === 'OPEN' || dispute.status === 'UNDER_REVIEW') && isOwner && !isAdmin;
     const canAdminResolve = (dispute.status === 'OPEN' || dispute.status === 'UNDER_REVIEW') && isAdmin;
@@ -238,62 +241,69 @@ export default function DisputeDetailPage() {
                                                 </div>
                                                 <a href={item.url} target="_blank" rel="noopener noreferrer" className="btn btn-outline-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 600 }}>
                                                     <FiExternalLink size={14} /> View
-                                                </a>
-                                            </div>
+                                                </a>                                            </div>
                                         </div>
                                     ))}
                                 </div>
                             )}
                         </div>
 
-                        {/* Submit Evidence Form */}
+                        {/* Upload Evidence Form */}
                         {canSubmitEvidence && (
                             <div className="card mb-4" style={{ borderRadius: 'var(--radius-lg)', border: '1px solid var(--primary-light)', padding: '1.5rem' }}>
-                                <h6 style={{ fontWeight: 800, marginBottom: '1.25rem' }}>Submit Evidence</h6>
+                                <h6 style={{ fontWeight: 800, marginBottom: '1.25rem' }}>Upload Evidence</h6>
                                 <div className="mb-3">
-                                    <label className="form-label" style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-muted)' }}>File URL</label>
+                                    <label className="form-label" style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                        File (Image or Video)
+                                    </label>
                                     <input
-                                        type="url"
+                                        type="file"
                                         className="form-control"
-                                        placeholder="https://..."
-                                        value={evidenceUrl}
-                                        onChange={e => setEvidenceUrl(e.target.value)}
+                                        accept="image/jpeg,image/png,image/webp,video/mp4,video/avi,video/mov,video/mkv"
+                                        onChange={(e) => {
+                                            const f = e.target.files?.[0] ?? null;
+                                            setEvidenceFile(f);
+                                            if (f && f.type.startsWith('image/')) {
+                                                setEvidencePreview(URL.createObjectURL(f));
+                                            } else {
+                                                setEvidencePreview(null);
+                                            }
+                                        }}
+                                        disabled={evidenceMutation.isPending}
+                                    />
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                                        Images: JPG, PNG, WebP (max 10MB) · Videos: MP4, AVI, MOV, MKV (max 100MB)
+                                    </div>
+                                </div>
+                                {evidencePreview && (
+                                    <div className="mb-3">
+                                        <img
+                                            src={evidencePreview}
+                                            alt="Preview"
+                                            style={{ maxHeight: 160, borderRadius: 'var(--radius)', objectFit: 'cover', border: '1px solid var(--border)' }}
+                                        />
+                                    </div>
+                                )}
+                                <div className="mb-3">
+                                    <label className="form-label" style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-muted)' }}>
+                                        Description <span style={{ fontWeight: 400 }}>(optional)</span>
+                                    </label>
+                                    <input
+                                        type="text"
+                                        className="form-control"
+                                        placeholder="Briefly describe this file"
+                                        value={evidenceDesc}
+                                        onChange={e => setEvidenceDesc(e.target.value)}
                                         disabled={evidenceMutation.isPending}
                                     />
                                 </div>
-                                <div className="row g-3">
-                                    <div className="col-md-5 mb-3">
-                                        <label className="form-label" style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-muted)' }}>File Type</label>
-                                        <select
-                                            className="form-select"
-                                            value={fileType}
-                                            onChange={e => setFileType(e.target.value)}
-                                            disabled={evidenceMutation.isPending}
-                                        >
-                                            <option value="IMAGE">Image</option>
-                                            <option value="VIDEO">Video</option>
-                                            <option value="DOCUMENT">Document</option>
-                                        </select>
-                                    </div>
-                                    <div className="col-md-7 mb-3">
-                                        <label className="form-label" style={{ fontSize: '0.8125rem', fontWeight: 700, color: 'var(--text-muted)' }}>Description (Optional)</label>
-                                        <input
-                                            type="text"
-                                            className="form-control"
-                                            placeholder="Briefly describe this file"
-                                            value={evidenceDesc}
-                                            onChange={e => setEvidenceDesc(e.target.value)}
-                                            disabled={evidenceMutation.isPending}
-                                        />
-                                    </div>
-                                </div>
                                 <button
-                                    className="btn btn-primary w-100 mt-2"
+                                    className="btn btn-primary w-100"
                                     style={{ fontWeight: 700 }}
-                                    onClick={() => evidenceMutation.mutate({ url: evidenceUrl, file_type: fileType, description: evidenceDesc })}
-                                    disabled={evidenceMutation.isPending || !evidenceUrl.trim()}
+                                    onClick={() => evidenceMutation.mutate()}
+                                    disabled={evidenceMutation.isPending || !evidenceFile}
                                 >
-                                    {evidenceMutation.isPending ? 'Submitting...' : 'Upload Evidence'}
+                                    {evidenceMutation.isPending ? 'Uploading...' : 'Upload Evidence'}
                                 </button>
                             </div>
                         )}
