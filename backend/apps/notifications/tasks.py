@@ -583,6 +583,43 @@ def notify_order_cancelled_buyer(
 
 
 @celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
+def notify_order_cancelled_seller(
+    self, seller_email: str, seller_name: str, order_id: str
+):
+    """Notify seller that their order was cancelled due to non-shipment.
+
+    Args:
+        self: Celery task instance (injected via ``bind=True``).
+        seller_email: The seller's email address.
+        seller_name: The seller's name for personalisation.
+        order_id: UUID string of the order.
+
+    """
+    body = (
+        f"Hello {seller_name},\n\n"
+        f"Your order has been cancelled due to non-shipment within the deadline.\n\n"
+        f"Please ensure you ship items promptly to avoid future cancellations.\n\n"
+        f"View your orders: {settings.app_url}/my-orders"
+    )
+    try:
+        asyncio.run(
+            send_email(
+                subject="Order cancelled due to non-shipment",
+                recipients=[seller_email],
+                body=body,
+            )
+        )
+        logger.info("Order cancelled (seller) notification sent to %s", seller_email)
+    except Exception as exc:
+        logger.error(
+            "Failed to send order cancelled (seller) notification to %s: %s",
+            seller_email,
+            exc,
+        )
+        raise exc
+
+
+@celery.task(bind=True, autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def notify_dispute_raised_seller(
     self,
     seller_email: str,

@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../api/client';
 import { useToast } from '../../components/common/Toast';
 import { FiChevronDown, FiChevronUp, FiCreditCard, FiHash, FiUser, FiSave, FiX } from 'react-icons/fi';
@@ -16,6 +17,7 @@ export default function BankDetailsSection({ profile, onUpdate }) {
     const [isEditing, setIsEditing] = useState(false);
     const [isOpen, setIsOpen] = useState(false);
     const { showToast } = useToast();
+    const queryClient = useQueryClient();
 
     const bankDetails = profile.profile || {};
     const hasBankDetails = bankDetails.account_number && bankDetails.bank_code;
@@ -33,6 +35,7 @@ export default function BankDetailsSection({ profile, onUpdate }) {
             await apiClient.patch('/users/me', data);
             showToast('Bank details updated successfully!', 'success');
             setIsEditing(false);
+            queryClient.invalidateQueries({ queryKey: ['userProfile'] });
             if (onUpdate) onUpdate();
         } catch (error) {
             const msg = error.response?.data?.detail || 'Failed to update bank details';
