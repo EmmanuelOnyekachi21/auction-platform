@@ -16,32 +16,35 @@ const PaymentConfirmPage = () => {
   const [message, setMessage] = useState('We are verifying your transaction with our payment processors.');
 
   useEffect(() => {
+    // Paystack redirect params: reference, trxref, status (not always present)
+    // Flutterwave used: status, tx_ref, transaction_id
     const urlStatus = searchParams.get('status');
-    const txRef = searchParams.get('tx_ref');
-    const transactionId = searchParams.get('transaction_id');
+    const reference = searchParams.get('reference') || searchParams.get('trxref');
 
     // REASONING: Give webhook 2.5 seconds to process payment and update database
     // Then invalidate wallet cache so WalletPage will refetch and show updated balance
     const timer = setTimeout(() => {
-      if (urlStatus === 'completed' || urlStatus === 'successful') {
+      // Paystack redirects with reference param on success
+      // If reference exists, treat as success (webhook handles actual verification)
+      if (reference && (!urlStatus || urlStatus === 'success')) {
         setStatus('success');
         setMessage('Your wallet has been credited successfully. You can now use your balance to bid on auctions.');
-
-        // IMPORTANT: Tell React Query that wallet data is now stale
-        // When user navigates to WalletPage, it will automatically refetch
-        // and show the updated balance instead of cached old data
         queryClient.invalidateQueries({ queryKey: ['wallet'] });
-      } else if (urlStatus === 'cancelled') {
+      } else if (urlStatus === 'cancelled' || urlStatus === 'failed') {
         setStatus('failed');
         setMessage('The payment process was cancelled. No funds were debited from your account.');
-      } else {
+      } else if (!reference && !urlStatus) {
         setStatus('failed');
         setMessage('We could not confirm your payment. If you were debited, please contact our support team.');
+      } else {
+        setStatus('success');
+        setMessage('Your wallet has been credited successfully. You can now use your balance to bid on auctions.');
+        queryClient.invalidateQueries({ queryKey: ['wallet'] });
       }
     }, 2500);
 
     return () => clearTimeout(timer);
-  }, [searchParams, queryClient]); // Add queryClient to dependencies
+  }, [searchParams, queryClient]);
 
   const renderStatus = () => {
     switch (status) {
@@ -111,7 +114,7 @@ const PaymentConfirmPage = () => {
             <div style={{ background: 'var(--surface)', padding: '1rem', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
               <div className="d-flex align-items-center justify-content-center gap-2" style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', fontWeight: 500 }}>
                 <FiShield size={14} />
-                Secure Verification via Flutterwave
+                Secure Verification via Paystack
               </div>
             </div>
           )}

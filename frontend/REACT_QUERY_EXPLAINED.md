@@ -102,7 +102,7 @@ queryClient.invalidateQueries({ queryKey: ['wallet'] });
 
 ### Before (Balance Not Updating):
 ```
-User pays on Flutterwave
+User pays on Paystack
     ↓
 Returns to PaymentConfirmPage
     ↓
@@ -114,7 +114,7 @@ WalletPage shows OLD cached balance ❌
 
 ### After (Balance Updates):
 ```
-User pays on Flutterwave
+User pays on Paystack
     ↓
 Returns to PaymentConfirmPage
     ↓

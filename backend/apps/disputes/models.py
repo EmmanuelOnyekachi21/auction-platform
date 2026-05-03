@@ -99,6 +99,7 @@ class DisputeEvidence(BaseModel):
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
     url: Mapped[str] = mapped_column(String(500), nullable=False)
+    public_id: Mapped[str] = mapped_column(String(255), nullable=True)
     file_type: Mapped[EvidenceFileType] = mapped_column(nullable=False)
     description: Mapped[str] = mapped_column(String(255), nullable=True)
 

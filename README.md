@@ -13,7 +13,7 @@ A production-oriented live auction marketplace where users can list items, place
 - Python 3.12, FastAPI, SQLAlchemy 2.0 (async), PostgreSQL, Alembic
 - Celery + Redis (background tasks, scheduled jobs)
 - Cloudinary (image storage)
-- Flutterwave (payment gateway)
+- Paystack (payment gateway)
 - fastapi-mail + SMTP (email notifications)
 - Docker + Docker Compose
 
@@ -70,7 +70,7 @@ A production-oriented live auction marketplace where users can list items, place
 - JWT authentication with access/refresh token rotation
 - Email verification and password reset flows
 - Seller registration and admin verification workflow
-- Wallet system — fund via Flutterwave, withdraw via bank transfer, pessimistic locking on balance operations
+- Wallet system — fund via Paystack, withdraw via bank transfer, pessimistic locking on balance operations
 - Auction creation — multi-step flow (item → images → settings → publish)
 - Cloudinary image uploads with validation (type, size)
 - Category-filtered, sortable auction browse

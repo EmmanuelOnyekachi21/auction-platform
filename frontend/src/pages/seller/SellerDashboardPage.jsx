@@ -24,7 +24,7 @@ import './SellerDashboardPage.css';
 /* ─── API helpers ──────────────────────────────────────────────────────────── */
 
 const fetchMyAuctions = async (status) => {
-    const res = await apiClient.get(`/users/me/auctions?status=${status}&limit=50`);
+    const res = await apiClient.get(`/users/me/auctions?status=${status.toUpperCase()}&limit=50`);
     // Backend returns PaginatedResponse: { data: [...], pagination: {...} }
     const payload = res.data?.data ?? res.data;
     return Array.isArray(payload) ? payload : [];
@@ -102,11 +102,17 @@ export default function SellerDashboardPage() {
     const { data: endedAuctions = [], isLoading: loadingEnded } = useQuery({
         queryKey: ['myAuctions', 'ended'],
         queryFn: async () => {
-            const [standardEnded, reserveNotMet] = await Promise.all([
-                fetchMyAuctions('ended'),
-                fetchMyAuctions('ended_reserve_not_met'),
+            const [settled, noBids, reserveNotMet] = await Promise.all([
+                fetchMyAuctions('SETTLED'),
+                fetchMyAuctions('ENDED_NO_BIDS'),
+                fetchMyAuctions('ENDED_RESERVE_NOT_MET'),
             ]);
-            const merged = [...standardEnded, ...reserveNotMet];
+            const seen = new Set();
+            const merged = [...settled, ...noBids, ...reserveNotMet].filter((a) => {
+                if (seen.has(a.id)) return false;
+                seen.add(a.id);
+                return true;
+            });
             return merged.sort((a, b) => new Date(b.ends_at || 0) - new Date(a.ends_at || 0));
         },
     });
@@ -118,7 +124,7 @@ export default function SellerDashboardPage() {
     });
 
     const totalEarnings = (txData?.data ?? txData?.items ?? [])
-        .filter((t) => t.type === 'sale' || t.type === 'auction_sale')
+        .filter((t) => t.transaction_type === 'ESCROW_RELEASE')
         .reduce((sum, t) => sum + Number(t.amount ?? 0), 0);
 
     const totalSold = endedAuctions.filter(

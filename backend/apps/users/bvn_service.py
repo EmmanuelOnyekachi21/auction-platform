@@ -1,7 +1,7 @@
 """BVN (Bank Verification Number) verification service.
 
 Handles BVN format validation, hashing, and verification against
-the Flutterwave BVN API. When BVN_VERIFICATION_ENABLED=False (development),
+the Paystack BVN API. When BVN_VERIFICATION_ENABLED=False (development),
 returns a mock success response so the full KYC flow can be tested
 without real credentials.
 
@@ -65,7 +65,7 @@ class BVNService:
     ) -> dict:
         """Verify a BVN against the provider API.
 
-        Validates format first, then either calls the real Flutterwave
+        Validates format first, then either calls the real Paystack
         BVN API (when enabled) or returns a mock success (development).
 
         Args:
@@ -99,7 +99,7 @@ class BVNService:
                 "message": "BVN verified successfully (mock).",
             }
 
-        # Production — call Flutterwave BVN verification API
+        # Production — call Paystack BVN verification API
         return await self._call_flutterwave_bvn_api(
             bvn, first_name, last_name, date_of_birth
         )
@@ -111,7 +111,7 @@ class BVNService:
         last_name: str,
         date_of_birth: str,
     ) -> dict:
-        """Call Flutterwave BVN verification endpoint.
+        """Call Paystack BVN verification endpoint.
 
         Args:
             bvn: BVN to verify. Never logged.
@@ -147,7 +147,7 @@ class BVNService:
             reference = data.get("data", {}).get("reference", "unknown")
             logger.info("BVN verification completed. Reference: %s", reference)
 
-            # Check name match from Flutterwave response
+            # Check name match from Paystack response
             bvn_data = data.get("data", {})
             provider_first = bvn_data.get("first_name", "").lower()
             provider_last = bvn_data.get("last_name", "").lower()

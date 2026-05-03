@@ -2,11 +2,14 @@
 
 from datetime import datetime, timezone
 from decimal import Decimal
+from typing import Optional
 from uuid import UUID
 
+from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.disputes.enums import DisputeStatus
+from apps.auctions.cloudinary_service import CloudinaryService
+from apps.disputes.enums import DisputeStatus, EvidenceFileType
 from apps.disputes.repository import DisputeRepository
 from apps.disputes.schemas import (
     DisputeDetailResponse,
@@ -69,6 +72,7 @@ class DisputeService:
         self._escrow_repo = EscrowRepository(db)
         self._user_repo = UserRepository(db)
         self._wallet_repo = WalletRepository(db)
+        self._cloudinary_service = CloudinaryService()
 
     def _build_dispute_detail(self, dispute) -> DisputeDetailResponse:
         """Serialise a ``Dispute`` ORM object into a ``DisputeDetailResponse``.
@@ -152,6 +156,7 @@ class DisputeService:
                 ),
                 order_id=str(order_id),
                 dispute_id=str(dispute.id),
+                user_id=str(order.seller_id),
             )
         dispute = await self._dispute_repo.get_by_id(dispute.id)
         return self._build_dispute_detail(dispute)
@@ -330,6 +335,7 @@ class DisputeService:
                 ),
                 dispute_id=str(dispute_id),
                 in_favour=buyer_favour,
+                user_id=str(order.buyer_id),
             )
         if order.seller:
             notify_dispute_resolved_seller.delay(
@@ -340,6 +346,7 @@ class DisputeService:
                 ),
                 dispute_id=str(dispute_id),
                 in_favour=not buyer_favour,
+                user_id=str(order.seller_id),
             )
 
         dispute = await self._dispute_repo.get_by_id(dispute_id)
@@ -405,3 +412,71 @@ class DisputeService:
         result = await self._dispute_repo.get_open_disputes(page, limit)
         result.data = [DisputeSummary.model_validate(d) for d in result.data]
         return result
+
+    async def upload_evidence_file(
+        self,
+        dispute_id: UUID,
+        file: UploadFile,
+        description: Optional[str],
+        user_id: UUID,
+    ) -> EvidenceResponse:
+        """Upload a file as evidence for a dispute via Cloudinary.
+
+        Args:
+            dispute_id: UUID of the dispute.
+            file: The uploaded file (image or video).
+            description: Optional description of the evidence.
+            user_id: UUID of the user uploading.
+
+        Returns:
+            EvidenceResponse for the created evidence record.
+
+        Raises:
+            ValidationException: If dispute not found, resolved, or limit reached.
+            PermissionDeniedException: If caller is not a party to the dispute.
+
+        """
+        dispute = await self._dispute_repo.get_by_id(dispute_id)
+        if dispute is None:
+            raise ValidationException(
+                message="Dispute not found", code="DISPUTE_NOT_FOUND"
+            )
+
+        if user_id not in (dispute.raised_by_id, dispute.against_id):
+            raise PermissionDeniedException()
+
+        if dispute.status not in (DisputeStatus.OPEN, DisputeStatus.UNDER_REVIEW):
+            raise ValidationException(
+                message="Cannot submit evidence on a resolved dispute"
+            )
+
+        if len(dispute.evidence) >= 10:
+            raise ValidationException(message="Maximum 10 files per dispute allowed")
+
+        content_type = file.content_type or ""
+
+        if content_type.startswith("image/"):
+            result = await self._cloudinary_service.upload_image(
+                file, folder="dispute_evidence"
+            )
+            file_type = EvidenceFileType.IMAGE
+        elif content_type.startswith("video/"):
+            result = await self._cloudinary_service.upload_video(
+                file, folder="dispute_evidence"
+            )
+            file_type = EvidenceFileType.VIDEO
+        else:
+            raise ValidationException(message="Only image and video files are accepted")
+
+        evidence = await self._dispute_repo.add_evidence(
+            dispute_id=dispute_id,
+            data={
+                "uploaded_by_id": user_id,
+                "url": result["url"],
+                "public_id": result.get("public_id"),
+                "file_type": file_type,
+                "description": description,
+            },
+        )
+        await self._db.commit()
+        return EvidenceResponse.model_validate(evidence)

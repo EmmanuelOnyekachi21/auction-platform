@@ -18,7 +18,7 @@ from jose import ExpiredSignatureError, JWTError, jwt
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from apps.payments.flutterwave_service import FlutterwaveService
+from apps.payments.paystack_service import PaystackService
 from apps.users.enums import AccountStatus, UserRole
 from apps.users.models import User
 from common.exceptions import (
@@ -178,17 +178,27 @@ async def require_verified_seller(
     raise SellerRequiredException()
 
 
-async def get_flutterwave_service() -> FlutterwaveService:
-    service = FlutterwaveService(
-        settings.flutterwave_base_url, settings.flutterwave_secret_key
-    )
-    return service
+async def get_flutterwave_service() -> PaystackService:
+    """Instantiate and return a ``PaystackService`` for dependency injection.
+
+    Returns:
+        A configured ``PaystackService`` instance.
+
+    """
+    return PaystackService(settings.paystack_base_url, settings.paystack_secret_key)
 
 
 @asynccontextmanager
 async def get_async_db_session():
-    from config.database import AsyncSessionLocal
+    """Yield an async database session for use outside of FastAPI request scope.
 
+    Intended for Celery tasks and scripts that need a managed session with
+    automatic commit on success and rollback on failure.
+
+    Yields:
+        An active ``AsyncSession``.
+
+    """
     async with AsyncSessionLocal() as session:
         try:
             yield session

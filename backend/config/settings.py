@@ -44,11 +44,10 @@ class Settings(BaseSettings):
     # --- Resend ---
     resend_api_key: str = ""
 
-    # --- Flutterwave ---
-    flutterwave_secret_key: str = ""
-    flutterwave_public_key: str = ""  # You'll need this for frontend integration later
-    flutterwave_base_url: str = "https://api.flutterwave.com/v3"
-    flutterwave_webhook_secret: str = ""
+    # --- Paystack ---
+    paystack_secret_key: str = ""
+    paystack_public_key: str = ""
+    paystack_base_url: str = "https://api.paystack.co"
     frontend_url: str = ""
 
     # --- Server URL ---

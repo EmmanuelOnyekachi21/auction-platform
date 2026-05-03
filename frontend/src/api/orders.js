@@ -74,13 +74,21 @@ export const getDispute = async (disputeId) => {
 };
 
 /**
- * Submit evidence for a dispute.
- * POST /api/v1/disputes/{disputeId}/evidence
+ * Upload a file as evidence for a dispute.
+ * POST /api/v1/disputes/{disputeId}/evidence/upload
  * @param {string} disputeId
- * @param {{ url: string, file_type: 'IMAGE'|'VIDEO'|'DOCUMENT', description?: string }} data
+ * @param {File} file
+ * @param {string|null} description
  */
-export const submitEvidence = async (disputeId, data) => {
-    const response = await apiClient.post(`/disputes/${disputeId}/evidence`, data);
+export const uploadEvidenceFile = async (disputeId, file, description = null) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (description) formData.append('description', description);
+    const response = await apiClient.post(
+        `/disputes/${disputeId}/evidence/upload`,
+        formData,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+    );
     return response.data;
 };
 
@@ -115,24 +123,9 @@ export const resolveDispute = async (disputeId, data) => {
 
 /**
  * Fetch all disputes where the user is either the buyer or the seller.
- * Aggregate from /users/me/orders since no dedicated /me/disputes exists.
+ * GET /api/v1/users/me/disputes
  */
-export const getMyDisputes = async () => {
-    const [buyerRes, sellerRes] = await Promise.all([
-        apiClient.get('/users/me/orders?role=buyer&limit=100'),
-        apiClient.get('/users/me/orders?role=seller&limit=100'),
-    ]);
-    const buyerOrders = buyerRes.data?.data ?? buyerRes.data?.items ?? [];
-    const sellerOrders = sellerRes.data?.data ?? sellerRes.data?.items ?? [];
-    const allOrders = [...buyerOrders, ...sellerOrders];
-
-    // Extract orders that have a dispute attached
-    return allOrders
-        .filter(o => o.dispute != null)
-        .map(o => ({
-            ...o.dispute,
-            order_id: o.id,
-            order_amount: o.amount,
-            order_item: o.item
-        }));
+export const getMyDisputes = async ({ page = 1, limit = 20 } = {}) => {
+    const response = await apiClient.get(`/users/me/disputes?page=${page}&limit=${limit}`);
+    return response.data;
 };

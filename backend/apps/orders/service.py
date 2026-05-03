@@ -266,6 +266,7 @@ class OrderService:
                 ),
                 order_id=str(order_id),
                 tracking_number=data.tracking_number,
+                user_id=str(order.buyer_id),
             )
         escrow = await self._escrow_repo.get_by_order_id(order_id)
         return self._build_order_detail(order, escrow)
@@ -412,6 +413,7 @@ class OrderService:
                 ),
                 order_id=str(order_id),
                 amount=str(order.amount),
+                user_id=str(order.seller_id),
             )
         if order.buyer:
             notify_transaction_completed.delay(
@@ -421,6 +423,7 @@ class OrderService:
                     f"{order.buyer.last_name or ''}".strip()
                 ),
                 order_id=str(order_id),
+                user_id=str(order.buyer_id),
             )
 
         escrow = await self._escrow_repo.get_by_order_id(order_id)
@@ -512,6 +515,7 @@ class OrderService:
                     f"{order.buyer.last_name or ''}".strip()
                 ),
                 order_id=str(order_id),
+                user_id=str(order.buyer_id),
             )
         if order.seller:
             notify_order_cancelled_seller.delay(

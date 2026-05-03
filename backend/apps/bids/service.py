@@ -233,6 +233,7 @@ class BidService:
                     ),
                     auction_id=str(auction_id),
                     new_highest_bid=str(data.amount),
+                    user_id=str(prev_user.id),
                 )
 
         return BidResponse(

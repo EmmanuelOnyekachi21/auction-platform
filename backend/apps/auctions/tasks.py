@@ -31,6 +31,7 @@ from apps.bids.enums import BidStatus
 from apps.bids.models import Bid
 from apps.escrow.enums import EscrowStatus
 from apps.escrow.models import Escrow
+from apps.notifications.tasks import _create_notification
 from apps.orders.enums import OrderStatus
 from apps.orders.models import Order
 from apps.users.models import User
@@ -87,8 +88,8 @@ def send_reserve_not_met_seller(
     highest_bid: Decimal,
     reserve_price: Decimal,
 ):
-    """Send an email to the seller when an auction ends without meeting
-    the reserve price.
+    """Send an email to the seller when an auction ends without meeting the reserve
+    price.
 
     Args:
         self: Celery task instance.
@@ -562,6 +563,18 @@ def process_auction_settlement(self, auction_id: str):
                     f"View your order: {settings.app_url}/orders"
                 ),
             )
+            # In-app notification for winner
+            await _create_notification(
+                user_id=str(winner_id),
+                title="You won the auction!",
+                message=(
+                    f"Congratulations! You won with a bid of "
+                    f"₦{bid_amount:,.2f}. The seller has 72 hours to ship."
+                ),
+                notification_type="AUCTION_WON",
+                reference_id=str(auction_id),
+                reference_type="AUCTION",
+            )
 
         await send_email(
             subject="Your item has been sold!",
@@ -574,6 +587,18 @@ def process_auction_settlement(self, auction_id: str):
                 f"Please ship the item within 72 hours.\n\n"
                 f"View your orders: {settings.app_url}/seller/dashboard"
             ),
+        )
+        # In-app notification for seller
+        await _create_notification(
+            user_id=str(auction_seller_id),
+            title="Your item has been sold!",
+            message=(
+                f"Your auction settled at ₦{bid_amount:,.2f}. "
+                f"Payout: ₦{seller_payout:,.2f}. Ship within 72 hours."
+            ),
+            notification_type="PAYMENT_RECEIVED",
+            reference_id=str(auction_id),
+            reference_type="AUCTION",
         )
 
     asyncio.run(_process())

@@ -16,7 +16,7 @@ FastAPI-based REST API for the KaraKaja live auction marketplace. Handles authen
 | Redis 7 | Message broker + Celery backend |
 | Celery | Background task queue |
 | Cloudinary | Image storage |
-| Flutterwave | Payment gateway |
+| Paystack | Payment gateway |
 | fastapi-mail | Email delivery |
 | Docker + Docker Compose | Local development environment |
 
@@ -30,7 +30,7 @@ backend/
 │   ├── authentication/     # JWT auth, login, register, token refresh
 │   ├── users/              # User profiles, seller registration, admin verification
 │   ├── wallet/             # Wallet balance, funding, withdrawals, transactions
-│   ├── payments/           # Flutterwave integration, webhook handling
+│   ├── payments/           # Paystack integration, webhook handling
 │   ├── auctions/           # Items, categories, auctions, Cloudinary, settlement tasks
 │   ├── bids/               # Bid models and enums (Phase 6.8)
 │   ├── orders/             # Order models (Phase 6.9)
@@ -169,8 +169,8 @@ With the server running, visit:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/me` | Get wallet balance |
-| POST | `/fund` | Initiate Flutterwave payment |
-| POST | `/webhook` | Flutterwave webhook handler |
+| POST | `/fund` | Initiate Paystack payment |
+| POST | `/webhook` | Paystack webhook handler |
 | POST | `/withdraw` | Request withdrawal |
 | GET | `/transactions` | Transaction history (paginated) |
 
@@ -255,8 +255,8 @@ docker-compose restart celery_worker
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret |
 | `CLOUDINARY_UPLOAD_PRESET` | Cloudinary upload preset name |
-| `FLUTTERWAVE_SECRET_KEY` | Flutterwave secret key |
-| `FLUTTERWAVE_PUBLIC_KEY` | Flutterwave public key |
+| `FLUTTERWAVE_SECRET_KEY` | Paystack secret key |
+| `FLUTTERWAVE_PUBLIC_KEY` | Paystack public key |
 | `FLUTTERWAVE_WEBHOOK_SECRET` | Webhook verification secret |
 | `MAIL_SERVER` | SMTP server host |
 | `MAIL_PORT` | SMTP port (587 for TLS) |

@@ -27,11 +27,11 @@ class Payment(BaseModel):
     """External payment tracking for wallet funding.
 
     Tracks the full lifecycle of payments through external providers
-    like Flutterwave. This is the payment gateway abstraction layer.
+    like Paystack. This is the payment gateway abstraction layer.
 
     Attributes:
         transaction_reference: Our unique reference (APF-xxx format).
-        provider_reference: Provider's reference (e.g., Flutterwave's flw_ref).
+        provider_reference: Provider's reference (e.g., Paystack's flw_ref).
         wallet_id: Foreign key to the wallet being funded.
         amount: Payment amount, precision 10/2.
         currency: ISO 4217 currency code.
@@ -41,6 +41,7 @@ class Payment(BaseModel):
         webhook_received_at: Timestamp when webhook was received.
         verified_at: Timestamp when payment was verified with provider.
         wallet_transaction_id: Link to WalletTransaction created after completion.
+
     """
 
     __tablename__ = "payments"
@@ -58,7 +59,7 @@ class Payment(BaseModel):
 
     # Provider details
     provider: Mapped[str] = mapped_column(
-        String(50), nullable=False, default="FLUTTERWAVE"
+        String(50), nullable=False, default="PAYSTACK"
     )
     provider_reference: Mapped[str] = mapped_column(String(100), nullable=True)
 
