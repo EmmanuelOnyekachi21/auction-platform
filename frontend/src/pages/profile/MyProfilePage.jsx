@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useForm } from 'react-hook-form';
+import { useQueryClient } from '@tanstack/react-query';
 import apiClient from "../../api/client";
 import { useToast } from "../../components/common/Toast";
 import BankDetailsSection from "../../components/profile/BankDetailsSection";
@@ -17,6 +18,7 @@ export default function MyProfilePage() {
     const [editing, setEditing] = useState(false);
     const { showToast } = useToast();
     const { register, handleSubmit, reset } = useForm();
+    const queryClient = useQueryClient();
 
     useEffect(() => { fetchProfile(); }, []);
 
@@ -45,6 +47,7 @@ export default function MyProfilePage() {
             await fetchProfile();
             setEditing(false);
             showToast('Profile updated successfully!', 'success');
+            queryClient.invalidateQueries({ queryKey: ['userProfile'] });
         } catch (error) {
             showToast('Failed to update profile', 'error');
         }
