@@ -14,10 +14,12 @@ from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
+from starlette.middleware.sessions import SessionMiddleware
 
 # Import the model registry to ensure all models are registered with SQLAlchemy
 # before any logic tries to use them.
 import config.model_registry  # noqa: F401
+from apps.admin.setup import create_admin
 from apps.auctions.routers import router as auctions_router
 from apps.authentication.routers import router as auth_router
 from apps.bids.router import router as bids_router
@@ -99,6 +101,7 @@ app = FastAPI(
 )
 
 # --- Global Middleware ---
+app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
@@ -126,6 +129,9 @@ app.include_router(auctions_router, prefix="/api/v1", tags=["Auctions"])
 app.include_router(bids_router, prefix="/api/v1", tags=["Bids"])
 app.include_router(orders_router, prefix="/api/v1", tags=["Orders"])
 app.include_router(disputes_router, prefix="/api/v1", tags=["Disputes"])
+
+# --- Admin Panel ---
+admin = create_admin(app)
 
 
 # --- Utility Helpers ---

@@ -9,6 +9,7 @@ import argparse
 import asyncio
 import sys
 import uuid
+from decimal import Decimal
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,7 +19,9 @@ sys.path.insert(0, ".")
 import config.model_registry  # noqa: F401
 from apps.authentication.security import hash_password
 from apps.users.enums import AccountStatus, UserRole
+from apps.users.kyc_models import KYCProfile
 from apps.users.models import User, UserProfile
+from apps.wallet.models import Wallet
 from config.database import engine
 
 
@@ -49,11 +52,30 @@ async def create_superuser(
         session.add(user)
         await session.flush()
 
-        profile = UserProfile(id=uuid.uuid4(), user_id=user.id)
+        # Create UserProfile
+        profile = UserProfile(user_id=user.id)
         session.add(profile)
+
+        # Create Wallet — required for any financial operations
+        wallet = Wallet(
+            user_id=user.id,
+            available_funds=Decimal("0.00"),
+            locked_funds=Decimal("0.00"),
+            escrow_funds=Decimal("0.00"),
+            currency="NGN",
+        )
+        session.add(wallet)
+
+        # Create KYCProfile — required for KYC limit checks
+        kyc_profile = KYCProfile(user_id=user.id)
+        session.add(kyc_profile)
 
         await session.commit()
         print(f"Superuser '{email}' created successfully.")
+        print(f"  Role: {UserRole.SUPERUSER.value}")
+        print("  Email verified: True")
+        print("  Wallet: created")
+        print("  KYC profile: created")
 
 
 if __name__ == "__main__":

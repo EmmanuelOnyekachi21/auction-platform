@@ -22,7 +22,9 @@ dependencies = [
     "Pillow",
     "fastapi-mail",
     "resend",
-    "cloudinary>=1.36.0"
+    "cloudinary>=1.36.0",
+    "sqladmin>=0.16.0",
+    "itsdangerous>=2.1.0",
 ]
 
 [project.optional-dependencies]
