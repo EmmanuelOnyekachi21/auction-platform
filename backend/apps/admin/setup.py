@@ -7,10 +7,15 @@ from sqladmin.authentication import AuthenticationBackend
 from sqlalchemy.ext.asyncio import async_sessionmaker
 from starlette.requests import Request
 
+from apps.admin.views.kyc import KYCDocumentAdmin, KYCProfileAdmin
+from apps.admin.views.users import SellerProfileAdmin, UserAdmin, UserProfileAdmin
 from apps.authentication.security import verify_password
 from apps.users.repository import UserRepository
 from config.database import engine
 from config.settings import settings
+
+from .views.auctions import AuctionAdmin, BidIncrementTierAdmin, ItemAdmin
+from .views.orders import DisputeAdmin, EscrowAdmin, OrderAdmin
 
 logger = logging.getLogger(__name__)
 
@@ -79,4 +84,23 @@ def create_admin(app) -> Admin:
         title="KaraKaja Admin",
         base_url="/admin",
     )
+
+    admin.add_view(UserAdmin)
+    admin.add_view(UserProfileAdmin)
+    admin.add_view(SellerProfileAdmin)
+    admin.add_view(KYCProfileAdmin)
+    admin.add_view(KYCDocumentAdmin)
+
+    # Auctions
+    admin.add_view(ItemAdmin)
+    admin.add_view(AuctionAdmin)
+    admin.add_view(BidIncrementTierAdmin)
+
+    # Orders, Escrow, Disputes
+    admin.add_view(OrderAdmin)
+    admin.add_view(EscrowAdmin)
+    admin.add_view(DisputeAdmin)
+
+    logger.info("SQLAdmin configured successfully")
+
     return admin
