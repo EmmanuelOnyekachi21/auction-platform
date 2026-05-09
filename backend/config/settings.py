@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     tier_3_max_wallet_balance: Decimal = Decimal("999999999.00")
     tier_3_max_daily_withdrawal: Decimal = Decimal("5000000.00")
 
+    # Shipping deadline
+    shipping_deadline: int
+
     # --- Pydantic Config ---
     model_config = SettingsConfigDict(
         env_file=".env",

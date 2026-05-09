@@ -483,7 +483,7 @@ def process_auction_settlement(self, auction_id: str):
                 auction_item_id=first_auction_item.id,
                 amount=bid_amount,
                 status=OrderStatus.PENDING_SHIPMENT,
-                shipping_deadline_at=now + timedelta(hours=72),
+                shipping_deadline_at=now + timedelta(hours=settings.shipping_deadline),
             )
             db.add(order)
             await db.flush()
@@ -559,7 +559,8 @@ def process_auction_settlement(self, auction_id: str):
                 body=(
                     f"Hello {winner_name},\n\n"
                     f"You won the auction with a bid of ₦{bid_amount:,.2f}!\n\n"
-                    f"The seller has 72 hours to ship your item.\n\n"
+                    f"The seller has {settings.shipping_deadline} hours to ship"
+                    f" your item.\n\n"
                     f"View your order: {settings.app_url}/orders"
                 ),
             )
@@ -569,7 +570,8 @@ def process_auction_settlement(self, auction_id: str):
                 title="You won the auction!",
                 message=(
                     f"Congratulations! You won with a bid of "
-                    f"₦{bid_amount:,.2f}. The seller has 72 hours to ship."
+                    f"₦{bid_amount:,.2f}. "
+                    f"The seller has {settings.shipping_deadline} hours to ship."
                 ),
                 notification_type="AUCTION_WON",
                 reference_id=str(auction_id),
@@ -584,7 +586,7 @@ def process_auction_settlement(self, auction_id: str):
                 f"Your auction has settled! Your item sold for ₦{bid_amount:,.2f}.\n\n"
                 f"Commission (5%): ₦{commission:,.2f}\n"
                 f"Your payout: ₦{seller_payout:,.2f}\n\n"
-                f"Please ship the item within 72 hours.\n\n"
+                f"Please ship the item within {settings.shipping_deadline} hours.\n\n"
                 f"View your orders: {settings.app_url}/seller/dashboard"
             ),
         )
@@ -594,7 +596,8 @@ def process_auction_settlement(self, auction_id: str):
             title="Your item has been sold!",
             message=(
                 f"Your auction settled at ₦{bid_amount:,.2f}. "
-                f"Payout: ₦{seller_payout:,.2f}. Ship within 72 hours."
+                f"Payout: ₦{seller_payout:,.2f}. "
+                f"Ship within {settings.shipping_deadline} hours."
             ),
             notification_type="PAYMENT_RECEIVED",
             reference_id=str(auction_id),
