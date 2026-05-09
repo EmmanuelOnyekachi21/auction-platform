@@ -14,7 +14,14 @@ from apps.users.repository import UserRepository
 from config.database import engine
 from config.settings import settings
 
-from .views.auctions import AuctionAdmin, BidIncrementTierAdmin, ItemAdmin
+from .dashboard import DashboardView
+from .views.auctions import (
+    AuctionAdmin,
+    BidIncrementTierAdmin,
+    CategoryAdmin,
+    ItemAdmin,
+)
+from .views.financial import PaymentAdmin, WalletTransactionAdmin
 from .views.orders import DisputeAdmin, EscrowAdmin, OrderAdmin
 
 logger = logging.getLogger(__name__)
@@ -75,6 +82,7 @@ def create_admin(app) -> Admin:
 
     Returns:
         Admin: Configured SQLAdmin instance.
+
     """
     auth_backend = AdminAuthBackend(secret_key=SECRET_KEY)
     admin = Admin(
@@ -83,6 +91,7 @@ def create_admin(app) -> Admin:
         authentication_backend=auth_backend,
         title="KaraKaja Admin",
         base_url="/admin",
+        templates_dir="templates",  # backend/templates/ for custom pages
     )
 
     admin.add_view(UserAdmin)
@@ -92,6 +101,7 @@ def create_admin(app) -> Admin:
     admin.add_view(KYCDocumentAdmin)
 
     # Auctions
+    admin.add_view(CategoryAdmin)
     admin.add_view(ItemAdmin)
     admin.add_view(AuctionAdmin)
     admin.add_view(BidIncrementTierAdmin)
@@ -100,6 +110,13 @@ def create_admin(app) -> Admin:
     admin.add_view(OrderAdmin)
     admin.add_view(EscrowAdmin)
     admin.add_view(DisputeAdmin)
+
+    # Financial audit
+    admin.add_view(WalletTransactionAdmin)
+    admin.add_view(PaymentAdmin)
+
+    # Custom dashboard page
+    admin.add_base_view(DashboardView)
 
     logger.info("SQLAdmin configured successfully")
 

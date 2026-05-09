@@ -19,6 +19,7 @@ from starlette.middleware.sessions import SessionMiddleware
 # Import the model registry to ensure all models are registered with SQLAlchemy
 # before any logic tries to use them.
 import config.model_registry  # noqa: F401
+from apps.admin.routers import router as admin_router
 from apps.admin.setup import create_admin
 from apps.auctions.routers import router as auctions_router
 from apps.authentication.routers import router as auth_router
@@ -118,6 +119,7 @@ app.add_exception_handler(HTTPException, handle_not_found)
 app.add_exception_handler(Exception, handle_generic_exception)
 
 # --- API Routers ---
+app.include_router(admin_router, prefix="/api/v1/admin", tags=["Authentication"])
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["users"])
 app.include_router(kyc_router, prefix="/api/v1/kyc", tags=["KYC"])

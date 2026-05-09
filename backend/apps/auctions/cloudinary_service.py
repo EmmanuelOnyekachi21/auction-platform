@@ -18,6 +18,15 @@ VID_ALLOWED_TYPES = {"video/mp4", "video/avi", "video/mov", "video/mkv"}
 MAX_IMG_SIZE = 10 * 1024 * 1024  # 10MB in bytes
 MAX_VIDEO_SIZE = 100 * 1024 * 1024  # 100MB in bytes
 
+# Verification documents: PDFs and images of ID documents
+ALLOWED_DOC_TYPES = {
+    "application/pdf",
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+}
+MAX_DOC_SIZE = 20 * 1024 * 1024  # 20MB
+
 
 class CloudinaryService:
     """Service for uploading and managing images on Cloudinary.
@@ -159,6 +168,58 @@ class CloudinaryService:
         except Exception as e:
             logger.error(f"Cloudinary upload failed: {str(e)}")
             raise ValidationException(f"Video upload failed: {str(e)}")
+
+    async def upload_document(
+        self,
+        file: UploadFile,
+        folder: str = "seller_verification",
+    ) -> dict:
+        """Upload a verification document (PDF or image) to Cloudinary.
+
+        Args:
+            file: Uploaded file from FastAPI.
+            folder: Cloudinary folder path.
+
+        Returns:
+            dict with url and public_id.
+
+        Raises:
+            ValidationException: If file type or size is invalid.
+
+        """
+        if file.content_type not in ALLOWED_DOC_TYPES:
+            raise ValidationException(
+                f"Invalid file type: {file.content_type}. "
+                "Allowed: PDF, JPEG, PNG, WebP"
+            )
+
+        content = await file.read()
+        file_size = len(content)
+
+        if file_size > MAX_DOC_SIZE:
+            raise ValidationException(
+                f"File size exceeds 10MB limit. "
+                f"Your file: {file_size / (1024 * 1024):.2f}MB"
+            )
+
+        try:
+            # PDFs must use resource_type="raw" — the image pipeline rejects them
+            # with 401 when accessed directly. Raw files are served publicly.
+            # Images use resource_type="image" as normal.
+            is_pdf = file.content_type == "application/pdf"
+            result = cloudinary.uploader.upload(
+                content,
+                folder=folder,
+                resource_type="raw" if is_pdf else "image",
+            )
+            logger.info(f"Document uploaded successfully: {result['public_id']}")
+            return {
+                "url": result["secure_url"],
+                "public_id": result["public_id"],
+            }
+        except Exception as e:
+            logger.error(f"Cloudinary document upload failed: {str(e)}")
+            raise ValidationException(f"Document upload failed: {str(e)}")
 
     def delete_image(self, public_id: str) -> bool:
         """Delete image from Cloudinary.
