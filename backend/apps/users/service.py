@@ -7,15 +7,19 @@ and wallet management.
 from decimal import Decimal
 from uuid import UUID
 
+from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.auctions.cloudinary_service import CloudinaryService
 from apps.notifications.tasks import (
     send_seller_verification_approved,
     send_seller_verification_rejected,
 )
-from apps.users.models import AccountStatus, VerificationDoc
+from apps.users.enums import AccountStatus, KYCTier
+from apps.users.models import VerificationDoc
 from apps.users.repository import UserRepository
 from apps.users.schemas import (
+    AdminUserDetailResponse,
     PublicUserResponse,
     RegisterSellerRequest,
     SellerProfileResponse,
@@ -30,6 +34,7 @@ from common.exceptions import (
     SellerRequiredException,
     UserNotFoundException,
 )
+from common.schemas import MessageResponse
 
 
 class UserService:
@@ -53,6 +58,7 @@ class UserService:
         """
         self._db = db
         self.repo = UserRepository(db)
+        self._cloudinary_service = CloudinaryService()
 
     async def get_my_profile(self, user_id: UUID) -> UserProfileResponse:
         """Get the authenticated user's full profile.
@@ -237,13 +243,13 @@ class UserService:
         return SellerProfileResponse.model_validate(updated_profile)
 
     async def upload_verification_document(
-        self, user_id: UUID, url: str, doc_type: str
+        self, user_id: UUID, file: UploadFile, doc_type: str
     ) -> VerificationDoc:
         """Upload verification document for seller.
 
         Args:
             user_id: UUID of the user uploading document.
-            url: URL of the uploaded document.
+            file: The uploaded document file.
             doc_type: Type of document (e.g., "National ID").
 
         Returns:
@@ -258,10 +264,13 @@ class UserService:
             msg = "Must be registered as seller to upload documents"
             raise SellerRequiredException(msg)
 
+        # Upload to Cloudinary — await because upload_document is async
+        uploaded = await self._cloudinary_service.upload_document(file)
+
         doc = VerificationDoc(
             title=doc_type,
             description=f"{doc_type} for seller verification",
-            url=url,
+            url=uploaded["url"],  # key is "url", not "secure_url"
             seller_id=seller_profile.id,
         )
 
@@ -282,8 +291,6 @@ class UserService:
             dict: Confirmation message.
 
         """
-        from common.schemas import MessageResponse
-
         await self.repo.update(user_id, {"account_status": AccountStatus.DEACTIVATED})
         await self._db.commit()
 
@@ -305,3 +312,95 @@ class UserService:
             return {"message": "Wallet not found"}
 
         return WalletBalanceResponse.model_validate(wallet)
+
+    async def get_unverified_sellers(
+        self, has_seller_profile: bool, seller_verified: bool, limit: int
+    ):
+        """Return sellers with pending verification status.
+
+        Args:
+            has_seller_profile: Filter flag (kept for API compatibility).
+            seller_verified: Filter flag (kept for API compatibility).
+            limit: Maximum number of results to return.
+
+        Returns:
+            A list of ``User`` instances with pending seller profiles.
+
+        """
+        return await self.repo.get_unverified_sellers(
+            has_seller_profile, seller_verified, limit
+        )
+
+    async def get_all_users(
+        self,
+        search: str | None,
+        account_status: AccountStatus | None,
+        kyc_tier: KYCTier | None,
+        page: int = 1,
+        limit: int = 20,
+    ):
+        """Return a paginated list of users with optional filters.
+
+        Args:
+            search: Optional string to search in name and email fields.
+            account_status: Optional filter by account status.
+            kyc_tier: Optional filter by KYC tier.
+            page: Page number (1-indexed).
+            limit: Maximum number of users per page.
+
+        Returns:
+            A ``PaginatedResponse`` with serialised user data.
+
+        """
+        result = await self.repo.get_all_users(
+            search=search,
+            account_status=account_status,
+            kyc_tier=kyc_tier,
+            page=page,
+            limit=limit,
+        )
+        # Serialize ORM objects — paginate() returns raw User instances
+        # which FastAPI can't JSON-encode without a response model.
+        result.data = [
+            UserProfileResponse.model_validate(u).model_dump(mode="json")
+            for u in result.data
+        ]
+        return result
+
+    async def update_user_status(
+        self,
+        user_id: UUID,
+        account_status: AccountStatus,
+    ) -> dict:
+        """Update a user's account status.
+
+        Args:
+            user_id: UUID of the user to update.
+            account_status: The new ``AccountStatus`` value to apply.
+
+        Returns:
+            dict: Confirmation message.
+
+        """
+        await self.repo.update(user_id, {"account_status": account_status})
+        await self._db.commit()
+
+        return {"message": "User status updated successfully"}
+
+    async def get_user_detail(self, user_id: UUID):
+        """Return full user detail for the admin panel.
+
+        Args:
+            user_id: UUID of the user to retrieve.
+
+        Returns:
+            A JSON-serialisable dict of ``AdminUserDetailResponse`` data.
+
+        Raises:
+            UserNotFoundException: If the user does not exist.
+
+        """
+        user = await self.repo.get_user_detail(user_id)
+        if not user:
+            raise UserNotFoundException()
+        return AdminUserDetailResponse.model_validate(user).model_dump(mode="json")

@@ -17,6 +17,7 @@ from pydantic import (
     model_validator,
 )
 
+from apps.users.enums import SellerVerificationStatus
 from apps.users.models import AccountStatus, OnboardingIntent, SellerType, UserRole
 
 
@@ -117,20 +118,13 @@ class ProfileData(BaseModel):
 
 
 class SellerData(BaseModel):
-    """Nested response model for seller profile details.
-
-    Attributes:
-        seller_type: Type of seller (casual, retail, wholesale).
-        is_verified: Whether seller is verified by admin.
-        created_at: Timestamp when seller profile was created.
-        verified_at: Timestamp of verification (None if not verified).
-
-    """
+    """Nested response model for seller profile details."""
 
     model_config = ConfigDict(from_attributes=True)
 
     seller_type: SellerType
     is_verified: bool
+    verification_status: SellerVerificationStatus = SellerVerificationStatus.PENDING
     verified_by_id: UUID | None = None
     created_at: datetime
     verified_at: datetime | None = None
@@ -199,7 +193,7 @@ class PublicUserResponse(BaseModel):
 
     @classmethod
     def model_validate(cls, obj, **kwargs):
-        """Custom validation to map User model fields to schema fields."""
+        """Map ``User`` ORM fields to the public response schema fields."""
         if hasattr(obj, "__dict__") and not isinstance(obj, dict):
             data = {
                 "id": obj.id,
@@ -322,3 +316,86 @@ class BVNVerificationRequest(BaseModel):
         if v >= today:
             raise ValueError("Date of birth must be in the past.")
         return v
+
+
+# ── Admin schemas ──────────────────────────────────────────────────────────────
+
+
+class AdminKYCProfileData(BaseModel):
+    """KYC profile data for admin detail view."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    current_tier: str
+    email_verified: bool
+    phone_verified: bool
+    bvn_verified: bool
+    tier_1_completed_at: datetime | None = None
+    tier_2_completed_at: datetime | None = None
+    tier_3_completed_at: datetime | None = None
+    bvn_attempt_count: int = 0
+    rejection_reason: str | None = None
+    last_verification_attempt: datetime | None = None
+
+
+class AdminKYCDocumentData(BaseModel):
+    """KYC document data for admin detail view."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    document_type: str
+    document_url: str
+    status: str
+    verified_at: datetime | None = None
+    rejection_reason: str | None = None
+    expires_at: datetime | None = None
+    created_at: datetime
+
+
+class AdminWalletData(BaseModel):
+    """Wallet data for admin detail view."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    available_funds: Decimal
+    locked_funds: Decimal
+    escrow_funds: Decimal
+    currency: str
+
+
+class AdminBidSummary(BaseModel):
+    """Minimal bid summary for admin detail view."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    amount: Decimal
+    status: str
+    placed_at: datetime
+
+
+class AdminUserDetailResponse(BaseModel):
+    """Full user detail response for admin — includes all relationships."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    first_name: str | None = None
+    last_name: str | None = None
+    email: str
+    phone_number: str | None = None
+    role: UserRole
+    account_status: AccountStatus
+    kyc_tier: str
+    is_email_verified: bool
+    last_login_at: datetime | None = None
+    created_at: datetime
+
+    # Relationships
+    profile: ProfileData | None = None
+    seller_profile: SellerData | None = None
+    kyc_profile: AdminKYCProfileData | None = None
+    kyc_documents: list[AdminKYCDocumentData] = []
+    wallet: AdminWalletData | None = None
+    bids: list[AdminBidSummary] = []

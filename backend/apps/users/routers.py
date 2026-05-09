@@ -6,9 +6,12 @@ seller registration, and wallet operations.
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+import httpx
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from apps.payments.paystack_service import PaystackService
 from apps.users.models import User
 from apps.users.schemas import (
     PublicUserResponse,
@@ -22,6 +25,7 @@ from apps.users.service import UserService
 from apps.wallet.service import WalletService
 from common.dependency import get_current_active_user, get_db, require_admin
 from common.schemas import MessageResponse
+from config.settings import settings
 
 router = APIRouter()
 
@@ -134,15 +138,15 @@ async def register_as_seller(
     status_code=status.HTTP_201_CREATED,
 )
 async def upload_verification_document(
-    url: str,
-    doc_type: str,
+    file: UploadFile = File(...),
+    doc_type: str = Form(default="Verification Document"),
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     """Upload a verification document for seller profile.
 
     Args:
-        url: URL of the uploaded document.
+        file: The uploaded document file (multipart/form-data).
         doc_type: Type of verification document (e.g., "National ID").
         current_user: The currently authenticated user.
         db: The database session dependency.
@@ -152,7 +156,7 @@ async def upload_verification_document(
 
     """
     service = UserService(db)
-    doc = await service.upload_verification_document(current_user.id, url, doc_type)
+    doc = await service.upload_verification_document(current_user.id, file, doc_type)
     return {
         "id": str(doc.id),
         "title": doc.title,
@@ -202,12 +206,35 @@ async def get_my_wallet(
         dict: Wallet balance information.
 
     """
-    from apps.payments.flutterwave_service import PaystackService
-    from config.settings import settings
-
     flutterwave_service = PaystackService(
-        base_url=settings.flutterwave_base_url,
-        secret_key=settings.flutterwave_secret_key,
+        base_url=settings.paystack_base_url,
+        secret_key=settings.paystack_secret_key,
     )
     service = WalletService(db, flutterwave_service)
     return await service.get_wallet(current_user.id)
+
+
+@router.get("/documents/proxy")
+async def proxy_document(
+    url: str = Query(..., description="Cloudinary document URL to proxy"),
+):
+    """Proxy a Cloudinary document and serve it inline.
+
+    Cloudinary raw files are served with Content-Disposition: attachment,
+    which forces a download. This endpoint fetches the file and re-serves
+    it with Content-Disposition: inline so the browser renders it in place.
+
+    No auth required — the URL itself is the access token (only admins
+    can obtain document URLs through the sellers endpoint).
+    """
+    async with httpx.AsyncClient(follow_redirects=True, timeout=30) as client:
+        response = await client.get(url)
+        response.raise_for_status()
+
+    content_type = response.headers.get("content-type", "application/octet-stream")
+
+    return StreamingResponse(
+        iter([response.content]),
+        media_type=content_type,
+        headers={"Content-Disposition": "inline"},
+    )

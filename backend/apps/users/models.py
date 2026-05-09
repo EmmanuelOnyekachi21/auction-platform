@@ -19,7 +19,14 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from config.database import BaseModel
 
-from .enums import AccountStatus, KYCTier, OnboardingIntent, SellerType, UserRole
+from .enums import (
+    AccountStatus,
+    KYCTier,
+    OnboardingIntent,
+    SellerType,
+    SellerVerificationStatus,
+    UserRole,
+)
 
 if TYPE_CHECKING:
     from apps.auctions.models import Auction, Bid, Item
@@ -182,6 +189,9 @@ class SellerProfile(BaseModel):
     )
     seller_type: Mapped[SellerType] = mapped_column(nullable=False)
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    verification_status: Mapped[SellerVerificationStatus] = mapped_column(
+        nullable=False, default=SellerVerificationStatus.PENDING, index=True
+    )
     bank_acct_number: Mapped[str] = mapped_column(String(50), nullable=True)
     bank_name: Mapped[str] = mapped_column(String(50), nullable=True)
     verified_at: Mapped[datetime] = mapped_column(

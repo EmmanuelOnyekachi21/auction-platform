@@ -39,8 +39,13 @@ import DisputeDetailPage from './pages/disputes/DisputeDetailPage';
 import MyDisputesPage from './pages/disputes/MyDisputesPage';
 
 // Admin Pages
+import AdminRoute from './components/common/AdminRoute';
+import AdminLayout from './components/layout/AdminLayout';
+import AdminDashboardPage from './pages/admin/AdminDashboardPage';
 import VerifySellersPage from './pages/admin/VerifySellersPage';
 import AdminDisputesPage from './pages/admin/AdminDisputesPage';
+import AdminPlaceholderPage from './pages/admin/AdminPlaceholderPage';
+import AdminUsersPage from './pages/admin/AdminUsersPage';
 
 // Seller Pages
 import SellerDashboardPage from './pages/seller/SellerDashboardPage';
@@ -56,8 +61,10 @@ const queryClient = new QueryClient();
 const getSellerRoute = (user) => {
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERUSER';
   if (isAdmin) return '/seller/dashboard';
-  if (!user?.seller_profile)               return '/become-seller';
-  if (!user.seller_profile.is_verified)    return '/seller/pending';
+  if (!user?.seller_profile) return '/become-seller';
+  // Rejected sellers should be able to reapply
+  if (user.seller_profile.verification_status === 'REJECTED') return '/become-seller';
+  if (!user.seller_profile.is_verified) return '/seller/pending';
   return '/seller/dashboard';
 };
 
@@ -72,7 +79,8 @@ const Dashboard = () => {
   const sellerAction = (() => {
     if (isAdmin)                           return { label: 'Seller Dashboard', desc: 'Create and manage auctions' };
     if (!user?.seller_profile)             return { label: 'Start Selling', desc: 'Register as a seller to list items' };
-    if (!user.seller_profile.is_verified)  return { label: 'Seller Status',  desc: 'Check the status of your application' };
+    if (user.seller_profile.verification_status === 'REJECTED') return { label: 'Reapply as Seller', desc: 'Your previous application was rejected' };
+    if (!user.seller_profile.is_verified)  return { label: 'Seller Status', desc: 'Check the status of your application' };
     return { label: 'Seller Dashboard', desc: 'Manage your auctions and earnings' };
   })();
 
@@ -214,8 +222,6 @@ function App() {
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/profile" element={<MyProfilePage />} />
                 <Route path="/become-seller" element={<BecomeSellerPage />} />
-                <Route path="/admin/verify-sellers" element={<VerifySellersPage />} />
-                <Route path="/admin/disputes" element={<AdminDisputesPage />} />
                 <Route path="/wallet" element={<WalletPage />} />
                 <Route path="/wallet/transactions" element={<TransactionsPage />} />
                 <Route path="/payment/:paymentId/confirm" element={<PaymentConfirmPage />} />
@@ -228,6 +234,21 @@ function App() {
                 <Route path="/seller/pending" element={<SellerPendingPage />} />
                 <Route path="/seller/create-auction" element={<CreateAuctionPage />} />
                 <Route path="/kyc" element={<KYCPage />} />
+              </Route>
+            </Route>
+
+            {/* Admin Routes — role-gated, own layout */}
+            <Route element={<AdminRoute />}>
+              <Route element={<AdminLayout />}>
+                <Route path="/admin/dashboard"      element={<AdminDashboardPage />} />
+                <Route path="/admin/verify-sellers" element={<VerifySellersPage />} />
+                <Route path="/admin/disputes"       element={<AdminDisputesPage />} />
+                {/* Placeholder routes for sidebar links not yet built */}
+                <Route path="/admin/users"     element={<AdminUsersPage />} />
+                <Route path="/admin/auctions"  element={<AdminPlaceholderPage title="Auction Management" />} />
+                <Route path="/admin/orders"    element={<AdminPlaceholderPage title="Order Management" />} />
+                <Route path="/admin/financial" element={<AdminPlaceholderPage title="Financial Audit" />} />
+                <Route path="/admin/settings"  element={<AdminPlaceholderPage title="Platform Settings" />} />
               </Route>
             </Route>
 

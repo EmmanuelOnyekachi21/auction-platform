@@ -20,9 +20,11 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    func,
+    select,
 )
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, column_property, mapped_column, relationship
 
 from config.database import BaseModel
 
@@ -60,6 +62,7 @@ class Category(BaseModel):
         ForeignKey("categories.id"),
         nullable=True,
     )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     # Self-referencing relationships
     parent: Mapped["Category"] = relationship(
@@ -125,6 +128,16 @@ class Item(BaseModel):
     auction_items: Mapped[list["AuctionItem"]] = relationship(
         "AuctionItem", back_populates="item"
     )
+
+
+# Attach item_count to Category here — after Item is defined in this module
+# so the subquery can reference Item.category_id without any import issues.
+Category.item_count = column_property(
+    select(func.count(Item.id))
+    .where(Item.category_id == Category.id)
+    .correlate_except(Item)
+    .scalar_subquery()
+)
 
 
 class ItemImage(BaseModel):

@@ -33,6 +33,14 @@ class SellerType(str, Enum):
     WHOLESALE = "WHOLESALE"
 
 
+class SellerVerificationStatus(str, Enum):
+    """Verification workflow state for a seller profile."""
+
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
 class OnboardingIntent(str, Enum):
     """Primary intent declared by the user during onboarding."""
 
@@ -50,6 +58,8 @@ class KYCTier(str, Enum):
 
 
 class KYCStatus(str, Enum):
+    """Verification status of a KYC document or profile."""
+
     PENDING = "PENDING"
     VERIFIED = "VERIFIED"
     REJECTED = "REJECTED"
@@ -57,6 +67,8 @@ class KYCStatus(str, Enum):
 
 
 class KYCDocuments(str, Enum):
+    """Accepted document types for KYC verification."""
+
     NATIONAL_ID = "NATIONAL_ID"
     DRIVERS_LICENSE = "DRIVERS_LICENSE"
     PASSPORT = "PASSPORT"
