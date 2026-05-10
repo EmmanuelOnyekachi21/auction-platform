@@ -156,8 +156,8 @@ export default function SellerDashboardPage() {
         const status     = (auction.status ?? '').toUpperCase();
         const hasBids    = (auction.bid_count ?? 0) > 0;
         const canCancel = (status === 'DRAFT' || status === 'ACTIVE' || status === 'SCHEDULED') && !hasBids;
-        const isSettled          = status === 'SETTLED' || status === 'ENDED_NO_BIDS';
-        const isReserveNotMet    = status === 'ENDED_RESERVE_NOT_MET';
+        const isSettled       = status === 'SETTLED';
+        const isRelистable    = status === 'ENDED_NO_BIDS' || status === 'ENDED_RESERVE_NOT_MET';
 
         return (
             <div className="sdp__card-actions">
@@ -194,14 +194,14 @@ export default function SellerDashboardPage() {
                         <FiShoppingBag size={13} /> View Orders
                     </button>
                 )}
-                {isReserveNotMet && (
+                {isRelистable && (
                     <button
                         className="btn btn-outline-primary sdp__action-btn"
                         onClick={(e) => {
                             e.stopPropagation();
-                            navigate('/seller/create-auction');
+                            navigate(`/seller/create-auction?relist=${auction.id}`);
                         }}
-                        title="Relist this item"
+                        title="Relist with pre-filled details"
                     >
                         <FiRefreshCw size={13} /> Relist Item
                     </button>

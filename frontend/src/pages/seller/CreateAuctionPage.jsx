@@ -5,24 +5,53 @@
  * Step 2: Upload Images
  * Step 3: Auction Settings
  * Step 4: Review & Publish
+ *
+ * Session persistence: wizard state is saved to sessionStorage on every
+ * change so a page refresh restores progress. Cleared on publish or
+ * explicit abandon.
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useQuery } from '@tanstack/react-query';
 import {
     FiUpload, FiStar, FiTrash2, FiChevronRight, FiChevronLeft,
-    FiAlertCircle, FiCheckCircle, FiInfo, FiPackage,
+    FiAlertCircle, FiCheckCircle, FiInfo, FiRefreshCw,
 } from 'react-icons/fi';
 
 import apiClient from '../../api/client';
-import { getCategories } from '../../api/auctions';
+import { getAuction, getCategories } from '../../api/auctions';
 import { useAuthStore } from '../../store/authStore';
 import { useToast } from '../../components/common/Toast';
 import './CreateAuctionPage.css';
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SESSION PERSISTENCE
+══════════════════════════════════════════════════════════════════════════════ */
+
+const SESSION_KEY = 'cap_wizard_state';
+
+const saveSession = (step, state) => {
+    try {
+        sessionStorage.setItem(SESSION_KEY, JSON.stringify({ step, state }));
+    } catch { /* quota exceeded — silently ignore */ }
+};
+
+const loadSession = () => {
+    try {
+        const raw = sessionStorage.getItem(SESSION_KEY);
+        return raw ? JSON.parse(raw) : null;
+    } catch {
+        return null;
+    }
+};
+
+const clearSession = () => {
+    try { sessionStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+};
 
 /* ══════════════════════════════════════════════════════════════════════════════
    HELPERS
@@ -40,8 +69,8 @@ const isoLocal = (date) => {
     );
 };
 
-const plusHours = (date, h) => new Date(date.getTime() + h * 3_600_000);
-const plusDays  = (date, d) => new Date(date.getTime() + d * 86_400_000);
+const plusHours   = (date, h) => new Date(date.getTime() + h * 3_600_000);
+const plusMinutes = (date, m) => new Date(date.getTime() + m * 60_000);
 
 const CONDITIONS = [
     { value: 'NEW',      label: 'New',      desc: 'Brand new, unused, in original packaging' },
@@ -52,10 +81,12 @@ const CONDITIONS = [
 ];
 
 const DURATION_PILLS = [
-    { label: '6 Hours',  hours: 6  },
-    { label: '12 Hours', hours: 12 },
-    { label: '18 Hours', hours: 18 },
-    { label: '24 Hours', hours: 24 },
+    { label: '5 min',  minutes: 5  },
+    { label: '10 min', minutes: 10 },
+    { label: '15 min', minutes: 15 },
+    { label: '20 min', minutes: 20 },
+    { label: '30 min', minutes: 30 },
+    { label: '1 hr',   minutes: 60 },
 ];
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -126,7 +157,7 @@ function StepIndicator({ current }) {
    STEP 1 — ITEM DETAILS
 ══════════════════════════════════════════════════════════════════════════════ */
 
-function Step1ItemDetails({ onNext }) {
+function Step1ItemDetails({ onNext, prefill, onDraftChange }) {
     const { data: categoriesData } = useQuery({
         queryKey: ['categories'],
         queryFn: getCategories,
@@ -141,9 +172,25 @@ function Step1ItemDetails({ onNext }) {
         handleSubmit,
         watch,
         formState: { errors },
-    } = useForm({ resolver: zodResolver(itemSchema) });
+    } = useForm({
+        resolver: zodResolver(itemSchema),
+        defaultValues: prefill ? {
+            name:        prefill.title ?? '',
+            category_id: prefill.category_id ?? '',
+            condition:   prefill.condition ?? '',
+            description: prefill.description ?? '',
+            weight:      prefill.weight_kg ? String(prefill.weight_kg) : '',
+            dimensions:  prefill.dimensions ?? '',
+        } : {},
+    });
 
     const description = watch('description', '');
+
+    // Continuously save draft values to session so a refresh restores them
+    const allValues = watch();
+    useEffect(() => {
+        onDraftChange?.(allValues);
+    }, [JSON.stringify(allValues)]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const onSubmit = async (data) => {
         setSubmitting(true);
@@ -270,9 +317,21 @@ function Step1ItemDetails({ onNext }) {
    STEP 2 — UPLOAD IMAGES
 ══════════════════════════════════════════════════════════════════════════════ */
 
-function Step2Images({ itemId, onNext, onBack }) {
+function Step2Images({ itemId, onNext, onBack, savedImages = [] }) {
     const { showToast } = useToast();
-    const [images, setImages]       = useState([]); // { file, preview, primaryIdx, progress, error }
+    // Seed with already-uploaded images from a restored session.
+    // These have a `url` from the server — no file object needed.
+    const [images, setImages] = useState(() =>
+        savedImages.map((img) => ({
+            file:     null,
+            preview:  img.url ?? img.image_url,
+            url:      img.url ?? img.image_url,
+            id:       img.id,
+            progress: 100,
+            error:    null,
+            uploaded: true, // already on the server
+        }))
+    );
     const [primaryIdx, setPrimary]  = useState(0);
     const [dragging, setDragging]   = useState(false);
     const [uploading, setUploading] = useState(false);
@@ -325,6 +384,11 @@ function Step2Images({ itemId, onNext, onBack }) {
         setUploading(true);
         const uploaded = [];
         for (let i = 0; i < images.length; i++) {
+            // Already uploaded in a previous session — keep as-is
+            if (images[i].uploaded) {
+                uploaded.push({ url: images[i].url, id: images[i].id });
+                continue;
+            }
             const formData = new FormData();
             formData.append('file', images[i].file);
             if (i === primaryIdx) formData.append('is_primary', 'true');
@@ -456,7 +520,7 @@ function Step2Images({ itemId, onNext, onBack }) {
    STEP 3 — AUCTION SETTINGS
 ══════════════════════════════════════════════════════════════════════════════ */
 
-function Step3Settings({ itemId, onNext, onBack }) {
+function Step3Settings({ itemId, onNext, onBack, prefill }) {
     const { showToast } = useToast();
     const [submitting, setSubmitting]     = useState(false);
     const [reserveOn, setReserveOn]       = useState(false);
@@ -486,17 +550,17 @@ function Step3Settings({ itemId, onNext, onBack }) {
         defaultValues: {
             start_at:       defaultStart,
             end_at:         defaultEnd,
-            starting_price: '',
+            starting_price: prefill?.starting_price ? String(prefill.starting_price) : '',
             reserve_price:  '',
         },
     });
 
     const startAt = watch('start_at');
 
-    const applyDuration = (hours) => {
+    const applyDuration = (minutes) => {
         const start = new Date(startAt || now);
-        setValue('end_at', isoLocal(plusHours(start, hours)));
-        setActiveDur(hours);
+        setValue('end_at', isoLocal(plusMinutes(start, minutes)));
+        setActiveDur(minutes);
     };
 
     const onSubmit = async (data) => {
@@ -562,12 +626,12 @@ function Step3Settings({ itemId, onNext, onBack }) {
             <div className="cap__field">
                 <label className="form-label">Quick Duration</label>
                 <div className="cap__duration-pills">
-                    {DURATION_PILLS.map(({ label, hours }) => (
+                    {DURATION_PILLS.map(({ label, minutes }) => (
                         <button
-                            key={hours}
+                            key={minutes}
                             type="button"
-                            className={`cap__duration-pill ${activeDuration === hours ? 'cap__duration-pill--active' : ''}`}
-                            onClick={() => applyDuration(hours)}
+                            className={`cap__duration-pill ${activeDuration === minutes ? 'cap__duration-pill--active' : ''}`}
+                            onClick={() => applyDuration(minutes)}
                         >
                             {label}
                         </button>
@@ -661,7 +725,7 @@ function Step3Settings({ itemId, onNext, onBack }) {
    STEP 4 — REVIEW & PUBLISH
 ══════════════════════════════════════════════════════════════════════════════ */
 
-function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserveOn, onBack }) {
+function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserveOn, onBack, onPublished }) {
     const navigate = useNavigate();
     const { showToast } = useToast();
     const [publishing, setPublishing] = useState(false);
@@ -674,6 +738,7 @@ function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserv
             const msg = returnedStatus === 'SCHEDULED'
                 ? 'Auction scheduled! It will go live at the start time you set.'
                 : 'Auction is now live!';
+            onPublished?.(); // clear sessionStorage
             showToast(msg, 'success');
             navigate(`/auctions/${auctionId}`);
         } catch (err) {
@@ -768,6 +833,8 @@ function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserv
 
 export default function CreateAuctionPage() {
     const navigate = useNavigate();
+    const [searchParams] = useSearchParams();
+    const relistId = searchParams.get('relist');
     const { user, isAuthenticated } = useAuthStore();
 
     /* Gate: must be authenticated and a verified seller (admins bypass) */
@@ -776,12 +843,23 @@ export default function CreateAuctionPage() {
         const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERUSER';
         if (isAdmin) return;
         const profile = user?.seller_profile;
-        if (!profile)                  { navigate('/become-seller', { replace: true }); return; }
-        if (!profile.is_verified)      { navigate('/seller/pending', { replace: true }); return; }
+        if (!profile)             { navigate('/become-seller', { replace: true }); return; }
+        if (!profile.is_verified) { navigate('/seller/pending', { replace: true }); return; }
     }, [isAuthenticated, user, navigate]);
 
-    const [step, setStep]   = useState(1);
-    const [state, setState] = useState({
+    /* Fetch original auction data when relisting */
+    const { data: relistAuction, isLoading: relistLoading } = useQuery({
+        queryKey: ['auction', relistId],
+        queryFn: () => getAuction(relistId),
+        enabled: !!relistId,
+        staleTime: Infinity,
+    });
+
+    /* ── Rehydrate from sessionStorage on first mount (skip when relisting) ── */
+    const saved = !relistId ? loadSession() : null;
+
+    const [step, setStep] = useState(saved?.step ?? 1);
+    const [state, setState] = useState(saved?.state ?? {
         itemId:         null,
         itemData:       null,
         uploadedImages: [],
@@ -790,19 +868,99 @@ export default function CreateAuctionPage() {
         reserveOn:      false,
     });
 
+    /* Persist to sessionStorage whenever step or state changes */
+    useEffect(() => {
+        // Don't persist relist flows — they have their own source of truth
+        if (relistId) return;
+        saveSession(step, state);
+    }, [step, state, relistId]);
+
     const merge = (patch) => setState((prev) => ({ ...prev, ...patch }));
+
+    /* Build prefill objects from the fetched auction (relist) or restored session */
+    const relistItem = relistAuction?.items?.[0];
+
+    // Relist: pre-fill item details from the original auction
+    const relistItemPrefill = relistItem ? {
+        title:       relistAuction.title ?? relistItem.item?.title ?? '',
+        category_id: relistItem.item?.category?.id ?? '',
+        condition:   relistItem.item?.condition ?? '',
+        description: relistItem.item?.description ?? '',
+        weight_kg:   relistItem.item?.weight_kg ?? '',
+        dimensions:  relistItem.item?.dimensions ?? '',
+    } : null;
+
+    // Relist: pre-fill images from the original auction item
+    const relistImages = relistItem?.item?.images?.length
+        ? relistItem.item.images.map((img) => ({ url: img.url, id: img.id, uploaded: true }))
+        : [];
+
+    const relistSettingsPrefill = relistItem ? {
+        starting_price: relistItem.starting_price,
+    } : null;
+
+    // Resume: pre-fill Step 1 from saved session itemData
+    const resumeItemPrefill = (!relistId && saved?.state?.itemData) ? {
+        title:       saved.state.itemData.name ?? '',
+        category_id: saved.state.itemData.category_id ?? '',
+        condition:   saved.state.itemData.condition ?? '',
+        description: saved.state.itemData.description ?? '',
+        weight_kg:   saved.state.itemData.weight ?? '',
+        dimensions:  saved.state.itemData.dimensions ?? '',
+    } : null;
+
+    // Final prefill values — relist takes priority over resume
+    const itemPrefill      = relistItemPrefill ?? resumeItemPrefill;
+    const settingsPrefill  = relistSettingsPrefill;
 
     const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERUSER';
     if (!isAuthenticated || (!isAdmin && !user?.seller_profile?.is_verified)) return null;
+    if (relistId && relistLoading) {
+        return (
+            <div className="cap page-container" style={{ maxWidth: 720, textAlign: 'center', paddingTop: '4rem' }}>
+                <span className="spinner-sm" style={{ width: 32, height: 32 }} /> Loading auction details…
+            </div>
+        );
+    }
+
+    /* Show a resume banner when we restored a previous session */
+    const isResuming = !relistId && !!saved && (saved.step > 1 || saved.state?.itemId || saved.state?.itemData);
 
     return (
         <div className="cap page-container" style={{ maxWidth: 720 }}>
             <div style={{ marginBottom: '0.5rem' }}>
-                <h1 className="cap__page-title">Create New Auction</h1>
+                <h1 className="cap__page-title">
+                    {relistId ? 'Relist Item' : 'Create New Auction'}
+                </h1>
                 <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', margin: 0 }}>
-                    Fill in the details below to list your item for auction.
+                    {relistId
+                        ? 'Details from your previous auction are pre-filled. Update anything you want before publishing.'
+                        : 'Fill in the details below to list your item for auction.'}
                 </p>
             </div>
+
+            {relistId && (
+                <div className="cap__warn" style={{ background: 'var(--primary-50)', borderColor: 'var(--primary-light)', color: 'var(--primary)', marginBottom: '1rem' }}>
+                    <FiRefreshCw size={14} /> Relisting a previous auction — all fields are pre-filled from the original. A new item and auction will be created.
+                </div>
+            )}
+
+            {isResuming && (
+                <div className="cap__warn" style={{ background: 'var(--warning-50, #fffbeb)', borderColor: 'var(--warning, #f59e0b)', color: 'var(--warning-dark, #92400e)', marginBottom: '1rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span><FiInfo size={14} /> Resuming where you left off — your progress was saved.</span>
+                    <button
+                        className="btn btn-sm"
+                        style={{ fontSize: '0.75rem', padding: '0.2rem 0.6rem', marginLeft: '1rem', whiteSpace: 'nowrap' }}
+                        onClick={() => {
+                            clearSession();
+                            setStep(1);
+                            setState({ itemId: null, itemData: null, uploadedImages: [], auctionId: null, settingsData: null, reserveOn: false });
+                        }}
+                    >
+                        Start fresh
+                    </button>
+                </div>
+            )}
 
             <StepIndicator current={step} />
 
@@ -813,12 +971,25 @@ export default function CreateAuctionPage() {
                 <div className="cap__card-body">
                     {step === 1 && (
                         <Step1ItemDetails
+                            prefill={itemPrefill}
+                            onDraftChange={(draft) => {
+                                // Save live form values to session without triggering a re-render loop
+                                // by writing directly to sessionStorage (not setState)
+                                if (!relistId) {
+                                    try {
+                                        const current = loadSession() ?? { step: 1, state: {} };
+                                        current.state.itemData = draft;
+                                        sessionStorage.setItem(SESSION_KEY, JSON.stringify(current));
+                                    } catch { /* ignore */ }
+                                }
+                            }}
                             onNext={(data) => { merge(data); setStep(2); }}
                         />
                     )}
                     {step === 2 && (
                         <Step2Images
                             itemId={state.itemId}
+                            savedImages={relistId ? relistImages : state.uploadedImages}
                             onNext={(data) => { merge(data); setStep(3); }}
                             onBack={() => setStep(1)}
                         />
@@ -826,6 +997,7 @@ export default function CreateAuctionPage() {
                     {step === 3 && (
                         <Step3Settings
                             itemId={state.itemId}
+                            prefill={settingsPrefill}
                             onNext={(data) => { merge(data); setStep(4); }}
                             onBack={() => setStep(2)}
                         />
@@ -838,6 +1010,7 @@ export default function CreateAuctionPage() {
                             uploadedImages={state.uploadedImages}
                             reserveOn={state.reserveOn}
                             onBack={() => setStep(1)}
+                            onPublished={clearSession}
                         />
                     )}
                 </div>
