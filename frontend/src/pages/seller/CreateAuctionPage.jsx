@@ -69,7 +69,6 @@ const isoLocal = (date) => {
     );
 };
 
-const plusHours   = (date, h) => new Date(date.getTime() + h * 3_600_000);
 const plusMinutes = (date, m) => new Date(date.getTime() + m * 60_000);
 
 const CONDITIONS = [
@@ -157,7 +156,7 @@ function StepIndicator({ current }) {
    STEP 1 — ITEM DETAILS
 ══════════════════════════════════════════════════════════════════════════════ */
 
-function Step1ItemDetails({ onNext, prefill, onDraftChange }) {
+function Step1ItemDetails({ onNext, prefill, onDraftChange, existingItemId }) {
     const { data: categoriesData } = useQuery({
         queryKey: ['categories'],
         queryFn: getCategories,
@@ -195,13 +194,18 @@ function Step1ItemDetails({ onNext, prefill, onDraftChange }) {
     const onSubmit = async (data) => {
         setSubmitting(true);
         try {
+            // If item was already created (user went back), skip re-creating it
+            if (existingItemId) {
+                onNext({ itemId: existingItemId, itemData: data });
+                return;
+            }
             const payload = {
-                title:        data.name,
+                title:       data.name,
                 category_id: data.category_id,
                 condition:   data.condition,
                 description: data.description,
-                ...(data.weight     ? { weight_kg:     parseFloat(data.weight) }  : {}),
-                ...(data.dimensions ? { dimensions: data.dimensions }          : {}),
+                ...(data.weight     ? { weight_kg:   parseFloat(data.weight) } : {}),
+                ...(data.dimensions ? { dimensions:  data.dimensions }         : {}),
             };
             const res = await apiClient.post('/items', payload);
             onNext({ itemId: res.data?.id ?? res.data?.item_id, itemData: data });
@@ -323,13 +327,14 @@ function Step2Images({ itemId, onNext, onBack, savedImages = [] }) {
     // These have a `url` from the server — no file object needed.
     const [images, setImages] = useState(() =>
         savedImages.map((img) => ({
-            file:     null,
-            preview:  img.url ?? img.image_url,
-            url:      img.url ?? img.image_url,
-            id:       img.id,
-            progress: 100,
-            error:    null,
-            uploaded: true, // already on the server
+            file:      null,
+            preview:   img.preview ?? img.url ?? img.image_url,
+            url:       img.url ?? img.image_url,
+            id:        img.id,
+            relistUrl: img.relistUrl ?? null,
+            progress:  img.uploaded ? 100 : 0,
+            error:     null,
+            uploaded:  img.uploaded ?? false,
         }))
     );
     const [primaryIdx, setPrimary]  = useState(0);
@@ -384,16 +389,25 @@ function Step2Images({ itemId, onNext, onBack, savedImages = [] }) {
         setUploading(true);
         const uploaded = [];
         for (let i = 0; i < images.length; i++) {
-            // Already uploaded in a previous session — keep as-is
+            // Already uploaded in a previous session (same item) — keep as-is
             if (images[i].uploaded) {
                 uploaded.push({ url: images[i].url, id: images[i].id });
                 continue;
             }
-            const formData = new FormData();
-            formData.append('file', images[i].file);
-            if (i === primaryIdx) formData.append('is_primary', 'true');
             try {
                 setImages((prev) => prev.map((img, j) => j === i ? { ...img, progress: 50 } : img));
+                const formData = new FormData();
+
+                if (images[i].relistUrl) {
+                    // Relist: fetch the original image from Cloudinary and re-upload to new item
+                    const blob = await fetch(images[i].relistUrl).then((r) => r.blob());
+                    const ext  = images[i].relistUrl.split('.').pop().split('?')[0] || 'jpg';
+                    formData.append('file', blob, `image_${i}.${ext}`);
+                } else {
+                    formData.append('file', images[i].file);
+                }
+
+                if (i === primaryIdx) formData.append('is_primary', 'true');
                 const res = await apiClient.post(`/items/${itemId}/images`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
@@ -520,7 +534,7 @@ function Step2Images({ itemId, onNext, onBack, savedImages = [] }) {
    STEP 3 — AUCTION SETTINGS
 ══════════════════════════════════════════════════════════════════════════════ */
 
-function Step3Settings({ itemId, onNext, onBack, prefill }) {
+function Step3Settings({ itemId, onNext, onBack, prefill, existingAuctionId }) {
     const { showToast } = useToast();
     const [submitting, setSubmitting]     = useState(false);
     const [reserveOn, setReserveOn]       = useState(false);
@@ -566,10 +580,15 @@ function Step3Settings({ itemId, onNext, onBack, prefill }) {
     const onSubmit = async (data) => {
         setSubmitting(true);
         try {
+            // If auction was already created (user went back), skip re-creating it
+            if (existingAuctionId) {
+                onNext({ auctionId: existingAuctionId, settingsData: data, reserveOn });
+                return;
+            }
             // 1. Create auction
             const auctionPayload = {
-                starts_at:      new Date(data.start_at).toISOString(),
-                ends_at:        new Date(data.end_at).toISOString(),
+                starts_at: new Date(data.start_at).toISOString(),
+                ends_at:   new Date(data.end_at).toISOString(),
                 ...(reserveOn && data.reserve_price ? { reserve_price: data.reserve_price } : {}),
             };
             const auctionRes = await apiClient.post('/auctions', auctionPayload);
@@ -577,9 +596,9 @@ function Step3Settings({ itemId, onNext, onBack, prefill }) {
 
             // 2. Attach item to auction
             await apiClient.post(`/auctions/${auctionId}/items`, {
-                item_id: itemId,
+                item_id:        itemId,
                 starting_price: data.starting_price,
-                quantity: 1,
+                quantity:       1,
             });
 
             onNext({ auctionId, settingsData: data, reserveOn });
@@ -890,9 +909,16 @@ export default function CreateAuctionPage() {
         dimensions:  relistItem.item?.dimensions ?? '',
     } : null;
 
-    // Relist: pre-fill images from the original auction item
+    // Relist: pre-fill images from the original auction item.
+    // Mark as `relistUrl` so Step 2 fetches and re-uploads them to the new item.
     const relistImages = relistItem?.item?.images?.length
-        ? relistItem.item.images.map((img) => ({ url: img.url, id: img.id, uploaded: true }))
+        ? relistItem.item.images.map((img) => ({
+            url:       img.url,
+            id:        img.id,
+            preview:   img.url,
+            relistUrl: img.url,   // signals Step 2 to re-upload via fetch
+            uploaded:  false,
+        }))
         : [];
 
     const relistSettingsPrefill = relistItem ? {
@@ -972,9 +998,8 @@ export default function CreateAuctionPage() {
                     {step === 1 && (
                         <Step1ItemDetails
                             prefill={itemPrefill}
+                            existingItemId={state.itemId}
                             onDraftChange={(draft) => {
-                                // Save live form values to session without triggering a re-render loop
-                                // by writing directly to sessionStorage (not setState)
                                 if (!relistId) {
                                     try {
                                         const current = loadSession() ?? { step: 1, state: {} };
@@ -997,6 +1022,7 @@ export default function CreateAuctionPage() {
                     {step === 3 && (
                         <Step3Settings
                             itemId={state.itemId}
+                            existingAuctionId={state.auctionId}
                             prefill={settingsPrefill}
                             onNext={(data) => { merge(data); setStep(4); }}
                             onBack={() => setStep(2)}
