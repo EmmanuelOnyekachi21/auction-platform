@@ -7,6 +7,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { FiPackage, FiTag, FiUsers, FiClock } from 'react-icons/fi';
+import { useAuthStore } from '../../store/authStore';
 import './AuctionCard.css';
 
 /* ─── Helpers ──────────────────────────────────────────────────────────────── */
@@ -55,6 +56,7 @@ const getTimeRemaining = (endDateStr) => {
 
 export default function AuctionCard({ auction }) {
     const navigate = useNavigate();
+    const { user } = useAuthStore();
 
     if (!auction) return null;
 
@@ -71,6 +73,7 @@ export default function AuctionCard({ auction }) {
     } = auction;
 
     const isScheduled = (status || '').toUpperCase() === 'SCHEDULED';
+    const isSeller    = user && auction.seller?.id === user.id;
 
     // Title: use auction title if set, otherwise fall back to item title
     const title = auction.title || item?.title || 'Untitled Auction';
@@ -175,11 +178,17 @@ export default function AuctionCard({ auction }) {
 
                 {/* CTA */}
                 <button
-                    className={`btn w-100 auction-card__cta ${isScheduled ? 'btn-outline-primary' : isExpired ? 'auction-card__cta--ended' : 'btn-primary'}`}
+                    className={`btn w-100 auction-card__cta ${isScheduled ? 'btn-outline-primary' : isExpired ? 'auction-card__cta--ended' : isSeller ? 'btn-outline-secondary' : 'btn-primary'}`}
                     onClick={(e) => { e.stopPropagation(); navigate(`/auctions/${id}`); }}
                     disabled={isExpired && !isScheduled}
                 >
-                    {isScheduled ? 'View Details' : isExpired ? 'Auction Ended' : 'Bid Now'}
+                    {isScheduled
+                        ? (isSeller ? 'Your Listing' : 'View Details')
+                        : isExpired
+                            ? 'Auction Ended'
+                            : isSeller
+                                ? 'Your Listing'
+                                : 'Bid Now'}
                 </button>
             </div>
         </div>
