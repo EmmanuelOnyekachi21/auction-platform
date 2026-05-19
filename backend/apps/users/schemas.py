@@ -128,6 +128,7 @@ class SellerData(BaseModel):
     verified_by_id: UUID | None = None
     created_at: datetime
     verified_at: datetime | None = None
+    rejection_reason: str | None = None
 
 
 class UserProfileResponse(BaseModel):

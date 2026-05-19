@@ -8,7 +8,7 @@ const fetchPendingItems = () => apiClient.get('/admin/items/pending?limit=10').t
 const fetchPendingKYC  = () => apiClient.get('/admin/kyc/pending?limit=10').then(r => r.data);
 const fetchUsers       = () => apiClient.get('/users?limit=10').then(r => r.data);
 const fetchOrders      = () => apiClient.get('/admin/orders?limit=10').then(r => r.data);
-const fetchWallet      = () => apiClient.get('/users/me/wallet').then(r => r.data);
+const fetchWallet      = () => apiClient.get('/admin/wallet-summary').then(r => r.data);
 
 const ORDER_STATUS_COLORS = {
   COMPLETED:        { bg: 'var(--success-light)', color: 'var(--success)' },
@@ -67,8 +67,10 @@ export default function AdminDashboardPage() {
   const orders       = ordersData?.data    || (Array.isArray(ordersData)   ? ordersData   : []);
   const wallet       = walletData || {};
 
-  const openDisputeCount = disputes.filter(d => d.status === 'OPEN').length;
-  const totalUsers       = usersData?.total || (usersData?.data?.length ?? 0);
+  const openDisputeCount  = disputesData?.pagination?.total ?? disputes.filter(d => d.status === 'OPEN').length;
+  const totalUsers        = usersData?.pagination?.total || usersData?.total || (usersData?.data?.length ?? 0);
+  const pendingItemsCount = itemsData?.pagination?.total ?? pendingItems.length;
+  const pendingKYCCount   = kycData?.pagination?.total ?? pendingKYC.length;
 
   return (
     <div style={{ padding: '2rem', minHeight: '100vh' }}>
@@ -83,7 +85,7 @@ export default function AdminDashboardPage() {
           <StatCard icon={FiUsers}       label="Total Users"      value={totalUsers}             color="var(--primary)" isLoading={loadingUsers} />
         </div>
         <div className="col-sm-6 col-xl-3">
-          <StatCard icon={FiTag}         label="Pending Items"    value={pendingItems.length}    color="var(--success)" isLoading={loadingItems} />
+          <StatCard icon={FiTag}         label="Pending Items"    value={pendingItemsCount}      color="var(--success)" isLoading={loadingItems} />
         </div>
         <div className="col-sm-6 col-xl-3">
           <StatCard icon={FiAlertCircle} label="Open Disputes"    value={openDisputeCount}       color="var(--danger)"  isLoading={loadingDisputes} />
@@ -101,14 +103,14 @@ export default function AdminDashboardPage() {
         <div className="card-body">
           <div className="row g-3">
             {[
-              { label: 'Pending Item Approvals', count: pendingItems.length, loading: loadingItems,    to: '/admin/verify-sellers', color: 'var(--warning)' },
-              { label: 'Pending KYC Documents',  count: pendingKYC.length,   loading: loadingKYC,     to: '/admin/kyc',            color: 'var(--info)'    },
+              { label: 'Pending Item Approvals', count: pendingItemsCount, loading: loadingItems,    to: '/admin/verify-sellers', color: 'var(--warning)' },
+              { label: 'Pending KYC Documents',  count: pendingKYCCount,   loading: loadingKYC,     to: '/admin/kyc',            color: 'var(--info)'    },
               { label: 'Open Disputes',          count: openDisputeCount,    loading: loadingDisputes, to: '/admin/disputes',       color: 'var(--danger)'  },
             ].map(({ label, count, loading, to, color }) => (
               <div className="col-md-4" key={label}>
                 <Link to={to} style={{ textDecoration: 'none' }}>
                   <div className="card h-100" style={{ borderRadius: 'var(--radius-lg)', border: count > 0 ? `1.5px solid ${color}` : '1px solid var(--border)' }}>
-                    <div className="card-body d-flex align-items-center justify-content-between p-3">
+                     <div className="card-body d-flex align-items-center justify-content-between p-3">
                       <span style={{ fontWeight: 600, fontSize: '0.875rem', color: 'var(--text-secondary)' }}>{label}</span>
                       {loading
                         ? <div className="skeleton" style={{ width: 32, height: 24, borderRadius: 'var(--radius-full)' }} />

@@ -121,3 +121,9 @@ class PaymentResponse(BaseModel):
     verified_at: datetime | None = None
     created_at: datetime
     # version: int
+
+
+class AdminTransactionResponse(TransactionResponse):
+    """Admin transaction response with wallet_id."""
+
+    wallet_id: UUID

@@ -299,7 +299,7 @@ async def reject_item(
     )
 
 
-@router.get("/admin/items/pending", response_model=dict, status_code=200)
+@router.get("/admin/items/pending", response_model=PaginatedResponse, status_code=200)
 async def get_pending_items(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),

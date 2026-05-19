@@ -29,10 +29,11 @@ from common.exceptions import (
     NotFoundException,
     ValidationException,
 )
-from common.schemas import PaginatedResponse
+from common.schemas import MessageResponse, PaginatedResponse
 from config.settings import settings
 
 from .schemas import (
+    AdminAuctionResponse,
     AttachItemRequest,
     AuctionResponse,
     CreateAuctionRequest,
@@ -880,3 +881,24 @@ class AuctionService:
         )
         result.data = [ItemResponse.model_validate(i) for i in result.data]
         return result
+
+    async def get_all_auctions(
+        self, status: AuctionStatus | None, page: int, limit: int
+    ) -> PaginatedResponse:
+        """Get all auctions for admin dashboard."""
+        result = await self._auction_repo.get_all(status, page, limit)
+        result.data = [AdminAuctionResponse.model_validate(a) for a in result.data]
+        return result
+
+    async def cancel_auction_admin(self, auction_id: uuid.UUID) -> MessageResponse:
+        """Cancel an auction by admin — no seller_id check required."""
+        # Revert all attached items back to approved
+        auction_items = await self._auction_repo.get_auction_items(auction_id)
+        for auction_item in auction_items:
+            await self._item_repo.update_item_status(
+                auction_item.item_id, ItemStatus.APPROVED
+            )
+        # Cancel the auction in repo
+        res = await self._auction_repo.cancel_auction_by_admin(auction_id)
+        await self._db.commit()
+        return res

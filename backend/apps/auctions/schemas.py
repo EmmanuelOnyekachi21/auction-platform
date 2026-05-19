@@ -257,6 +257,17 @@ class AuctionResponse(BaseModel):
         return min(pct, 100)
 
 
+class AdminAuctionResponse(AuctionResponse):
+    """AuctionResponse variant for admin endpoints.
+
+    Identical to AuctionResponse but exposes reserve_price in plain text.
+    Buyers never hit admin endpoints so hiding the reserve is unnecessary.
+    """
+
+    # Override the parent field — same type, no exclude
+    reserve_price: Optional[Decimal] = Field(None)
+
+
 class AuctionListResponse(BaseModel):
     """Response schema for auction list items (summary view)."""
 

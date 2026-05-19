@@ -46,6 +46,10 @@ import VerifySellersPage from './pages/admin/VerifySellersPage';
 import AdminDisputesPage from './pages/admin/AdminDisputesPage';
 import AdminPlaceholderPage from './pages/admin/AdminPlaceholderPage';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
+import AdminAuctionsPage from './pages/admin/AdminAuctionsPage';
+import AdminOrdersPage from './pages/admin/AdminOrdersPage';
+import AdminFinancialPage from './pages/admin/AdminFinancialPage';
+import AdminSettingsPage from './pages/admin/AdminSettingsPage';
 
 // Seller Pages
 import SellerDashboardPage from './pages/seller/SellerDashboardPage';
@@ -245,10 +249,10 @@ function App() {
                 <Route path="/admin/disputes"       element={<AdminDisputesPage />} />
                 {/* Placeholder routes for sidebar links not yet built */}
                 <Route path="/admin/users"     element={<AdminUsersPage />} />
-                <Route path="/admin/auctions"  element={<AdminPlaceholderPage title="Auction Management" />} />
-                <Route path="/admin/orders"    element={<AdminPlaceholderPage title="Order Management" />} />
-                <Route path="/admin/financial" element={<AdminPlaceholderPage title="Financial Audit" />} />
-                <Route path="/admin/settings"  element={<AdminPlaceholderPage title="Platform Settings" />} />
+                <Route path="/admin/auctions"  element={<AdminAuctionsPage />} />
+                <Route path="/admin/orders"    element={<AdminOrdersPage />} />
+                <Route path="/admin/financial" element={<AdminFinancialPage />} />
+                <Route path="/admin/settings"  element={<AdminSettingsPage />} />
               </Route>
             </Route>
 

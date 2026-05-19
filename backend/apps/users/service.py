@@ -229,7 +229,7 @@ class UserService:
         user = await self.repo.get_by_id(target_user_id)
 
         updated_profile = await self.repo.update_seller_verification(
-            target_user_id, data.is_verified, admin_user_id
+            target_user_id, data.is_verified, admin_user_id, data.rejection_reason
         )
         await self._db.commit()
 

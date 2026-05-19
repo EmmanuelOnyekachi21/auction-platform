@@ -236,6 +236,7 @@ class UserRepository:
             existing.is_verified = False
             existing.verified_at = None
             existing.verified_by_id = None
+            existing.rejection_reason = None
             await self._db.flush()
             await self._db.refresh(existing)
             return existing  # return here — do NOT create a new row
@@ -261,7 +262,11 @@ class UserRepository:
         return result.scalar_one_or_none()
 
     async def update_seller_verification(
-        self, user_id: uuid.UUID, is_verified: bool, verified_by_id: uuid.UUID
+        self,
+        user_id: uuid.UUID,
+        is_verified: bool,
+        verified_by_id: uuid.UUID,
+        reason: str,
     ) -> "SellerProfile":
         """Update seller verification status.
 
@@ -282,6 +287,7 @@ class UserRepository:
             if is_verified
             else SellerVerificationStatus.REJECTED
         )
+        seller_profile.rejection_reason = reason if not is_verified else None
 
         if is_verified:
             seller_profile.verified_at = datetime.now(timezone.utc)

@@ -200,6 +200,7 @@ class SellerProfile(BaseModel):
     verified_by_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
     )
+    rejection_reason: Mapped[str] = mapped_column(Text, nullable=True)
 
     # Relationships
     user: Mapped["User"] = relationship(

@@ -20,7 +20,9 @@ from apps.auctions.models import (
     ItemImage,
 )
 from apps.bids.models import Bid
+from common.exceptions import AuctionNotFoundException
 from common.pagination import paginate
+from common.schemas import MessageResponse, PaginatedResponse
 
 logger = logging.getLogger(__name__)
 
@@ -828,3 +830,39 @@ class AuctionRepository:
             )
             return Decimal("500.00")
         return tier.increment
+
+    async def get_all(self, status, page: int, limit: int) -> PaginatedResponse:
+        stmt = (
+            select(Auction)
+            .options(
+                selectinload(Auction.auction_items)
+                .selectinload(AuctionItem.item)
+                .selectinload(Item.category),
+                selectinload(Auction.auction_items)
+                .selectinload(AuctionItem.item)
+                .selectinload(Item.images),
+                selectinload(Auction.seller),
+                selectinload(Auction.highest_bid),
+                selectinload(Auction.bids),
+            )
+            .order_by(Auction.created_at.desc())
+        )
+        if status:
+            stmt = stmt.where(Auction.status == status)
+
+        return await paginate(stmt, page, limit, self._db)
+
+    async def cancel_auction_by_admin(
+        self,
+        auction_id: uuid.UUID,
+    ) -> MessageResponse:
+        auction = await self.get_by_id(auction_id)
+        if not auction:
+            raise AuctionNotFoundException()
+
+        auction.status = AuctionStatus.CANCELLED
+
+        await self._db.flush()
+        return MessageResponse(
+            message=f"{auction.title} with ID #NO {auction_id} has been removed"
+        )

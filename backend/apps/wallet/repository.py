@@ -1,9 +1,10 @@
 """Data access layer for wallet operations."""
 
 from decimal import Decimal
+from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import desc, select
+from sqlalchemy import desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -39,7 +40,20 @@ class WalletRepository:
         """
         stmt = select(Wallet).where(Wallet.user_id == user_id)
         result = await self._db.execute(stmt)
-        return result.scalar_one_or_none()
+        wallet = result.scalar_one_or_none()
+        if not wallet:
+            # Auto-create wallet on the fly
+            wallet = Wallet(
+                user_id=user_id,
+                available_funds=Decimal("0.00"),
+                locked_funds=Decimal("0.00"),
+                escrow_funds=Decimal("0.00"),
+                currency="NGN",
+            )
+            self._db.add(wallet)
+            await self._db.commit()
+            await self._db.refresh(wallet)
+        return wallet
 
     async def get_by_user_id_with_lock(self, user_id: UUID) -> Wallet | None:
         """Get wallet by user ID with pessimistic lock.
@@ -53,7 +67,20 @@ class WalletRepository:
         """
         stmt = select(Wallet).where(Wallet.user_id == user_id).with_for_update()
         result = await self._db.execute(stmt)
-        return result.scalar_one_or_none()
+        wallet = result.scalar_one_or_none()
+        if not wallet:
+            # Auto-create wallet under lock on the fly
+            wallet = Wallet(
+                user_id=user_id,
+                available_funds=Decimal("0.00"),
+                locked_funds=Decimal("0.00"),
+                escrow_funds=Decimal("0.00"),
+                currency="NGN",
+            )
+            self._db.add(wallet)
+            await self._db.commit()
+            await self._db.refresh(wallet)
+        return wallet
 
     async def get_wallet(self, wallet_id: UUID):
         """Get wallet by ID without lock.
@@ -279,6 +306,39 @@ class WalletRepository:
 
         return transaction
 
+    async def get_all_transactions(
+        self,
+        page: int,
+        limit: int,
+        transaction_type: Optional[str] = None,
+        direction: Optional[str] = None,
+        search: Optional[str] = None,
+    ) -> PaginatedResponse:
+        """Get paginated transaction history for all wallets (Admin view)."""
+        stmt = select(WalletTransactions).order_by(desc(WalletTransactions.created_at))
+
+        if transaction_type:
+            stmt = stmt.where(WalletTransactions.transaction_type == transaction_type)
+
+        if direction:
+            stmt = stmt.where(WalletTransactions.direction == direction)
+
+        if search:
+            query = f"%{search}%"
+            stmt = stmt.where(
+                WalletTransactions.wallet.has(
+                    Wallet.user.has(
+                        or_(
+                            User.email.ilike(query),
+                            User.first_name.ilike(query),
+                            User.last_name.ilike(query),
+                        )
+                    )
+                )
+            )
+
+        return await paginate(stmt, page, limit, self._db)
+
 
 class PaymentRepository:
     """Repository for payment operations."""
@@ -373,3 +433,36 @@ class PaymentRepository:
         await self._db.refresh(payment)
 
         return payment
+
+    async def get_all_payments(
+        self,
+        page: int,
+        limit: int,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+    ) -> PaginatedResponse:
+        """Get paginated payments history for all wallets (Admin view)."""
+        stmt = select(Payment).order_by(desc(Payment.created_at))
+
+        if status:
+            stmt = stmt.where(Payment.status == status)
+
+        if search:
+            query = f"%{search}%"
+            stmt = stmt.where(
+                or_(
+                    Payment.transaction_reference.ilike(query),
+                    Payment.provider_reference.ilike(query),
+                    Payment.wallet.has(
+                        Wallet.user.has(
+                            or_(
+                                User.email.ilike(query),
+                                User.first_name.ilike(query),
+                                User.last_name.ilike(query),
+                            )
+                        )
+                    ),
+                )
+            )
+
+        return await paginate(stmt, page, limit, self._db)

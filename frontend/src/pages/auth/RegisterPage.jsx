@@ -138,12 +138,27 @@ export default function RegisterPage() {
                             <input type="password" {...register('password')} className={`form-control ${errors.password ? 'is-invalid' : ''}`} style={{ paddingLeft: '2.5rem' }} />
                         </div>
                         {password && (
-                            <div className="mt-2 d-flex align-items-center gap-2">
-                                <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'var(--border)' }}>
-                                    <div style={{ width: `${(strength / 4) * 100}%`, height: '100%', borderRadius: 2, background: strengthColors[strength], transition: 'width 0.3s, background 0.3s' }} />
+                            <>
+                                <div className="mt-2 d-flex align-items-center gap-2">
+                                    <div style={{ flex: 1, height: 4, borderRadius: 2, background: 'var(--border)' }}>
+                                        <div style={{ width: `${(strength / 4) * 100}%`, height: '100%', borderRadius: 2, background: strengthColors[strength], transition: 'width 0.3s, background 0.3s' }} />
+                                    </div>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: strengthColors[strength] }}>{strengthLabels[strength]}</span>
                                 </div>
-                                <span style={{ fontSize: '0.75rem', fontWeight: 600, color: strengthColors[strength] }}>{strengthLabels[strength]}</span>
-                            </div>
+                                <ul style={{ listStyle: 'none', padding: 0, margin: '0.5rem 0 0', display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                    {[
+                                        { label: 'At least 8 characters', met: password.length >= 8 },
+                                        { label: 'One uppercase letter', met: /[A-Z]/.test(password) },
+                                        { label: 'One number', met: /[0-9]/.test(password) },
+                                        { label: 'One special character (!@#$%…)', met: /[^A-Za-z0-9]/.test(password) },
+                                    ].map(({ label, met }) => (
+                                        <li key={label} style={{ fontSize: '0.75rem', color: met ? 'var(--success)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                            <span style={{ fontSize: '0.65rem' }}>{met ? '✓' : '○'}</span>
+                                            {label}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </>
                         )}
                         {errors.password && <div className="text-danger" style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>{errors.password.message}</div>}
                     </div>
