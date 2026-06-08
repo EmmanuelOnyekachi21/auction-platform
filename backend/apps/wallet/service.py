@@ -688,3 +688,36 @@ class WalletService:
             f"amount: {transaction.amount}, "
             f"reason: {error_message}"
         )
+
+    async def get_wallet_transactions_admin(
+        self,
+        page: int,
+        limit: int,
+        transaction_type: Optional[str] = None,
+        direction: Optional[str] = None,
+        search: Optional[str] = None,
+    ) -> PaginatedResponse:
+        """Get all wallet transactions for admin dashboard."""
+        result = await self._wallet_repo.get_all_transactions(
+            page, limit, transaction_type, direction, search
+        )
+
+        from apps.wallet.schemas import AdminTransactionResponse
+
+        result.data = [
+            AdminTransactionResponse.model_validate(tx) for tx in result.data
+        ]
+        return result
+
+    async def get_payments_admin(
+        self,
+        page: int,
+        limit: int,
+        status: Optional[str] = None,
+        search: Optional[str] = None,
+    ) -> PaginatedResponse:
+        """Get all payments for admin dashboard."""
+        result = await self._payment_repo.get_all_payments(page, limit, status, search)
+
+        result.data = [PaymentResponse.model_validate(p) for p in result.data]
+        return result

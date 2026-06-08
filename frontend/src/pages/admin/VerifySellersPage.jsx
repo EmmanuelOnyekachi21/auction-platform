@@ -106,7 +106,7 @@ function SellerCard({ user, onApprove, onReject, isPending }) {
           <div className="d-flex align-items-center gap-2 flex-wrap">
             {user.seller_profile?.seller_type && (
               <span style={{ background: 'var(--primary-50)', color: 'var(--primary)', borderRadius: 'var(--radius-full)', fontSize: '0.7rem', fontWeight: 700, padding: '0.2em 0.65em' }}>
-                {user.seller_profile.seller_type}
+                {user.seller_profile.seller_type === 'INDIVIDUAL' ? 'Individual' : user.seller_profile.seller_type === 'BUSINESS' ? 'Business' : user.seller_profile.seller_type}
               </span>
             )}
             {docs.length > 0 && (

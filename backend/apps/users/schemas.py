@@ -46,6 +46,16 @@ class UpdateProfileRequest(BaseModel):
     account_number: str | None = None
     account_name: str | None = None
 
+    @field_validator("bio", mode="after")
+    @classmethod
+    def sanitise_bio(cls, v: str | None) -> str | None:
+        """Sanitise profile biography input to prevent XSS."""
+        if v is None:
+            return None
+        from common.sanitisation import sanitize_string
+
+        return sanitize_string(v, max_length=500)
+
     @field_validator("profile_picture_url", mode="before")
     @classmethod
     def empty_str_to_none(cls, v):
@@ -128,6 +138,7 @@ class SellerData(BaseModel):
     verified_by_id: UUID | None = None
     created_at: datetime
     verified_at: datetime | None = None
+    rejection_reason: str | None = None
 
 
 class UserProfileResponse(BaseModel):

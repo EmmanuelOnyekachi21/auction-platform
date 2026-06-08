@@ -28,9 +28,8 @@ class UserRole(str, Enum):
 class SellerType(str, Enum):
     """Classification of a seller's trading scale."""
 
-    CASUAL = "CASUAL"
-    RETAIL = "RETAIL"
-    WHOLESALE = "WHOLESALE"
+    INDIVIDUAL = "INDIVIDUAL"
+    BUSINESS = "BUSINESS"
 
 
 class SellerVerificationStatus(str, Enum):

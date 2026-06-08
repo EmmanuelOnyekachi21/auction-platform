@@ -13,6 +13,8 @@ import redis.asyncio as aioredis
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy import text
 from starlette.middleware.sessions import SessionMiddleware
 
@@ -35,9 +37,13 @@ from common.exception_handlers import (
     handle_generic_exception,
     handle_not_found,
     handle_pydantic_validation_error,
+    rate_limited_exceeded_handler,
 )
 from common.exceptions import AuctionPlatformException
 from common.middleware import RequestLoggingMiddleware
+from common.monitoring import initialise_sentry
+from common.rate_limiter import limiter
+from common.security_headers import SecurityHeadersMiddleWare
 from config.database import engine
 from config.logging_config import setup_logging
 from config.settings import settings
@@ -59,6 +65,7 @@ async def lifespan(app: FastAPI):
         None: Control to the application until shutdown.
 
     """
+    initialise_sentry()
     setup_logging(settings.app_env)
     logger.info(
         "Starting %s v%s [%s]",
@@ -77,7 +84,11 @@ async def lifespan(app: FastAPI):
 
     # Verify Redis connection
     try:
-        redis_client = aioredis.from_url(settings.redis_url)
+        redis_url = settings.redis_url
+        if redis_url.startswith("rediss://") and "ssl_cert_reqs" not in redis_url:
+            separator = "&" if "?" in redis_url else "?"
+            redis_url = f"{redis_url}{separator}ssl_cert_reqs=none"
+        redis_client = aioredis.from_url(redis_url)
         await redis_client.ping()
         await redis_client.aclose()
         logger.info("Redis connection verified")
@@ -102,6 +113,9 @@ app = FastAPI(
 )
 
 # --- Global Middleware ---
+# Middleware executes in reverse registration order (last added = outermost).
+# SlowAPIMiddleware must be last so it is the outermost wrapper and intercepts
+# every request before CORS, sessions, or business logic runs.
 app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
@@ -111,6 +125,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+if settings.app_env == "production":
+    app.add_middleware(SecurityHeadersMiddleWare)
+
+app.add_middleware(SlowAPIMiddleware)  # outermost — must be last
+# rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limited_exceeded_handler)
 
 # --- Exception Handlers ---
 app.add_exception_handler(AuctionPlatformException, handle_auction_platform_exception)

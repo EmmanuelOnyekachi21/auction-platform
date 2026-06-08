@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, Mock, patch
 import pytest
 from fastapi import UploadFile
 
-from apps.auctions.cloudinary_service import MAX_FILE_SIZE, CloudinaryService
+from apps.auctions.cloudinary_service import MAX_IMG_SIZE, CloudinaryService
 from common.exceptions import ValidationException
 
 
@@ -75,7 +75,7 @@ class TestCloudinaryServiceUpload:
         self, cloudinary_service, mock_upload_file
     ):
         """Test upload with file exceeding size limit raises error."""
-        large_content = b"x" * (MAX_FILE_SIZE + 1)
+        large_content = b"x" * (MAX_IMG_SIZE + 1)
         file = mock_upload_file(content=large_content)
 
         with pytest.raises(ValidationException, match="exceeds 5MB limit"):
@@ -107,7 +107,6 @@ class TestCloudinaryServiceConfiguration:
             patch("apps.auctions.cloudinary_service.settings") as mock_settings,
             patch("cloudinary.config") as mock_config,
         ):
-
             mock_settings.cloudinary_cloud_name = "cloud"
             mock_settings.cloudinary_api_key = "key"
             mock_settings.cloudinary_api_secret = "secret"

@@ -5,6 +5,7 @@ operations including item creation, image management, auction lifecycle,
 and admin moderation workflows.
 """
 
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Sequence
@@ -29,10 +30,11 @@ from common.exceptions import (
     NotFoundException,
     ValidationException,
 )
-from common.schemas import PaginatedResponse
+from common.schemas import MessageResponse, PaginatedResponse
 from config.settings import settings
 
 from .schemas import (
+    AdminAuctionResponse,
     AttachItemRequest,
     AuctionResponse,
     CreateAuctionRequest,
@@ -40,6 +42,8 @@ from .schemas import (
     ItemImageResponse,
     ItemResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AuctionService:
@@ -199,17 +203,29 @@ class AuctionService:
                 img.is_primary = False
                 self._db.add(img)
 
+        # Upload to Cloudinary first
         result = await self._cloudinary.upload_image(file)
+        public_id = result["public_id"]
 
-        image = await self._item_repo.add_image(
-            item_id=item_id,
-            url=result["url"],
-            public_id=result["public_id"],
-            display_order=len(item.images),
-            is_primary=is_primary,
-        )
+        # save the reference to DB - if this fails, clean up cloudinary
+        try:
+            image = await self._item_repo.add_image(
+                item_id=item_id,
+                url=result["url"],
+                public_id=result["public_id"],
+                display_order=len(item.images),
+                is_primary=is_primary,
+            )
 
-        await self._db.commit()
+            await self._db.commit()
+        except Exception:
+            # DB save failed - remove the orphaned Cloudinary asset
+            logger.warning(
+                "DB save failed after Cloudinary upload — deleting orphan asset %s",
+                public_id,
+            )
+            self._cloudinary.delete_image(public_id)
+            raise ValidationException(message="Image upload failed. Please try again.")
         return ItemImageResponse.model_validate(image)
 
     async def delete_item_image(
@@ -594,11 +610,11 @@ class AuctionService:
                 )
             )
 
-        if auction.starts_at > now + timedelta(minutes=3):
+        if auction.starts_at > now + timedelta(seconds=30):
             # Start time is far enough in the future — schedule it
             await self._auction_repo.update_status(auction_id, AuctionStatus.SCHEDULED)
         else:
-            # Start time is imminent — activate immediately
+            # Start time is imminent (≤ 30 s away) — activate immediately
             await self._auction_repo.update_status(auction_id, AuctionStatus.ACTIVE)
         await self._db.commit()
 
@@ -880,3 +896,24 @@ class AuctionService:
         )
         result.data = [ItemResponse.model_validate(i) for i in result.data]
         return result
+
+    async def get_all_auctions(
+        self, status: AuctionStatus | None, page: int, limit: int
+    ) -> PaginatedResponse:
+        """Get all auctions for admin dashboard."""
+        result = await self._auction_repo.get_all(status, page, limit)
+        result.data = [AdminAuctionResponse.model_validate(a) for a in result.data]
+        return result
+
+    async def cancel_auction_admin(self, auction_id: uuid.UUID) -> MessageResponse:
+        """Cancel an auction by admin — no seller_id check required."""
+        # Revert all attached items back to approved
+        auction_items = await self._auction_repo.get_auction_items(auction_id)
+        for auction_item in auction_items:
+            await self._item_repo.update_item_status(
+                auction_item.item_id, ItemStatus.APPROVED
+            )
+        # Cancel the auction in repo
+        res = await self._auction_repo.cancel_auction_by_admin(auction_id)
+        await self._db.commit()
+        return res

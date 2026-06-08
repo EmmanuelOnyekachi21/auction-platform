@@ -5,10 +5,18 @@ from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Any, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, computed_field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    computed_field,
+    field_validator,
+    model_validator,
+)
 
 from apps.auctions.enums import AuctionStatus, ItemCondition, ItemStatus
 from apps.users.schemas import PublicUserResponse
+from common.sanitisation import sanitize_string
 from config.settings import settings
 
 # --- Shared / Nested Helper Schemas ---
@@ -57,6 +65,18 @@ class CreateItemRequest(BaseModel):
     weight_kg: Optional[Decimal] = Field(None, ge=0)
     dimensions: Optional[str] = Field(None, max_length=100)
 
+    @field_validator("title", mode="after")
+    @classmethod
+    def sanitise_name(cls, v: str) -> str:
+        """Sanitise title to prevent XSS injection."""
+        return sanitize_string(v, max_length=100)
+
+    @field_validator("description", mode="after")
+    @classmethod
+    def sanitise_description(cls, v: str) -> str:
+        """Sanitise description to prevent XSS injection."""
+        return sanitize_string(v, max_length=1000)  # Description limit
+
 
 class UpdateItemRequest(BaseModel):
     """Request schema for updating an existing auction item."""
@@ -67,6 +87,18 @@ class UpdateItemRequest(BaseModel):
     category_id: Optional[uuid.UUID] = None
     weight_kg: Optional[Decimal] = Field(None, ge=0)
     dimensions: Optional[str] = Field(None, max_length=100)
+
+    @field_validator("title", mode="after")
+    @classmethod
+    def sanitise_name(cls, v: str) -> str:
+        """Sanitise title to prevent XSS injection."""
+        return sanitize_string(v, max_length=100)
+
+    @field_validator("description", mode="after")
+    @classmethod
+    def sanitise_description(cls, v: str) -> str:
+        """Sanitise description to prevent XSS injection."""
+        return sanitize_string(v, max_length=1000)  # Description limit
 
 
 # --- Auction Request Schemas ---
@@ -132,7 +164,8 @@ class UpdateAuctionRequest(BaseModel):
                     f"{settings.max_auction_duration_hours} hours"
                 )
             if self.ends_at < self.starts_at + timedelta(
-                hours=settings.min_auction_duration_hours
+                # hours=settings.min_auction_duration_hours
+                minutes=5
             ):
                 raise ValueError(
                     f"Auction must last at least "
@@ -255,6 +288,17 @@ class AuctionResponse(BaseModel):
             return 0
         pct = int((self.highest_bid.amount / self.reserve_price) * 100)
         return min(pct, 100)
+
+
+class AdminAuctionResponse(AuctionResponse):
+    """AuctionResponse variant for admin endpoints.
+
+    Identical to AuctionResponse but exposes reserve_price in plain text.
+    Buyers never hit admin endpoints so hiding the reserve is unnecessary.
+    """
+
+    # Override the parent field — same type, no exclude
+    reserve_price: Optional[Decimal] = Field(None)
 
 
 class AuctionListResponse(BaseModel):

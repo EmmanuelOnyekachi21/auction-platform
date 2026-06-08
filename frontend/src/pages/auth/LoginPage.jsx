@@ -5,7 +5,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useState } from 'react';
 import { authActions } from '../../api/auth';
 import { useAuthStore } from '../../store/authStore';
-import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight } from 'react-icons/fi';
+import { FiMail, FiLock, FiEye, FiEyeOff, FiArrowRight, FiAlertCircle, FiCheckCircle } from 'react-icons/fi';
 
 const loginSchema = z.object({
   email: z.email('Invalid email address'),
@@ -17,8 +17,20 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const setAuth = useAuthStore((state) => state.setAuth);
   const [apiError, setApiError] = useState(null);
+  const [unverifiedEmail, setUnverifiedEmail] = useState(null);
+  const [resendState, setResendState] = useState('idle'); // 'idle' | 'sending' | 'sent' | 'error'
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleResend = async () => {
+    setResendState('sending');
+    try {
+      await authActions.resendVerification(unverifiedEmail);
+      setResendState('sent');
+    } catch {
+      setResendState('error');
+    }
+  };
 
   const { register, handleSubmit, formState: { errors } } = useForm({
     resolver: zodResolver(loginSchema),
@@ -28,14 +40,23 @@ export default function LoginPage() {
   const onSubmit = async (data) => {
     setIsSubmitting(true);
     setApiError(null);
+    setUnverifiedEmail(null);
+    setResendState('idle');
     try {
       const response = await authActions.login(data);
       setAuth(response.user, response.access_token, response.refresh_token);
       navigate('/dashboard');
     } catch (err) {
+      const errorData = err.response?.data;
+
+      // Specific handling for unverified email — show a distinct banner
+      if (errorData?.code === 'EMAIL_NOT_VERIFIED') {
+        setUnverifiedEmail(data.email);
+        return;
+      }
+
       let errorMessage = 'Invalid email or password';
-      if (err.response?.data) {
-        const errorData = err.response.data;
+      if (errorData) {
         if (errorData.message) errorMessage = errorData.message;
         else if (typeof errorData.detail === 'string') errorMessage = errorData.detail;
         else if (errorData.detail?.message) errorMessage = errorData.detail.message;
@@ -57,6 +78,45 @@ export default function LoginPage() {
           Sign in to your KaraKaja account
         </p>
 
+        {/* Unverified email — distinct banner with guidance */}
+        {unverifiedEmail && (
+          <div style={{
+            padding: '0.875rem 1rem',
+            background: '#FFF7ED',
+            border: '1px solid #FED7AA',
+            borderRadius: 'var(--radius)',
+            marginBottom: '1.25rem',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.8125rem', color: '#C2410C', marginBottom: '0.3rem' }}>
+              <FiAlertCircle size={14} /> Email not verified
+            </div>
+            <div style={{ fontSize: '0.8125rem', color: '#9A3412', lineHeight: 1.6, marginBottom: '0.75rem' }}>
+              We sent a verification link to <strong>{unverifiedEmail}</strong>. Please check your inbox and spam folder.
+            </div>
+
+            {resendState === 'sent' ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8125rem', fontWeight: 600, color: '#15803D' }}>
+                <FiCheckCircle size={14} /> New link sent — check your inbox.
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResend}
+                disabled={resendState === 'sending'}
+                style={{
+                  background: 'none', border: '1px solid #C2410C', borderRadius: 'var(--radius)',
+                  color: '#C2410C', fontWeight: 600, fontSize: '0.8125rem',
+                  padding: '0.3rem 0.75rem', cursor: resendState === 'sending' ? 'not-allowed' : 'pointer',
+                  opacity: resendState === 'sending' ? 0.6 : 1,
+                }}
+              >
+                {resendState === 'sending' ? 'Sending…' : resendState === 'error' ? 'Failed — try again' : 'Resend verification email'}
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Generic error */}
         {apiError && (
           <div style={{
             padding: '0.75rem 1rem',

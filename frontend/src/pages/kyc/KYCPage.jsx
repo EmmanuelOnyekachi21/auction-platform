@@ -33,8 +33,18 @@ function BVNModal({ onClose, onSuccess }) {
       setTimeout(onClose, 800);
     },
     onError: (err) => {
-      const msg = err?.response?.data?.message || err?.response?.data?.detail || 'Verification failed. Please check your details.';
-      const remaining = err?.response?.data?.remaining_attempts;
+      const data = err?.response?.data;
+      let msg = 'Verification failed. Please check your details.';
+      if (data) {
+        if (Array.isArray(data.details) && data.details.length > 0) {
+          msg = data.details.map((d) => d.message.replace(/^Value error,\s*/i, '')).join(' ');
+        } else if (data.message) {
+          msg = data.message;
+        } else if (typeof data.detail === 'string') {
+          msg = data.detail;
+        }
+      }
+      const remaining = data?.remaining_attempts;
       setError(remaining !== undefined ? `${msg} (${remaining} attempt${remaining !== 1 ? 's' : ''} remaining)` : msg);
     },
   });

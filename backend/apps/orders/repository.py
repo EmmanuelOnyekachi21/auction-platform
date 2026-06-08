@@ -1,9 +1,10 @@
 """Repository for order database operations."""
 
 from datetime import datetime, timezone
+from typing import Optional
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -12,6 +13,7 @@ from apps.orders.enums import OrderStatus
 from apps.orders.models import Order
 from apps.users.models import User
 from common.pagination import paginate
+from common.schemas import PaginatedResponse
 
 
 def _order_detail_options():
@@ -208,3 +210,35 @@ class OrderRepository:
         )
         result = await self._db.execute(stmt)
         return result.scalars().all()
+
+    async def get_all(
+        self,
+        page: int,
+        limit: int,
+        status: Optional[OrderStatus] = None,
+        search: Optional[str] = None,
+    ) -> PaginatedResponse:
+        stmt = (
+            select(Order)
+            .options(*_order_detail_options())
+            .order_by(Order.created_at.desc())
+        )
+
+        if status:
+            stmt = stmt.where(Order.status == status)
+
+        if search:
+            query = f"%{search}%"
+            stmt = stmt.where(
+                or_(
+                    Order.tracking_number.ilike(query),
+                    Order.buyer.has(User.email.ilike(query)),
+                    Order.buyer.has(User.first_name.ilike(query)),
+                    Order.buyer.has(User.last_name.ilike(query)),
+                    Order.seller.has(User.email.ilike(query)),
+                    Order.seller.has(User.first_name.ilike(query)),
+                    Order.seller.has(User.last_name.ilike(query)),
+                )
+            )
+
+        return await paginate(stmt, page, limit, self._db)

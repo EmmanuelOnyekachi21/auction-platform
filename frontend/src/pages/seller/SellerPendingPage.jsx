@@ -10,9 +10,12 @@ import { FiClock, FiCheckCircle, FiArrowLeft, FiMail, FiXCircle, FiArrowRight } 
 import { useAuthStore } from '../../store/authStore';
 
 const SELLER_TYPE_LABELS = {
-    individual: 'Individual Seller',
-    business:   'Business / Company',
-    enterprise: 'Enterprise',
+    INDIVIDUAL: 'Individual Seller',
+    BUSINESS:   'Business / Company',
+    // legacy values — kept for backward compatibility with existing DB records
+    CASUAL:     'Individual Seller',
+    RETAIL:     'Business / Company',
+    WHOLESALE:  'Business / Company',
 };
 
 export default function SellerPendingPage() {
@@ -24,6 +27,7 @@ export default function SellerPendingPage() {
         : null;
 
     const isRejected = profile?.verification_status === 'REJECTED';
+    const rejectionReason = profile?.rejection_reason;
 
     // ── Rejected state ──────────────────────────────────────────────────────
     if (isRejected) {
@@ -46,6 +50,25 @@ export default function SellerPendingPage() {
                     <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.9375rem', lineHeight: 1.7, marginBottom: '2rem' }}>
                         Unfortunately your seller application was not approved. You can review the requirements and reapply with updated information and documents.
                     </p>
+
+                    {rejectionReason && (
+                        <div style={{
+                            padding: '1rem 1.25rem', marginBottom: '1.25rem',
+                            background: 'var(--danger-light)', border: '1px solid #FECACA',
+                            borderRadius: 'var(--radius-lg)',
+                            display: 'flex', gap: '0.75rem', alignItems: 'flex-start',
+                        }}>
+                            <FiXCircle size={15} color="var(--danger)" style={{ flexShrink: 0, marginTop: 2 }} />
+                            <div>
+                                <div style={{ fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--danger)', marginBottom: '0.3rem' }}>
+                                    Reason for Rejection
+                                </div>
+                                <div style={{ fontSize: '0.875rem', color: 'var(--danger)', lineHeight: 1.6 }}>
+                                    {rejectionReason}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     <div className="card" style={{ borderRadius: 'var(--radius-xl)', marginBottom: '1.5rem', overflow: 'hidden' }}>
                         <div style={{ padding: '0.875rem 1.25rem', background: 'var(--danger-light)', borderBottom: '1px solid var(--border)', fontSize: '0.6875rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--danger)' }}>

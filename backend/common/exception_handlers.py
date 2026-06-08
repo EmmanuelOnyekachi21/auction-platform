@@ -12,9 +12,11 @@ Each handler follows the same contract:
 
 import logging
 
+import sentry_sdk
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 
 from common.exceptions import AuctionPlatformException
 from common.schemas import ErrorDetail, ErrorResponse
@@ -74,8 +76,21 @@ async def handle_pydantic_validation_error(
     error_details = []
 
     for error in exc.errors():
-        field = " -> ".join(str(item) for item in error["loc"][1:])
-        error_details.append(ErrorDetail(field=field, message=error["msg"]))
+        loc = error["loc"]
+        # loc[0] is always the input type ("body", "query", "path", etc.)
+        # loc[1:] contains the field path. When the entire body is missing
+        # or unparseable, loc is just ("body",) with nothing after it —
+        # produce a readable label instead of an empty string.
+        field_parts = loc[1:]
+        if field_parts:
+            field = " -> ".join(str(part) for part in field_parts)
+        else:
+            # Entire body missing or not valid JSON
+            field = loc[0] if loc else "request"
+
+        # Strip Pydantic's internal "Value error, " prefix from custom validators
+        message = error["msg"].replace("Value error, ", "")
+        error_details.append(ErrorDetail(field=field, message=message))
 
     content = ErrorResponse(
         code="VALIDATION_ERROR",
@@ -140,6 +155,8 @@ async def handle_generic_exception(
         error code.
 
     """
+    # Send to Sentry - this is a genuinely unexpected error
+    sentry_sdk.capture_exception(exc)
     logger.error("Unhandled exception", exc_info=True)
     content = ErrorResponse(
         code="INTERNAL_SERVER_ERROR",
@@ -147,5 +164,38 @@ async def handle_generic_exception(
     )
     return JSONResponse(
         status_code=500,
+        content=content.model_dump(),
+    )
+
+
+async def rate_limited_exceeded_handler(
+    request: Request,
+    exc: RateLimitExceeded,
+) -> JSONResponse:
+    """Handle ``RateLimitExceeded`` raised by SlowAPI.
+
+    Logs the offending request at WARNING level and returns a consistent
+    429 response matching the platform's ``ErrorResponse`` envelope.
+
+    Args:
+        request: The incoming FastAPI request.
+        exc: The ``RateLimitExceeded`` exception raised by SlowAPI.
+
+    Returns:
+        A ``JSONResponse`` with HTTP 429 and a ``RATE_LIMIT_EXCEEDED`` code.
+
+    """
+    logger.warning(
+        "rate limit exceeded: %s %s from IP %s",
+        request.method,
+        request.url.path,
+        request.client if request.client else "Unknown",
+    )
+    content = ErrorResponse(
+        code="RATE_LIMIT_EXCEEDED",
+        message="Too many requests. Please try again later.",
+    )
+    return JSONResponse(
+        status_code=429,
         content=content.model_dump(),
     )

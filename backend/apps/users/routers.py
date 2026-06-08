@@ -238,3 +238,21 @@ async def proxy_document(
         media_type=content_type,
         headers={"Content-Disposition": "inline"},
     )
+
+
+@router.get("", status_code=200)
+async def list_users_for_admin_dashboard(
+    page: int = 1,
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """Retrieve all users paginated (admin only)."""
+    service = UserService(db)
+    return await service.get_all_users(
+        search=None,
+        account_status=None,
+        kyc_tier=None,
+        page=page,
+        limit=limit,
+    )

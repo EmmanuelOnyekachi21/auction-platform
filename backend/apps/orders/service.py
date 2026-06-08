@@ -40,6 +40,7 @@ from common.exceptions import (
     PermissionDeniedException,
     ValidationException,
 )
+from common.schemas import PaginatedResponse
 
 
 class OrderService:
@@ -529,3 +530,57 @@ class OrderService:
 
         escrow = await self._escrow_repo.get_by_order_id(order_id)
         return self._build_order_detail(order, escrow)
+
+    async def get_orders_admin(
+        self,
+        page: int,
+        limit: int,
+        status: OrderStatus | None = None,
+        search: str | None = None,
+    ) -> PaginatedResponse:
+        """Get all orders for admin dashboard."""
+        result = await self._order_repo.get_all(page, limit, status, search)
+
+        serialized = []
+        for order in result.data:
+            item_summary = None
+            if order.auction_item and order.auction_item.item:
+                raw_item = order.auction_item.item
+                primary_image = next(
+                    (img.url for img in (raw_item.images or []) if img.is_primary),
+                    raw_item.images[0].url if raw_item.images else None,
+                )
+                item_summary = ItemSummary(
+                    id=raw_item.id,
+                    title=raw_item.title,
+                    condition=raw_item.condition,
+                    primary_image_url=primary_image,
+                )
+
+            serialized.append(
+                OrderSummaryResponse(
+                    id=order.id,
+                    status=order.status,
+                    amount=order.amount,
+                    created_at=order.created_at,
+                    auction=(
+                        AuctionSummarySchema.model_validate(order.auction)
+                        if order.auction
+                        else None
+                    ),
+                    item=item_summary,
+                    buyer=(
+                        PublicUserResponse.model_validate(order.buyer)
+                        if order.buyer
+                        else None
+                    ),
+                    seller=(
+                        PublicUserResponse.model_validate(order.seller)
+                        if order.seller
+                        else None
+                    ),
+                )
+            )
+
+        result.data = serialized
+        return result

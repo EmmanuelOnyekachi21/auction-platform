@@ -32,6 +32,19 @@ async def create_superuser(
     phone_number: str,
     password: str,
 ) -> None:
+    """Create an admin superuser account with all required related records.
+
+    Creates the ``User``, ``UserProfile``, ``Wallet``, and ``KYCProfile``
+    records in a single transaction. No-ops if the email already exists.
+
+    Args:
+        first_name: Admin user's given name.
+        last_name: Admin user's family name.
+        email: Email address — used as login identifier (must be unique).
+        phone_number: Nigerian mobile number.
+        password: Plain-text password; will be hashed before storing.
+
+    """
     async with AsyncSession(engine) as session:
         result = await session.execute(select(User).where(User.email == email))
         if result.scalar_one_or_none():
@@ -45,7 +58,7 @@ async def create_superuser(
             email=email,
             phone_number=phone_number,
             password_hash=hash_password(password),
-            role=UserRole.SUPERUSER,
+            role=UserRole.ADMIN,
             account_status=AccountStatus.ACTIVE,
             is_email_verified=True,
         )
@@ -72,14 +85,14 @@ async def create_superuser(
 
         await session.commit()
         print(f"Superuser '{email}' created successfully.")
-        print(f"  Role: {UserRole.SUPERUSER.value}")
+        print(f"  Role: {UserRole.ADMIN.value}")
         print("  Email verified: True")
         print("  Wallet: created")
         print("  KYC profile: created")
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Create a superuser")
+    parser = argparse.ArgumentParser(description="Create an Admin")
     parser.add_argument("--first-name", required=True)
     parser.add_argument("--last-name", required=True)
     parser.add_argument("--email", required=True)
