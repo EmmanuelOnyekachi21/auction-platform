@@ -5,6 +5,7 @@ operations including item creation, image management, auction lifecycle,
 and admin moderation workflows.
 """
 
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Sequence
@@ -41,6 +42,8 @@ from .schemas import (
     ItemImageResponse,
     ItemResponse,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class AuctionService:
@@ -200,17 +203,29 @@ class AuctionService:
                 img.is_primary = False
                 self._db.add(img)
 
+        # Upload to Cloudinary first
         result = await self._cloudinary.upload_image(file)
+        public_id = result["public_id"]
 
-        image = await self._item_repo.add_image(
-            item_id=item_id,
-            url=result["url"],
-            public_id=result["public_id"],
-            display_order=len(item.images),
-            is_primary=is_primary,
-        )
+        # save the reference to DB - if this fails, clean up cloudinary
+        try:
+            image = await self._item_repo.add_image(
+                item_id=item_id,
+                url=result["url"],
+                public_id=result["public_id"],
+                display_order=len(item.images),
+                is_primary=is_primary,
+            )
 
-        await self._db.commit()
+            await self._db.commit()
+        except Exception:
+            # DB save failed - remove the orphaned Cloudinary asset
+            logger.warning(
+                "DB save failed after Cloudinary upload — deleting orphan asset %s",
+                public_id,
+            )
+            self._cloudinary.delete_image(public_id)
+            raise ValidationException(message="Image upload failed. Please try again.")
         return ItemImageResponse.model_validate(image)
 
     async def delete_item_image(
@@ -595,11 +610,11 @@ class AuctionService:
                 )
             )
 
-        if auction.starts_at > now + timedelta(minutes=3):
+        if auction.starts_at > now + timedelta(seconds=30):
             # Start time is far enough in the future — schedule it
             await self._auction_repo.update_status(auction_id, AuctionStatus.SCHEDULED)
         else:
-            # Start time is imminent — activate immediately
+            # Start time is imminent (≤ 30 s away) — activate immediately
             await self._auction_repo.update_status(auction_id, AuctionStatus.ACTIVE)
         await self._db.commit()
 

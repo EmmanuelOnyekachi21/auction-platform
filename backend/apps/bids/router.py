@@ -3,7 +3,7 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.bids.enums import BidStatus
@@ -11,13 +11,16 @@ from apps.bids.schemas import PlaceBidRequest
 from apps.bids.service import BidService
 from apps.users.models import User
 from common.dependency import get_current_active_user, get_db
+from common.rate_limiter import limiter
 from common.schemas import SuccessResponse
 
 router = APIRouter()
 
 
 @router.post("/auctions/{auction_id}/bids", status_code=201)
+@limiter.limit("30/minute")
 async def place_bid(
+    request: Request,
     auction_id: UUID,
     data: PlaceBidRequest,
     db: AsyncSession = Depends(get_db),

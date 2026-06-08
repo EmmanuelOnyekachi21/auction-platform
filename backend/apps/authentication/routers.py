@@ -6,7 +6,7 @@ password management, and logout.
 
 import logging
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.authentication.schemas import (
@@ -17,11 +17,13 @@ from apps.authentication.schemas import (
     MessageResponse,
     RefreshTokenRequest,
     RegisterRequest,
+    ResendVerificationRequest,
     ResetPasswordRequest,
 )
 from apps.authentication.service import AuthService
 from apps.users.models import User
 from common.dependency import get_current_active_user, get_current_user, get_db
+from common.rate_limiter import limiter
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -32,8 +34,9 @@ router = APIRouter()
     response_model=AuthResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("3/minute")
 async def register(
-    payload: RegisterRequest, db: AsyncSession = Depends(get_db)
+    request: Request, payload: RegisterRequest, db: AsyncSession = Depends(get_db)
 ) -> AuthResponse:
     """Register a new user account and return an initial token pair.
 
@@ -50,8 +53,9 @@ async def register(
 
 
 @router.post("/login", response_model=AuthResponse, status_code=status.HTTP_200_OK)
+@limiter.limit("5/minute")
 async def login(
-    payload: LoginRequest, db: AsyncSession = Depends(get_db)
+    request: Request, payload: LoginRequest, db: AsyncSession = Depends(get_db)
 ) -> AuthResponse:
     """Authenticate a user by email and password.
 
@@ -105,8 +109,9 @@ async def verify_email(
 
 
 @router.post("/forgot-password", status_code=status.HTTP_200_OK)
+@limiter.limit("3/minute")
 async def forgot_password(
-    data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)
+    request: Request, data: ForgotPasswordRequest, db: AsyncSession = Depends(get_db)
 ) -> MessageResponse:
     """Initiate a password reset flow by sending a reset link via email.
 
@@ -123,8 +128,9 @@ async def forgot_password(
 
 
 @router.post("/reset-password", status_code=status.HTTP_200_OK)
+@limiter.limit("3/minute")
 async def reset_password(
-    data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)
+    request: Request, data: ResetPasswordRequest, db: AsyncSession = Depends(get_db)
 ) -> MessageResponse:
     """Reset a user's password using a valid reset token.
 
@@ -178,3 +184,21 @@ async def change_password(
     """
     auth_service = AuthService(db)
     return await auth_service.change_password(current_user, data)
+
+
+@router.post("/resend-verification", status_code=status.HTTP_200_OK)
+async def resend_verification(
+    data: ResendVerificationRequest, db: AsyncSession = Depends(get_db)
+) -> MessageResponse:
+    """Resend an email verification link to a user.
+
+    Args:
+        data: Payload containing the user's email address.
+        db: Injected async database session.
+
+    Returns:
+        A MessageResponse confirming that the verification link was resent.
+
+    """
+    auth_service = AuthService(db)
+    return await auth_service.resend_email_verification(data.email)

@@ -483,7 +483,8 @@ def process_auction_settlement(self, auction_id: str):
                 auction_item_id=first_auction_item.id,
                 amount=bid_amount,
                 status=OrderStatus.PENDING_SHIPMENT,
-                shipping_deadline_at=now + timedelta(hours=settings.shipping_deadline),
+                shipping_deadline_at=now
+                + timedelta(minutes=settings.shipping_deadline),
             )
             db.add(order)
             await db.flush()

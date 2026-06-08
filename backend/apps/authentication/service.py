@@ -41,6 +41,7 @@ from common.exceptions import (
     AccountBannedException,
     AccountSuspendedException,
     AlreadyExistsException,
+    EmailNotVerifiedException,
     InvalidCredentialsException,
     NotFoundException,
     TokenInvalidException,
@@ -191,6 +192,9 @@ class AuthService:
 
         if user.account_status == AccountStatus.BANNED:
             raise AccountBannedException()
+
+        if user.is_email_verified is False:
+            raise EmailNotVerifiedException()
 
         user.last_login_at = datetime.now(timezone.utc)
 
@@ -416,3 +420,43 @@ class AuthService:
         await self._db.commit()
 
         return MessageResponse(message="Password successfully changed")
+
+    async def resend_email_verification(self, email: str) -> MessageResponse:
+        """Resend an email verification link to a user.
+
+        Silently succeeds whether the email exists or not.
+        If a valid unexpired token exists, reuses it. If expired/used, deletes
+        it and issues a fresh one.
+
+        Args:
+            email: The email address to resend the verification link to.
+
+        Returns:
+            A ``MessageResponse`` confirming the operation (regardless of
+            whether the email is registered).
+
+        """
+        user = await self._user_repo.get_by_email(email)
+
+        if user and not user.is_email_verified:
+            # Invalidate all existing verification tokens for this user
+            await self._auth_repo.invalidate_email_verification_tokens(user.id)
+
+            # Issue a fresh token
+            raw_token = generate_token()
+            await self._auth_repo.create_email_verification_token(
+                user_id=user.id,
+                token_hash=hash_token(raw_token),
+                expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+            )
+
+            send_verification_email.delay(user.email, user.first_name, raw_token)
+
+            await self._db.commit()
+
+        return MessageResponse(
+            message=(
+                "If that email is registered and unverified, "
+                "a new link has been sent"
+            )
+        )

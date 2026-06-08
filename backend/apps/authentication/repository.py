@@ -12,7 +12,7 @@ the transaction boundary is owned by the caller.
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import EmailVerificationToken, PasswordResetToken
@@ -201,3 +201,21 @@ class AuthRepository:
         if token:
             await self.db.delete(token)
             await self.db.flush()
+
+    async def invalidate_email_verification_tokens(self, user_id: UUID):
+        """Delete all email verification tokens for a user.
+
+        This is called when a user requests a new email verification token
+        to ensure that old tokens cannot be used to verify the email.
+
+        Args:
+            user_id: UUID of the user whose tokens should be invalidated.
+
+        """
+        stmt = (
+            update(EmailVerificationToken)
+            .where(EmailVerificationToken.user_id == user_id)
+            .where(EmailVerificationToken.used_at.is_(None))
+            .values(used_at=datetime.now(timezone.utc))
+        )
+        await self.db.execute(stmt)

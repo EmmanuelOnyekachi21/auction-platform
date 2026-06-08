@@ -210,7 +210,7 @@ function Step1ItemDetails({ onNext, prefill, onDraftChange, existingItemId }) {
             const res = await apiClient.post('/items', payload);
             onNext({ itemId: res.data?.id ?? res.data?.item_id, itemData: data });
         } catch (err) {
-            showToast(err?.response?.data?.detail ?? 'Failed to save item. Please try again.', 'error');
+            showToast(err?.response?.data?.message ?? err?.response?.data?.detail ?? 'Failed to save item. Please try again.', 'error');
         } finally {
             setSubmitting(false);
         }
@@ -388,14 +388,15 @@ function Step2Images({ itemId, onNext, onBack, savedImages = [] }) {
         }
         setUploading(true);
         const uploaded = [];
+        let failedCount = 0;
         for (let i = 0; i < images.length; i++) {
             // Already uploaded in a previous session (same item) — keep as-is
             if (images[i].uploaded) {
-                uploaded.push({ url: images[i].url, id: images[i].id });
+                uploaded.push({ url: images[i].url, id: images[i].id, uploaded: true });
                 continue;
             }
             try {
-                setImages((prev) => prev.map((img, j) => j === i ? { ...img, progress: 50 } : img));
+                setImages((prev) => prev.map((img, j) => j === i ? { ...img, progress: 50, error: null } : img));
                 const formData = new FormData();
 
                 if (images[i].relistUrl) {
@@ -411,14 +412,36 @@ function Step2Images({ itemId, onNext, onBack, savedImages = [] }) {
                 const res = await apiClient.post(`/items/${itemId}/images`, formData, {
                     headers: { 'Content-Type': 'multipart/form-data' },
                 });
-                uploaded.push(res.data);
-                setImages((prev) => prev.map((img, j) => j === i ? { ...img, progress: 100 } : img));
-            } catch {
-                setImages((prev) => prev.map((img, j) => j === i ? { ...img, error: 'Upload failed', progress: 0 } : img));
-                showToast(`Failed to upload image ${i + 1}`, 'error');
+                uploaded.push({ ...res.data, uploaded: true });
+                setImages((prev) => prev.map((img, j) => j === i ? { ...img, progress: 100, error: null } : img));
+            } catch (err) {
+                failedCount++;
+                const raw = err?.response?.data?.message || '';
+                // Map technical backend errors to user-friendly messages
+                const friendlyMsg = raw.includes('NameResolutionError') || raw.includes('MaxRetryError') || raw.includes('ConnectionError')
+                    ? 'Upload service unreachable. Check your connection and try again.'
+                    : raw.includes('Invalid file type')
+                    ? 'Invalid file type. Use JPG, PNG, or WebP.'
+                    : raw.includes('size') || raw.includes('too large')
+                    ? 'File is too large. Maximum size is 10 MB.'
+                    : raw || 'Upload failed. Please try again.';
+
+                setImages((prev) => prev.map((img, j) => j === i ? { ...img, error: friendlyMsg, progress: 0 } : img));
+                // Only show a per-image toast — skip if multiple failed (summary covers it)
+                if (images.length === 1 || failedCount === 1) {
+                    showToast(`Image ${i + 1}: ${friendlyMsg}`, 'error');
+                }
             }
         }
         setUploading(false);
+
+        if (failedCount > 0) {
+            if (failedCount > 1) {
+                showToast(`${failedCount} images failed to upload. Remove them or try again.`, 'error');
+            }
+            return;
+        }
+
         onNext({ uploadedImages: uploaded });
     };
 
@@ -562,10 +585,10 @@ function Step3Settings({ itemId, onNext, onBack, prefill, existingAuctionId }) {
                 : auctionSchema
         ),
         defaultValues: {
-            start_at:       defaultStart,
-            end_at:         defaultEnd,
+            start_at:       prefill?.start_at ?? defaultStart,
+            end_at:         prefill?.end_at   ?? defaultEnd,
             starting_price: prefill?.starting_price ? String(prefill.starting_price) : '',
-            reserve_price:  '',
+            reserve_price:  prefill?.reserve_price  ? String(prefill.reserve_price)  : '',
         },
     });
 
@@ -580,8 +603,20 @@ function Step3Settings({ itemId, onNext, onBack, prefill, existingAuctionId }) {
     const onSubmit = async (data) => {
         setSubmitting(true);
         try {
-            // If auction was already created (user went back), skip re-creating it
             if (existingAuctionId) {
+                // Auction already exists — update it and re-attach item with new starting price
+                await apiClient.patch(`/auctions/${existingAuctionId}`, {
+                    starts_at: new Date(data.start_at).toISOString(),
+                    ends_at:   new Date(data.end_at).toISOString(),
+                    ...(reserveOn && data.reserve_price ? { reserve_price: data.reserve_price } : {}),
+                });
+                // Detach old item entry then re-attach with updated starting_price
+                await apiClient.delete(`/auctions/${existingAuctionId}/items/${itemId}`);
+                await apiClient.post(`/auctions/${existingAuctionId}/items`, {
+                    item_id:        itemId,
+                    starting_price: data.starting_price,
+                    quantity:       1,
+                });
                 onNext({ auctionId: existingAuctionId, settingsData: data, reserveOn });
                 return;
             }
@@ -603,7 +638,7 @@ function Step3Settings({ itemId, onNext, onBack, prefill, existingAuctionId }) {
 
             onNext({ auctionId, settingsData: data, reserveOn });
         } catch (err) {
-            showToast(err?.response?.data?.detail ?? 'Failed to create auction. Please try again.', 'error');
+            showToast(err?.response?.data?.message ?? err?.response?.data?.detail ?? 'Failed to create auction. Please try again.', 'error');
         } finally {
             setSubmitting(false);
         }
@@ -761,7 +796,14 @@ function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserv
             showToast(msg, 'success');
             navigate(`/auctions/${auctionId}`);
         } catch (err) {
-            showToast(err?.response?.data?.detail ?? 'Failed to publish auction.', 'error');
+            const msg = err?.response?.data?.message ?? err?.response?.data?.detail ?? 'Failed to publish auction.';
+            // If start time has lapsed, send user back to fix it
+            if (msg.toLowerCase().includes('start time')) {
+                showToast('Your auction start time has passed. Please set a new start time.', 'error');
+                onBack(); // go back to Step 3
+            } else {
+                showToast(msg, 'error');
+            }
             setPublishing(false);
         }
     };
@@ -827,7 +869,7 @@ function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserv
 
             <div className="cap__nav">
                 <button type="button" className="btn btn-outline-primary" onClick={onBack}>
-                    <FiChevronLeft size={15} /> Edit Details
+                    <FiChevronLeft size={15} /> Edit Settings
                 </button>
                 <button
                     id="publish-auction-btn"
@@ -937,7 +979,12 @@ export default function CreateAuctionPage() {
 
     // Final prefill values — relist takes priority over resume
     const itemPrefill      = relistItemPrefill ?? resumeItemPrefill;
-    const settingsPrefill  = relistSettingsPrefill;
+    const settingsPrefill  = relistSettingsPrefill ?? (saved?.state?.settingsData ? {
+        starting_price: saved.state.settingsData.starting_price,
+        reserve_price:  saved.state.settingsData.reserve_price,
+        start_at:       saved.state.settingsData.start_at,
+        end_at:         saved.state.settingsData.end_at,
+    } : null);
 
     const isAdmin = user?.role === 'ADMIN' || user?.role === 'SUPERUSER';
     if (!isAuthenticated || (!isAdmin && !user?.seller_profile?.is_verified)) return null;
@@ -1035,7 +1082,7 @@ export default function CreateAuctionPage() {
                             settingsData={state.settingsData}
                             uploadedImages={state.uploadedImages}
                             reserveOn={state.reserveOn}
-                            onBack={() => setStep(1)}
+                            onBack={() => setStep(3)}
                             onPublished={clearSession}
                         />
                     )}

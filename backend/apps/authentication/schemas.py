@@ -305,3 +305,14 @@ class MessageResponse(BaseModel):
     """
 
     message: str
+
+
+class ResendVerificationRequest(BaseModel):
+    """Payload for requesting a new email verification token.
+
+    Attributes:
+        email: The email address to resend the token to.
+
+    """
+
+    email: EmailStr

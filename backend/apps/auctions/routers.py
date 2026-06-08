@@ -3,13 +3,14 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, Query, Request, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.auctions.enums import AuctionStatus, ItemStatus
 from apps.auctions.service import AuctionService
 from apps.users.models import User
 from common.dependency import get_current_active_user, get_db, require_admin
+from common.rate_limiter import limiter
 from common.schemas import MessageResponse, PaginatedResponse
 
 from .schemas import (
@@ -327,7 +328,9 @@ async def get_pending_items(
 
 
 @router.get("/auctions", response_model=PaginatedResponse, status_code=200)
+@limiter.limit("60/minute")
 async def browse_auctions(
+    request: Request,
     category_id: Optional[UUID] = Query(None, description="Filter by category"),
     min_price: Optional[float] = Query(None, ge=0, description="Minimum price filter"),
     max_price: Optional[float] = Query(None, ge=0, description="Maximum price filter"),
@@ -394,7 +397,9 @@ async def get_auction(
     response_model=AuctionResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@limiter.limit("10/hour")
 async def create_auction(
+    request: Request,
     data: CreateAuctionRequest,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),

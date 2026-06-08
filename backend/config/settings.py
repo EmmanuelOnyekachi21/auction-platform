@@ -80,6 +80,11 @@ class Settings(BaseSettings):
     # Shipping deadline
     shipping_deadline: int
 
+    # SENTRY
+    sentry_dsn: str = ""
+    sentry_environment: str = "development"
+    sentry_traces_sample_rate: float = 0.1
+
     # --- Pydantic Config ---
     model_config = SettingsConfigDict(
         env_file=".env",

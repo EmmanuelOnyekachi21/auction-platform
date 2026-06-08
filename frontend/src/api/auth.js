@@ -42,4 +42,9 @@ export const authActions = {
         });
         return response.data;
     },
+    // Resend Verification mail
+    resendVerification: async (email) => {
+        const response = await apiClient.post('/auth/resend-verification', { email });
+        return response.data;
+    }
 }

@@ -7,7 +7,7 @@ listing and manually managing user KYC tiers.
 
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -21,6 +21,7 @@ from apps.users.schemas import (
     KYCStatusResponse,
 )
 from common.dependency import get_current_active_user, get_db, require_admin
+from common.rate_limiter import limiter
 
 router = APIRouter()
 
@@ -36,7 +37,9 @@ async def get_kyc_status(
 
 
 @router.post("/verify-bvn", response_model=KYCStatusResponse)
+@limiter.limit("3/day")
 async def verify_bvn(
+    request: Request,
     data: BVNVerificationRequest,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),

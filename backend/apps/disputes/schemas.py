@@ -4,9 +4,10 @@ from datetime import datetime
 from typing import Optional
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 from apps.disputes.enums import DisputeStatus, EvidenceFileType
+from common.sanitisation import sanitize_string
 
 # ── Input Schemas ─────────────────────────────────────────────────────────────
 
@@ -16,6 +17,18 @@ class RaiseDisputeRequest(BaseModel):
 
     title: str = Field(..., min_length=10, max_length=255)
     description: str = Field(..., min_length=50, max_length=5000)
+
+    @field_validator("title", mode="after")
+    @classmethod
+    def sanitise_name(cls, v: str) -> str:
+        """Sanitise title to prevent XSS injection."""
+        return sanitize_string(v, max_length=100)
+
+    @field_validator("description", mode="after")
+    @classmethod
+    def sanitise_description(cls, v: str) -> str:
+        """Sanitise description to prevent XSS injection."""
+        return sanitize_string(v, max_length=1000)  # Description limit
 
 
 class SubmitEvidenceRequest(BaseModel):
@@ -28,6 +41,12 @@ class SubmitEvidenceRequest(BaseModel):
     url: HttpUrl
     file_type: EvidenceFileType
     description: Optional[str] = Field(None, max_length=255)
+
+    @field_validator("description", mode="after")
+    @classmethod
+    def sanitise_description(cls, v: str) -> str:
+        """Sanitise description to prevent XSS injection."""
+        return sanitize_string(v, max_length=1000)  # Description limit
 
 
 class ResolveDisputeRequest(BaseModel):

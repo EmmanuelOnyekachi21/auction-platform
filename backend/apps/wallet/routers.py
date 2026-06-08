@@ -21,6 +21,7 @@ from apps.wallet.schemas import (
 from apps.wallet.service import WalletService
 from common.dependency import get_current_active_user, get_db, get_flutterwave_service
 from common.pagination import PaginatedResponse
+from common.rate_limiter import limiter
 from common.schemas import SuccessResponse
 from config.settings import settings
 
@@ -73,8 +74,10 @@ async def get_my_wallet(
 
 
 @router.post("/fund", response_model=PaymentInitiationResponse)
+@limiter.limit("10/hour")
 async def initiate_funding(
-    request: InitiatePaymentRequest,
+    request: Request,
+    data: InitiatePaymentRequest,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
     flutterwave_service: PaystackService = Depends(get_flutterwave_service),
@@ -85,7 +88,7 @@ async def initiate_funding(
     User visits the link to complete payment.
 
     Args:
-        request: Payment details (amount, currency)
+        data: Payment details (amount, currency)
         current_user: Authenticated user from dependency
         db: Database session from dependency
         flutterwave_service: Paystack service from dependency
@@ -97,12 +100,13 @@ async def initiate_funding(
     service = WalletService(db, flutterwave_service)
     return await service.initiate_funding(
         user_id=current_user.id,
-        amount=request.amount,
-        currency=request.currency,
+        amount=data.amount,
+        currency=data.currency,
     )
 
 
 @router.post("/webhooks/paystack", response_model=SuccessResponse)
+@limiter.limit("100/minute")
 async def paystack_webhook(
     request: Request,
     db: AsyncSession = Depends(get_db),
@@ -212,8 +216,10 @@ async def get_transactions(
 
 
 @router.post("/withdraw", response_model=TransactionResponse)
+@limiter.limit("5/hour")
 async def initiate_withdrawal(
-    request: WithdrawalRequest,
+    request: Request,
+    data: WithdrawalRequest,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db),
     flutterwave_service: PaystackService = Depends(get_flutterwave_service),
@@ -224,7 +230,7 @@ async def initiate_withdrawal(
     Actual bank transfer happens via background task.
 
     Args:
-        request: Withdrawal details (amount, bank_code, account_number)
+        data: Withdrawal details (amount, bank_code, account_number)
         current_user: Authenticated user from dependency
         db: Database session from dependency
         flutterwave_service: Paystack service from dependency
@@ -236,5 +242,5 @@ async def initiate_withdrawal(
     service = WalletService(db, flutterwave_service)
     return await service.initiate_withdrawal(
         user_id=current_user.id,
-        withdrawal_request=request,
+        withdrawal_request=data,
     )
