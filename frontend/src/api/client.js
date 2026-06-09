@@ -42,10 +42,11 @@ apiClient.interceptors.response.use(
                     refresh_token: refreshToken,
                 });
 
-                const { access_token, refresh_token, user } = response.data;
+                const { access_token, refresh_token: new_refresh_token } = response.data;
+                const { user, refreshToken: currentRefreshToken } = useAuthStore.getState();
 
-                // Save the new tokens to the global store
-                setAuth(user, access_token, refresh_token);
+                // Save the new tokens — keep existing refresh token if backend doesn't rotate
+                setAuth(user, access_token, new_refresh_token || currentRefreshToken);
 
                 // Retry the original request with the NEW token
                 originalRequest.headers.Authorization = `Bearer ${access_token}`;
