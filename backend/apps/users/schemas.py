@@ -74,6 +74,7 @@ class RegisterSellerRequest(BaseModel):
     """
 
     seller_type: SellerType
+    bio: str | None = None
 
 
 class VerifySellerRequest(BaseModel):
@@ -243,6 +244,7 @@ class SellerProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     seller_type: SellerType
+    bio: str | None = None
     is_verified: bool
     business_name: str | None = None
     created_at: datetime

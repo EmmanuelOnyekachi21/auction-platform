@@ -5,8 +5,8 @@ services:
       POSTGRES_DB: auction_dev
       POSTGRES_USER: auction
       POSTGRES_PASSWORD: auction
-    ports:
-      - "2100:5432"
+    # ports:
+    #   - "2100:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -22,8 +22,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-    ports:
-      - "2101:6379"
+    # ports:
+    #   - "2101:6379"
 
   app:
     build: .

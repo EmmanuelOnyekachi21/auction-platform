@@ -126,8 +126,12 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-if settings.app_env == "production":
-    app.add_middleware(SecurityHeadersMiddleWare)
+# SecurityHeadersMiddleWare is registered in all environments.
+# The PNA (Private Network Access) header it injects is required whenever a
+# public origin (e.g. the Vercel frontend) calls the API through an ngrok
+# tunnel, which Chrome classifies as a local address space.  HSTS and other
+# production-only headers are still gated inside the middleware itself.
+app.add_middleware(SecurityHeadersMiddleWare)
 
 app.add_middleware(SlowAPIMiddleware)  # outermost — must be last
 # rate limiting

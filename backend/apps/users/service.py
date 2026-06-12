@@ -4,6 +4,7 @@ Provides business logic for user profile operations, seller registration,
 and wallet management.
 """
 
+import logging
 from decimal import Decimal
 from uuid import UUID
 
@@ -35,6 +36,8 @@ from common.exceptions import (
     UserNotFoundException,
 )
 from common.schemas import MessageResponse
+
+logger = logging.getLogger(__name__)
 
 
 class UserService:
@@ -145,6 +148,7 @@ class UserService:
             raise EmailNotVerifiedException(msg)
 
         seller_data = data.model_dump()
+        logger.info(f"Seller Data: {seller_data}")
         seller_profile = await self.repo.create_seller_profile(user_id, seller_data)
         await self._db.commit()
 

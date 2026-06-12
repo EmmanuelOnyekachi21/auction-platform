@@ -188,6 +188,7 @@ class SellerProfile(BaseModel):
         nullable=False,
     )
     seller_type: Mapped[SellerType] = mapped_column(nullable=False)
+    bio: Mapped[str] = mapped_column(Text, nullable=True)
     is_verified: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     verification_status: Mapped[SellerVerificationStatus] = mapped_column(
         nullable=False, default=SellerVerificationStatus.PENDING, index=True
