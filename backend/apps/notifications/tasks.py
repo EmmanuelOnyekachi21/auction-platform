@@ -43,7 +43,14 @@ async def _create_notification(
         reference_type: Optional string value of the ``NotificationReferenceType`` enum.
 
     """
-    engine = create_async_engine(settings.database_url, echo=False)
+    engine = create_async_engine(
+        settings.database_url,
+        echo=False,
+        pool_size=2,  # small pool — notifications are low-frequency
+        max_overflow=0,
+        pool_recycle=1800,
+        pool_pre_ping=True,
+    )
     factory = async_sessionmaker(engine, expire_on_commit=False)
 
     try:
