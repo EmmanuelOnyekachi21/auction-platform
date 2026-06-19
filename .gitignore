@@ -47,3 +47,5 @@ testresults*
 celerybeat-schedule
 os
 Procfile
+
+.kiro

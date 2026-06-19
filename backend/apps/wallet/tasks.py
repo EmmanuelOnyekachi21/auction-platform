@@ -136,8 +136,8 @@ def process_withdrawal_transfer(self, transaction_id: str):
         async with get_async_db_session() as db:
             # Initialize services
             flutterwave_service = PaystackService(
-                base_url=settings.flutterwave_base_url,
-                secret_key=settings.flutterwave_secret_key,
+                base_url=settings.paystack_base_url,
+                secret_key=settings.paystack_secret_key,
             )
             wallet_service = WalletService(db, flutterwave_service)
             wallet_repo = WalletRepository(db)

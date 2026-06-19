@@ -8,7 +8,7 @@
  *  - Loading skeletons, empty state, React Query 30s refetch
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -109,7 +109,7 @@ export default function HomePage() {
     });
 
     // Backend returns { data: [...], total, page, pages, limit }
-    const pageItems = auctionPage?.data ?? [];
+    const pageItems = useMemo(() => auctionPage?.data ?? [], [auctionPage]);
     const totalPages = auctionPage?.pages ?? auctionPage?.total_pages ?? 1;
     const hasMore = page < totalPages;
 

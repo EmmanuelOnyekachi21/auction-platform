@@ -5,6 +5,7 @@ configuration via environment variables. It leverages Pydantic for
 validation and type safety.
 """
 
+import os
 from decimal import Decimal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -22,7 +23,7 @@ class Settings(BaseSettings):
     app_name: str = "auction-platform"
     app_version: str = "0.1.0"
     app_env: str = "development"
-    debug: bool = True
+    debug: bool = False  # opt-in — set DEBUG=True in .env for development
     app_url: str
 
     # --- Security & JWT ---
@@ -85,6 +86,11 @@ class Settings(BaseSettings):
     sentry_environment: str = "development"
     sentry_traces_sample_rate: float = 0.1
 
+    database_pool_size: int = 20
+    database_max_overflow: int = 10
+    database_pool_timeout: int = 30
+    database_pool_recycle: int = 1800
+
     # --- Pydantic Config ---
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -104,4 +110,14 @@ class Settings(BaseSettings):
 
 
 # Global settings instance to be imported by other modules.
-settings = Settings()
+def get_settings() -> Settings:
+    if os.getenv("APP_ENV", "development") == "production":
+        from config.production import (  # local import avoids circular dep
+            ProductionSettings,
+        )
+
+        return ProductionSettings()
+    return Settings()
+
+
+settings = get_settings()
