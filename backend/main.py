@@ -15,7 +15,6 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
-from sqlalchemy import text
 from starlette.middleware.sessions import SessionMiddleware
 
 # Import the model registry to ensure all models are registered with SQLAlchemy
@@ -44,7 +43,7 @@ from common.middleware import RequestLoggingMiddleware
 from common.monitoring import initialise_sentry
 from common.rate_limiter import limiter
 from common.security_headers import SecurityHeadersMiddleWare
-from config.database import engine
+from config.database import check_database_connection, engine, wait_for_database
 from config.logging_config import setup_logging
 from config.settings import settings
 
@@ -75,12 +74,7 @@ async def lifespan(app: FastAPI):
     )
 
     # Verify database connection
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-        logger.info("Database connection verified")
-    except Exception:
-        logger.error("Database connection failed", exc_info=True)
+    await wait_for_database()
 
     # Verify Redis connection
     try:
@@ -170,12 +164,7 @@ async def _check_db() -> bool:
         bool: True if database connection is successful, False otherwise.
 
     """
-    try:
-        async with engine.connect() as conn:
-            await conn.execute(text("SELECT 1"))
-        return True
-    except Exception:
-        return False
+    return await check_database_connection()
 
 
 async def _check_redis() -> bool:
