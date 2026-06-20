@@ -325,15 +325,18 @@ class WalletRepository:
 
         if search:
             query = f"%{search}%"
+            stmt = (
+                select(WalletTransactions)
+                .join(Wallet, WalletTransactions.wallet_id == Wallet.id)
+                .join(User, Wallet.user_id == User.id)
+                .order_by(desc(WalletTransactions.created_at))
+            )
+
             stmt = stmt.where(
-                WalletTransactions.wallet.has(
-                    Wallet.user.has(
-                        or_(
-                            User.email.ilike(query),
-                            User.first_name.ilike(query),
-                            User.last_name.ilike(query),
-                        )
-                    )
+                or_(
+                    User.email.ilike(query),
+                    User.first_name.ilike(query),
+                    User.last_name.ilike(query),
                 )
             )
 
