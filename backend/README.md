@@ -267,3 +267,55 @@ docker-compose restart celery_worker
 | `SERVER_URL` | Backend base URL |
 | `APP_URL` | App URL used in email links |
 | `CORS_ORIGINS` | Comma-separated allowed origins |
+
+---
+
+## Database Migration Safety
+
+**Never run migrations directly on production without following this checklist.**
+
+### Before every migration
+
+1. **Backup the database first**
+   ```bash
+   pg_dump $DATABASE_URL > backup_$(date +%Y%m%d_%H%M%S).sql
+   ```
+
+2. **Run the pre-migration check script**
+   ```bash
+   python scripts/pre_migration_check.py
+   ```
+   This shows current version, pending SQL, and asks for confirmation.
+
+3. **Test on staging/local first** — never run untested migrations on production.
+
+4. **Run during low-traffic hours** — migrations that add columns or indexes can lock tables briefly.
+
+5. **Know your rollback command**
+   ```bash
+   alembic downgrade -1   # roll back one migration
+   alembic downgrade <revision_id>  # roll back to a specific revision
+   ```
+
+### Adding new migrations
+
+```bash
+# Generate from model changes
+alembic revision --autogenerate -m "describe what changed"
+
+# Always review the generated file before applying
+# Check: does upgrade() do exactly what you expect?
+# Check: does downgrade() cleanly reverse it?
+```
+
+### Rules for writing migrations
+
+- Every migration **must** have a working `downgrade()` — not just `pass`, unless it's a PostgreSQL enum addition (which genuinely cannot be reversed)
+- New `NOT NULL` columns on existing tables **must** use `server_default` in the migration, then a second migration to remove the default
+- New PostgreSQL enum types require `enum.create(op.get_bind(), checkfirst=True)` before `add_column`
+- Test both `upgrade` and `downgrade` locally before pushing
+
+### Point-in-time recovery (VPS)
+
+Enable WAL archiving or use your VPS provider's snapshot feature.
+Keep at minimum 7 days of backups. Document the restore procedure here when configured.
