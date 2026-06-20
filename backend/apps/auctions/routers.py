@@ -211,7 +211,7 @@ async def delete_item_image(
     )
 
 
-@router.get("/users/me/items", response_model=dict, status_code=200)
+@router.get("/users/me/items", response_model=PaginatedResponse, status_code=200)
 async def list_my_items(
     status: Optional[ItemStatus] = Query(None, description="Filter by item status"),
     page: int = Query(1, ge=1, description="Page number"),

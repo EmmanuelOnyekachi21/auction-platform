@@ -7,15 +7,16 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.orders.enums import OrderStatus
-from apps.orders.schemas import ShipOrderRequest
+from apps.orders.schemas import OrderDetailResponse, ShipOrderRequest
 from apps.orders.service import OrderService
 from apps.users.models import User
 from common.dependency import get_current_active_user, get_db
+from common.schemas import PaginatedResponse
 
 router = APIRouter()
 
 
-@router.get("/orders/{order_id}")
+@router.get("/orders/{order_id}", response_model=OrderDetailResponse)
 async def get_order(
     order_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -28,7 +29,7 @@ async def get_order(
     )
 
 
-@router.get("/users/me/orders")
+@router.get("/users/me/orders", response_model=PaginatedResponse)
 async def get_my_orders(
     role: str = Query("buyer", description="buyer or seller"),
     status: Optional[OrderStatus] = Query(None),
@@ -48,7 +49,7 @@ async def get_my_orders(
     )
 
 
-@router.patch("/orders/{order_id}/ship")
+@router.patch("/orders/{order_id}/ship", response_model=OrderDetailResponse)
 async def ship_order(
     order_id: UUID,
     data: ShipOrderRequest,
@@ -64,7 +65,7 @@ async def ship_order(
     )
 
 
-@router.patch("/orders/{order_id}/confirm-delivery")
+@router.patch("/orders/{order_id}/confirm-delivery", response_model=OrderDetailResponse)
 async def confirm_delivery(
     order_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -78,7 +79,7 @@ async def confirm_delivery(
     )
 
 
-@router.patch("/orders/{order_id}/cancel")
+@router.patch("/orders/{order_id}/cancel", response_model=OrderDetailResponse)
 async def cancel_order(
     order_id: UUID,
     db: AsyncSession = Depends(get_db),
