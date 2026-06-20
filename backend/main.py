@@ -7,6 +7,7 @@ verification for PostgreSQL and Redis.
 """
 
 import logging
+import os
 from contextlib import asynccontextmanager
 
 import redis.asyncio as aioredis
@@ -66,6 +67,11 @@ async def lifespan(app: FastAPI):
     """
     initialise_sentry()
     setup_logging(settings.app_env)
+
+    # Ensure logs directory exists — required by the rotating file handlers.
+    # On a fresh VPS deploy this directory may not exist yet.
+    os.makedirs("logs", exist_ok=True)
+
     logger.info(
         "Starting %s v%s [%s]",
         settings.app_name,
