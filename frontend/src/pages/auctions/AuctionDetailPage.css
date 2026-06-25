@@ -1,0 +1,807 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   AuctionDetailPage.css
+   Scoped styles for the Auction Detail page — all tokens from index.css
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Page wrapper ────────────────────────────────────────────────────────────── */
+.adp {
+    padding: 1.75rem 0 5rem;
+}
+
+/* Breadcrumb */
+.adp__breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+    flex-wrap: wrap;
+}
+
+.adp__breadcrumb a {
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.adp__breadcrumb a:hover {
+    color: var(--primary);
+}
+
+.adp__breadcrumb-sep {
+    opacity: 0.4;
+}
+
+.adp__breadcrumb-current {
+    color: var(--text-secondary);
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 220px;
+}
+
+/* ── Two-column grid ─────────────────────────────────────────────────────────── */
+.adp__grid {
+    display: grid;
+    grid-template-columns: 60fr 40fr;
+    gap: 2rem;
+    align-items: start;
+}
+
+@media (max-width: 900px) {
+    .adp__grid {
+        grid-template-columns: 1fr;
+        gap: 1.5rem;
+    }
+}
+
+/* ── Section cards ───────────────────────────────────────────────────────────── */
+.adp__card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-xl);
+    overflow: hidden;
+}
+
+.adp__card + .adp__card {
+    margin-top: 1.25rem;
+}
+
+.adp__card-header {
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.adp__card-body {
+    padding: 1.25rem;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   IMAGE GALLERY
+══════════════════════════════════════════════════════════════════════════════ */
+
+.adp__main-image-wrapper {
+    position: relative;
+    aspect-ratio: 4 / 3;
+    overflow: hidden;
+    background: var(--surface);
+    border-radius: 0; /* card handles rounding */
+}
+
+.adp__main-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.adp__main-image:hover {
+    transform: scale(1.03);
+}
+
+.adp__image-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    color: var(--text-muted);
+    background: #F1F5F9;
+    font-size: 0.875rem;
+    font-weight: 500;
+    min-height: 280px;
+}
+
+/* Thumbnail strip */
+.adp__thumbnails {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem;
+    overflow-x: auto;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    scrollbar-width: none;
+}
+
+.adp__thumbnails::-webkit-scrollbar {
+    display: none;
+}
+
+.adp__thumb {
+    flex-shrink: 0;
+    width: 60px;
+    height: 60px;
+    border-radius: var(--radius);
+    overflow: hidden;
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, transform 0.15s;
+    background: var(--surface);
+}
+
+.adp__thumb img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.adp__thumb:hover {
+    transform: scale(1.06);
+    border-color: var(--primary-light);
+}
+
+.adp__thumb--active {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 2px rgba(37,99,235,0.2);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   ITEM DETAILS CARD
+══════════════════════════════════════════════════════════════════════════════ */
+
+.adp__detail-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.6rem 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.875rem;
+}
+
+.adp__detail-row:last-child {
+    border-bottom: none;
+}
+
+.adp__detail-label {
+    flex-shrink: 0;
+    width: 110px;
+    color: var(--text-muted);
+    font-weight: 600;
+    font-size: 0.8125rem;
+}
+
+.adp__detail-value {
+    color: var(--text-primary);
+    font-weight: 500;
+    flex: 1;
+}
+
+/* Condition inline badge */
+.adp__condition-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2em 0.75em;
+    border-radius: var(--radius-full);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+/* Description expand/collapse */
+.adp__description {
+    font-size: 0.9rem;
+    line-height: 1.75;
+    color: var(--text-secondary);
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+.adp__description--clamped {
+    display: -webkit-box;
+    -webkit-line-clamp: 5;
+    -webkit-box-orient: vertical;
+    line-clamp: 5;
+    overflow: hidden;
+}
+
+.adp__read-more {
+    background: none;
+    border: none;
+    color: var(--primary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 0.25rem 0 0;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    transition: color 0.15s;
+}
+
+.adp__read-more:hover {
+    color: var(--primary-dark);
+}
+
+/* Seller row */
+.adp__seller {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+    padding: 1.125rem 1.25rem;
+}
+
+.adp__seller-avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: var(--radius-full);
+    background: var(--primary-50);
+    color: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.125rem;
+    font-weight: 800;
+    flex-shrink: 0;
+}
+
+.adp__seller-name {
+    font-weight: 700;
+    font-size: 0.9375rem;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.adp__seller-meta {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 0.15rem;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   RIGHT COLUMN — BID SECTION
+══════════════════════════════════════════════════════════════════════════════ */
+
+/* Status badge */
+.adp__status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.28em 0.85em;
+    border-radius: var(--radius-full);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+}
+
+.adp__status--active {
+    background: #DCFCE7;
+    color: #15803D;
+}
+
+.adp__status--ended {
+    background: var(--surface);
+    color: var(--text-muted);
+    border: 1px solid var(--border);
+}
+
+.adp__status--draft {
+    background: var(--warning-light);
+    color: var(--warning);
+}
+
+.adp__status--settling {
+    background: var(--warning-light);
+    color: var(--warning);
+}
+
+/* Live pulse dot */
+.adp__pulse-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #16A34A;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.adp__pulse-dot::after {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    background: rgba(22, 163, 74, 0.35);
+    animation: pulseDot 1.6s ease-out infinite;
+}
+
+@keyframes pulseDot {
+    0%   { transform: scale(1);   opacity: 1; }
+    70%  { transform: scale(2);   opacity: 0; }
+    100% { transform: scale(2.5); opacity: 0; }
+}
+
+/* ── Countdown timer ─────────────────────────────────────────────────────────── */
+.adp__countdown {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1.5rem 1.25rem 1.25rem;
+}
+
+.adp__countdown-unit {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    min-width: 56px;
+}
+
+.adp__countdown-value {
+    font-size: 2rem;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -0.04em;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    min-width: 56px;
+    text-align: center;
+    padding: 0.35rem 0.25rem;
+}
+
+.adp__countdown-value--urgent {
+    color: var(--danger) !important;
+    border-color: #FCA5A5;
+    background: #FFF5F5;
+}
+
+.adp__countdown-label {
+    font-size: 0.625rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+}
+
+.adp__countdown-sep {
+    font-size: 1.75rem;
+    font-weight: 900;
+    color: var(--border-strong);
+    line-height: 1;
+    align-self: center;
+    margin-bottom: 1.1rem;
+}
+
+.adp__countdown-ended {
+    text-align: center;
+    padding: 1.5rem 1.25rem 1rem;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    letter-spacing: -0.01em;
+}
+
+/* ── Current bid card ────────────────────────────────────────────────────────── */
+.adp__bid-card {
+    padding: 1.25rem;
+    border-top: 1px solid var(--border);
+}
+
+.adp__bid-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.4rem;
+}
+
+.adp__bid-label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-muted);
+}
+
+.adp__bid-amount {
+    font-size: 2.25rem;
+    font-weight: 900;
+    color: var(--primary);
+    letter-spacing: -0.04em;
+    line-height: 1.1;
+}
+
+.adp__bid-no-bids {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-top: 0.2rem;
+}
+
+.adp__bid-meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.75rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--border);
+}
+
+.adp__bid-meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-size: 0.8125rem;
+    color: var(--text-muted);
+    font-weight: 500;
+}
+
+/* Reserve indicator */
+.adp__reserve {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 0.2em 0.7em;
+    border-radius: var(--radius-full);
+    margin-top: 0.6rem;
+}
+
+.adp__reserve--met {
+    background: #DCFCE7;
+    color: #15803D;
+}
+
+.adp__reserve--not-met {
+    background: var(--warning-light);
+    color: var(--warning);
+}
+
+/* ── Place bid section ───────────────────────────────────────────────────────── */
+.adp__place-bid {
+    padding: 1.25rem;
+    border-top: 1px solid var(--border);
+    background: var(--primary-50);
+}
+
+.adp__place-bid-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+}
+
+.adp__wallet-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    margin-bottom: 0.875rem;
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 0.6rem 0.875rem;
+}
+
+.adp__wallet-balance {
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.adp__min-bid {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
+}
+
+.adp__bid-input-wrapper {
+    position: relative;
+    margin-bottom: 0.875rem;
+}
+
+.adp__bid-prefix {
+    position: absolute;
+    left: 0.875rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-secondary);
+    pointer-events: none;
+    z-index: 1;
+}
+
+.adp__bid-input {
+    width: 100%;
+    padding: 0.7rem 0.875rem 0.7rem 2rem;
+    font-size: 1rem;
+    font-weight: 700;
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--card-bg);
+    color: var(--text-primary);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.adp__bid-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37,99,235,0.12);
+}
+
+.adp__bid-btn {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    font-size: 1rem;
+    font-weight: 700;
+    border-radius: var(--radius);
+    border: none;
+    background: var(--primary);
+    color: #fff;
+    cursor: pointer;
+    transition: var(--transition);
+    letter-spacing: -0.01em;
+}
+
+.adp__bid-btn:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(37,99,235,0.3);
+}
+
+.adp__bid-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.adp__login-prompt {
+    text-align: center;
+    padding: 1.25rem;
+    border-top: 1px solid var(--border);
+}
+
+.adp__login-prompt p {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 0.875rem;
+}
+
+/* ── Bid history ─────────────────────────────────────────────────────────────── */
+.adp__bid-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.7rem 0;
+    border-bottom: 1px solid var(--border);
+    gap: 0.75rem;
+}
+
+.adp__bid-row:last-child {
+    border-bottom: none;
+}
+
+.adp__bid-row-rank {
+    width: 28px;
+    height: 28px;
+    border-radius: var(--radius-full);
+    background: var(--primary-50);
+    color: var(--primary);
+    font-size: 0.6875rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.adp__bid-row-name {
+    flex: 1;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.adp__bid-row-amount {
+    font-size: 0.9375rem;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: -0.02em;
+}
+
+.adp__bid-row-time {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-align: right;
+    min-width: 72px;
+}
+
+/* Empty bids */
+.adp__bids-empty {
+    text-align: center;
+    padding: 2.5rem 1.25rem;
+    color: var(--text-muted);
+}
+
+.adp__bids-empty-icon {
+    width: 52px;
+    height: 52px;
+    border-radius: var(--radius-full);
+    background: var(--surface);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 0.875rem;
+}
+
+/* ── Share button ────────────────────────────────────────────────────────────── */
+.adp__share-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    padding: 0.45rem 1rem;
+    border-radius: var(--radius);
+    border: 1.5px solid var(--border);
+    background: var(--card-bg);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: var(--transition-fast);
+}
+
+.adp__share-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-50);
+}
+
+/* ── Loading / Error / 404 states ────────────────────────────────────────────── */
+.adp__loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+    gap: 1rem;
+    color: var(--text-muted);
+}
+
+.adp__spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid var(--border);
+    border-top-color: var(--primary);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+}
+
+.adp__error {
+    text-align: center;
+    padding: 5rem 1.5rem;
+    max-width: 420px;
+    margin: 0 auto;
+}
+
+.adp__error-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-full);
+    background: var(--danger-light);
+    color: var(--danger);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+}
+
+.adp__error-title {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.adp__error-sub {
+    font-size: 0.875rem;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+}
+
+.adp__reserve-progress {
+    margin-top: 0.75rem;
+    padding: 0.875rem 1rem;
+    border-radius: var(--radius);
+    background: var(--surface);
+    border: 1px solid var(--border);
+}
+
+.adp__reserve-progress__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+}
+
+.adp__reserve-progress__label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+
+.adp__reserve-progress__status {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--warning);
+}
+
+.adp__reserve-progress__status--met {
+    color: var(--success);
+}
+
+.adp__reserve-progress__bar-track {
+    height: 8px;
+    background: var(--border);
+    border-radius: var(--radius-full);
+    overflow: hidden;
+}
+
+.adp__reserve-progress__bar-fill {
+    height: 100%;
+    background: var(--warning);
+    border-radius: var(--radius-full);
+    transition: width 0.6s ease;
+}
+
+.adp__reserve-progress__bar-fill--met {
+    background: var(--success);
+}
+
+.adp__reserve-progress__footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 0.375rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}

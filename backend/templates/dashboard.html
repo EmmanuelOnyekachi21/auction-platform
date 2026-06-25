@@ -1,0 +1,274 @@
+{% extends "sqladmin/layout.html" %}
+
+{% block content_header %}
+<div class="row align-items-center">
+  <div class="col">
+    <h2 class="page-title">Analytics Dashboard</h2>
+    <div class="page-pretitle">Platform overview — live data</div>
+  </div>
+</div>
+{% endblock %}
+
+{% block content %}
+
+{# ── Platform Overview ──────────────────────────────────────────────────── #}
+<div class="col-12">
+  <h3 class="mb-3">Platform Overview</h3>
+</div>
+
+<div class="col-sm-6 col-lg-3">
+  <div class="card">
+    <div class="card-body">
+      <div class="subheader">Total Users</div>
+      <div class="h1 mt-1">{{ total_users }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="col-sm-6 col-lg-3">
+  <div class="card">
+    <div class="card-body">
+      <div class="subheader">New Today / This Week</div>
+      <div class="h1 mt-1">{{ new_users_today }} / {{ new_users_this_week }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="col-sm-6 col-lg-6">
+  <div class="card">
+    <div class="card-body">
+      <div class="subheader">Users by KYC Tier</div>
+      <div class="mt-2 d-flex gap-4">
+        <div><span class="badge bg-blue-lt me-1">Tier 1</span><strong>{{ kyc_tier_1 }}</strong></div>
+        <div><span class="badge bg-green-lt me-1">Tier 2</span><strong>{{ kyc_tier_2 }}</strong></div>
+        <div><span class="badge bg-purple-lt me-1">Tier 3</span><strong>{{ kyc_tier_3 }}</strong></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Auction Activity ───────────────────────────────────────────────────── #}
+<div class="col-12 mt-3">
+  <h3 class="mb-3">Auction Activity</h3>
+</div>
+
+<div class="col-sm-6 col-lg-3">
+  <div class="card">
+    <div class="card-body">
+      <div class="subheader">Active Auctions</div>
+      <div class="h1 mt-1 text-green">{{ active_auctions }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="col-sm-6 col-lg-3">
+  <div class="card">
+    <div class="card-body">
+      <div class="subheader">Ending in 2 Hours</div>
+      <div class="h1 mt-1 {% if ending_soon > 0 %}text-orange{% endif %}">{{ ending_soon }}</div>
+      {% if ending_soon > 0 %}
+      <div class="text-muted small">Needs settlement attention</div>
+      {% endif %}
+    </div>
+  </div>
+</div>
+
+<div class="col-sm-6 col-lg-3">
+  <div class="card">
+    <div class="card-body">
+      <div class="subheader">Settled Today</div>
+      <div class="h1 mt-1">{{ settled_today }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="col-sm-6 col-lg-3">
+  <div class="card">
+    <div class="card-body">
+      <div class="subheader">Reserve Not Met Today</div>
+      <div class="h1 mt-1 {% if reserve_not_met_today > 0 %}text-red{% endif %}">{{ reserve_not_met_today }}</div>
+    </div>
+  </div>
+</div>
+
+{# ── Financial Summary ──────────────────────────────────────────────────── #}
+<div class="col-12 mt-3">
+  <h3 class="mb-3">Financial Summary</h3>
+</div>
+
+<div class="col-sm-6 col-lg-4">
+  <div class="card">
+    <div class="card-body">
+      <div class="subheader">Deposits Today</div>
+      <div class="h1 mt-1">₦{{ "{:,.2f}".format(deposits_today) }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="col-sm-6 col-lg-4">
+  <div class="card">
+    <div class="card-body">
+      <div class="subheader">Commission Today / This Month</div>
+      <div class="h1 mt-1">₦{{ "{:,.2f}".format(commission_today) }}</div>
+      <div class="text-muted small">Month: ₦{{ "{:,.2f}".format(commission_this_month) }}</div>
+    </div>
+  </div>
+</div>
+
+<div class="col-sm-6 col-lg-4">
+  <div class="card">
+    <div class="card-body">
+      <div class="subheader">Escrow Held / Locked Bids</div>
+      <div class="h1 mt-1">₦{{ "{:,.2f}".format(escrow_held) }}</div>
+      <div class="text-muted small">Locked: ₦{{ "{:,.2f}".format(locked_bids) }}</div>
+    </div>
+  </div>
+</div>
+
+{# ── Moderation Queue ───────────────────────────────────────────────────── #}
+<div class="col-12 mt-3">
+  <h3 class="mb-3">Moderation Queue</h3>
+</div>
+
+<div class="col-sm-6 col-lg-4">
+  <div class="card">
+    <div class="card-body d-flex align-items-center justify-content-between">
+      <div>
+        <div class="subheader">Pending Item Approvals</div>
+        <div class="h1 mt-1">{{ pending_items }}</div>
+      </div>
+      <a href="/admin/item/list" class="btn btn-sm btn-outline-primary">Review</a>
+    </div>
+    {% if pending_items > 0 %}
+    <div class="card-footer bg-danger-lt text-danger small">Action required</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="col-sm-6 col-lg-4">
+  <div class="card">
+    <div class="card-body d-flex align-items-center justify-content-between">
+      <div>
+        <div class="subheader">Open Disputes</div>
+        <div class="h1 mt-1">{{ open_disputes }}</div>
+      </div>
+      <a href="/admin/dispute/list" class="btn btn-sm btn-outline-danger">Review</a>
+    </div>
+    {% if open_disputes > 0 %}
+    <div class="card-footer bg-danger-lt text-danger small">Action required</div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="col-sm-6 col-lg-4">
+  <div class="card">
+    <div class="card-body d-flex align-items-center justify-content-between">
+      <div>
+        <div class="subheader">Pending KYC Documents</div>
+        <div class="h1 mt-1">{{ pending_kyc_docs }}</div>
+      </div>
+      <a href="/admin/kycdocumentmodel/list" class="btn btn-sm btn-outline-warning">Review</a>
+    </div>
+    {% if pending_kyc_docs > 0 %}
+    <div class="card-footer bg-warning-lt text-warning small">Action required</div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── Recent Activity ────────────────────────────────────────────────────── #}
+<div class="col-12 mt-3">
+  <h3 class="mb-3">Recent Activity</h3>
+</div>
+
+{# Last 10 registrations #}
+<div class="col-lg-4">
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Last 10 Registrations</h3>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table table-sm">
+        <thead>
+          <tr>
+            <th>Email</th>
+            <th>Joined</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for email, created_at in recent_users %}
+          <tr>
+            <td class="text-truncate" style="max-width:160px">{{ email }}</td>
+            <td class="text-muted small">{{ created_at.strftime("%d %b %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="2" class="text-muted">No registrations yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# Last 10 completed orders #}
+<div class="col-lg-4">
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Last 10 Completed Orders</h3>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table table-sm">
+        <thead>
+          <tr>
+            <th>Order</th>
+            <th>Amount</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order_id, amount, status, created_at in recent_orders %}
+          <tr>
+            <td class="text-monospace small">{{ order_id|string|truncate(8, True, '') }}</td>
+            <td>₦{{ "{:,.0f}".format(amount) }}</td>
+            <td class="text-muted small">{{ created_at.strftime("%d %b %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="text-muted">No completed orders yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# Last 5 disputes #}
+<div class="col-lg-4">
+  <div class="card">
+    <div class="card-header">
+      <h3 class="card-title">Last 5 Disputes</h3>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-vcenter card-table table-sm">
+        <thead>
+          <tr>
+            <th>Title</th>
+            <th>Status</th>
+            <th>Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for title, status, created_at in recent_disputes %}
+          <tr {% if status.value == "OPEN" %}class="table-danger"{% endif %}>
+            <td class="text-truncate" style="max-width:120px">{{ title }}</td>
+            <td><span class="badge {% if status.value == 'OPEN' %}bg-danger{% elif status.value == 'RESOLVED' %}bg-success{% else %}bg-secondary{% endif %}">{{ status.value }}</span></td>
+            <td class="text-muted small">{{ created_at.strftime("%d %b %H:%M") }}</td>
+          </tr>
+          {% else %}
+          <tr><td colspan="3" class="text-muted">No disputes yet</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

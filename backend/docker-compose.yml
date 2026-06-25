@@ -1,0 +1,78 @@
+services:
+  db:
+    image: postgres:15
+    environment:
+      POSTGRES_DB: auction_dev
+      POSTGRES_USER: auction
+      POSTGRES_PASSWORD: auction
+    # ports:
+    #   - "2100:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U auction -d auction_dev"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # ports:
+    #   - "2101:6379"
+
+  app:
+    build: .
+    ports:
+      - "2102:8000"
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  celery_worker:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    dns:
+      - 8.8.8.8
+      - 8.8.4.4
+    command: celery -A config.celery_app worker --loglevel=info
+
+  celery_beat:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+    command: celery -A config.celery_app beat --loglevel=info
+
+volumes:
+  postgres_data:
+  # Persists database data between container restarts,
+  # else, everytime i do docker-compose down, database is wiped

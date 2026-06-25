@@ -1,0 +1,70 @@
+[project]
+name = "auction-platform-backend"
+version = "0.1.0"
+description = "Auction marketplace backend API"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy>=2.0",
+    "asyncpg",
+    "alembic",
+    "pydantic>=2.0",
+    "pydantic-settings",
+    "email-validator",
+    "python-jose[cryptography]",
+    "bcrypt",
+    "python-multipart",
+    "celery",
+    "redis",
+    "httpx",
+    "python-dotenv",
+    "Pillow",
+    "fastapi-mail",
+    "resend",
+    "cloudinary>=1.36.0",
+    "sqladmin>=0.16.0",
+    "itsdangerous>=2.1.0",
+    "slowapi>=0.1.9",
+    "limits>=3.6.0",
+    "sentry-sdk[fastapi]>=1.40.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "httpx",
+    "black",
+    "ruff",
+    "isort",
+    "pre-commit",
+    "factory-boy",
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+exclude = ["alembic/**"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W"]
+
+[tool.isort]
+profile = "black"
+known_first_party = ["apps", "common", "config"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+env_files = [".env.test"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["apps*", "common*", "config*"]
+exclude = ["logs*", "tests*"]
