@@ -123,12 +123,11 @@ class CreateAuctionRequest(BaseModel):
         if self.starts_at < now:
             raise ValueError("Time for auction to begin must be in the future")
         if self.ends_at < self.starts_at + timedelta(
-            # hours=settings.min_auction_duration_hours
-            minutes=5
+            minutes=settings.min_auction_duration_mins
         ):
             raise ValueError(
                 f"Auction must last at least "
-                f"{settings.min_auction_duration_hours} hour(s)"
+                f"{settings.min_auction_duration_mins} minute(s)"
             )
         if self.ends_at > self.starts_at + timedelta(
             hours=settings.max_auction_duration_hours
@@ -164,14 +163,21 @@ class UpdateAuctionRequest(BaseModel):
                     f"{settings.max_auction_duration_hours} hours"
                 )
             if self.ends_at < self.starts_at + timedelta(
-                # hours=settings.min_auction_duration_hours
-                minutes=5
+                minutes=settings.min_auction_duration_mins
             ):
                 raise ValueError(
                     f"Auction must last at least "
-                    f"{settings.min_auction_duration_hours} hour(s)"
+                    f"{settings.min_auction_duration_mins} minute(s)"
                 )
         return self
+
+
+class ExtendAuctionRequest(BaseModel):
+    """Request schema for extending an active auction's end time."""
+
+    ends_at: datetime = Field(
+        ..., description="New end datetime (must be after current ends_at)"
+    )
 
 
 class AttachItemRequest(BaseModel):

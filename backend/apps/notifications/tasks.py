@@ -91,7 +91,7 @@ def send_verification_email(self, user_email: str, user_name: str, token: str):
         Exception: If the email fails to send (triggered for retry).
 
     """
-    verify_url = f"{settings.app_url}/verify-email?token={token}"
+    verify_url = f"{settings.frontend_url}/verify-email?token={token}"
     body = (
         f"Hello {user_name},\n\n"
         f"Thank you for joining! Verify your email here: {verify_url}"
@@ -120,7 +120,7 @@ def send_password_reset_email(self, user_email: str, user_name: str, token: str)
         Exception: If the email fails to send (triggered for retry).
 
     """
-    reset_url = f"{settings.app_url}/reset-password?token={token}"
+    reset_url = f"{settings.frontend_url}/reset-password?token={token}"
     body = f"Hello {user_name},\n\nReset your password here: {reset_url}"
     try:
         asyncio.run(
@@ -151,7 +151,7 @@ def send_seller_verification_approved(self, user_email: str, user_name: str):
         f"Hello {user_name},\n\n"
         f"Congratulations! Your seller account has been verified.\n\n"
         f"You can now start listing items and creating auctions on our platform.\n\n"
-        f"Visit your dashboard: {settings.app_url}/dashboard\n\n"
+        f"Visit your dashboard: {settings.frontend_url}/dashboard\n\n"
         f"Thank you for being part of our community!"
     )
     try:
@@ -194,7 +194,7 @@ def send_seller_verification_rejected(
         f"Reason: {reason}\n\n"
         f"Please review the requirements and resubmit your verification documents.\n\n"
         f"If you have questions, please contact our support team.\n\n"
-        f"Visit your profile: {settings.app_url}/profile"
+        f"Visit your profile: {settings.frontend_url}/profile"
     )
     try:
         asyncio.run(
@@ -234,7 +234,7 @@ def send_item_approved_notification(
         f"Hello {seller_name},\n\n"
         f"Great news! Your item '{item_name}' has been approved.\n\n"
         f"You can now add this item to an auction and start selling.\n\n"
-        f"Create an auction: {settings.app_url}/seller/create-auction\n\n"
+        f"Create an auction: {settings.frontend_url}/seller/create-auction\n\n"
         f"Thank you for listing quality items on our platform!"
     )
     try:
@@ -280,7 +280,7 @@ def send_item_rejected_notification(
         f"Reason: {reason}\n\n"
         f"Please review our listing guidelines and make the necessary changes.\n\n"
         f"You can edit your item and resubmit it for review.\n\n"
-        f"View your items: {settings.app_url}/seller/items\n\n"
+        f"View your items: {settings.frontend_url}/seller/items\n\n"
         f"If you have questions, please contact our support team."
     )
     try:
@@ -326,7 +326,7 @@ def notify_outbid_user(
         Exception: If the email fails to send (triggered for retry).
 
     """
-    auction_url = f"{settings.app_url}/auctions/{auction_id}"
+    auction_url = f"{settings.frontend_url}/auctions/{auction_id}"
     body = (
         f"Hello {user_name},\n\n"
         f"You've been outbid! Someone placed a higher bid of ₦{new_highest_bid} "
@@ -394,7 +394,7 @@ def notify_item_shipped(
         f"{tracking_line}"
         f"Once you receive your item, please confirm delivery in your orders page "
         f"to release payment to the seller.\n\n"
-        f"View your order: {settings.app_url}/orders/{order_id}"
+        f"View your order: {settings.frontend_url}/orders/{order_id}"
     )
     try:
         asyncio.run(
@@ -447,7 +447,7 @@ def notify_payment_released(
         f"Hello {seller_name},\n\n"
         f"Payment of ₦{amount} has been released to your wallet.\n\n"
         f"The buyer has confirmed delivery of your item.\n\n"
-        f"View your orders: {settings.app_url}/my-orders"
+        f"View your orders: {settings.frontend_url}/my-orders"
     )
     try:
         asyncio.run(
@@ -500,7 +500,7 @@ def notify_transaction_completed(
         f"Hello {buyer_name},\n\n"
         f"Your transaction has been completed successfully.\n\n"
         f"Thank you for using KaraKaja!\n\n"
-        f"View your order: {settings.app_url}/orders/{order_id}"
+        f"View your order: {settings.frontend_url}/orders/{order_id}"
     )
     try:
         asyncio.run(
@@ -554,7 +554,7 @@ def notify_order_cancelled_buyer(
         f"Your order has been cancelled because the seller did not ship "
         f"within the deadline.\n\n"
         f"A full refund has been issued to your wallet.\n\n"
-        f"View your wallet: {settings.app_url}/wallet"
+        f"View your wallet: {settings.frontend_url}/wallet"
     )
     try:
         asyncio.run(
@@ -606,7 +606,7 @@ def notify_order_cancelled_seller(
         f"Hello {seller_name},\n\n"
         f"Your order has been cancelled due to non-shipment within the deadline.\n\n"
         f"Please ensure you ship items promptly to avoid future cancellations.\n\n"
-        f"View your orders: {settings.app_url}/my-orders"
+        f"View your orders: {settings.frontend_url}/my-orders"
     )
     try:
         asyncio.run(
@@ -650,7 +650,7 @@ def notify_dispute_raised_seller(
         f"Hello {seller_name},\n\n"
         f"A dispute has been raised on your order.\n\n"
         f"Please submit evidence to support your case.\n\n"
-        f"View the dispute: {settings.app_url}/disputes/{dispute_id}"
+        f"View the dispute: {settings.frontend_url}/disputes/{dispute_id}"
     )
     try:
         asyncio.run(
@@ -709,7 +709,7 @@ def notify_dispute_resolved_buyer(
         f"Hello {buyer_name},\n\n"
         f"Your dispute has been resolved {outcome}.\n\n"
         f"{fund_msg}\n\n"
-        f"View the dispute: {settings.app_url}/disputes/{dispute_id}"
+        f"View the dispute: {settings.frontend_url}/disputes/{dispute_id}"
     )
     subject = (
         "Dispute resolved in your favour"
@@ -767,7 +767,7 @@ def notify_dispute_resolved_seller(
         f"Hello {seller_name},\n\n"
         f"The dispute has been resolved {outcome}.\n\n"
         f"{fund_msg}\n\n"
-        f"View the dispute: {settings.app_url}/disputes/{dispute_id}"
+        f"View the dispute: {settings.frontend_url}/disputes/{dispute_id}"
     )
     subject = (
         "Dispute resolved in your favour"
@@ -813,7 +813,7 @@ def notify_dispute_under_review(self, email: str, name: str, dispute_id: str):
         f"Your dispute is now under review by our support team.\n\n"
         f"We will notify you once a decision has been made. "
         f"You may still submit additional evidence in the meantime.\n\n"
-        f"View the dispute: {settings.app_url}/disputes/{dispute_id}"
+        f"View the dispute: {settings.frontend_url}/disputes/{dispute_id}"
     )
     try:
         asyncio.run(

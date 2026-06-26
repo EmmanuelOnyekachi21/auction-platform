@@ -19,6 +19,7 @@ from .schemas import (
     CategoryResponse,
     CreateAuctionRequest,
     CreateItemRequest,
+    ExtendAuctionRequest,
     ItemImageResponse,
     ItemResponse,
     RejectItemRequest,
@@ -420,6 +421,35 @@ async def create_auction(
     """
     service = AuctionService(db)
     return await service.create_auction(seller_id=current_user.id, data=data)
+
+
+@router.post(
+    "/auctions/{auction_id}/extend",
+    response_model=AuctionResponse,
+    status_code=200,
+)
+async def extend_auction(
+    auction_id: UUID,
+    data: ExtendAuctionRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_active_user),
+):
+    """Extend the end time of an active or scheduled auction.
+
+    Requires: Auction owner (seller)
+
+    Business rules:
+    - Auction must be ACTIVE or SCHEDULED
+    - New ends_at must be in the future
+    - New ends_at must be later than the current ends_at
+    - Total duration from starts_at cannot exceed the platform maximum
+    """
+    service = AuctionService(db)
+    return await service.extend_auction(
+        seller_id=current_user.id,
+        auction_id=auction_id,
+        new_ends_at=data.ends_at,
+    )
 
 
 @router.patch("/auctions/{auction_id}", response_model=AuctionResponse, status_code=200)

@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     app_version: str = "0.1.0"
     app_env: str = "development"
     debug: bool = False  # opt-in — set DEBUG=True in .env for development
-    app_url: str
+    app_url: str = ""
 
     # --- Security & JWT ---
     secret_key: str
@@ -63,7 +63,7 @@ class Settings(BaseSettings):
     # --- BVN Verification ---
     bvn_verification_enabled: bool = False
     max_auction_duration_hours: int = 24
-    min_auction_duration_hours: int = 1
+    min_auction_duration_mins: int = 30
 
     # --- Transaction Limits
     tier_1_max_bid: Decimal = Decimal("50000.00")
@@ -111,6 +111,15 @@ class Settings(BaseSettings):
 
 # Global settings instance to be imported by other modules.
 def get_settings() -> Settings:
+    """Instantiate the appropriate settings class based on the environment.
+
+    Returns ``ProductionSettings`` when ``APP_ENV`` is ``production``,
+    otherwise returns the base ``Settings`` instance.
+
+    Returns:
+        A configured ``Settings`` (or subclass) instance.
+
+    """
     if os.getenv("APP_ENV", "development") == "production":
         from config.production import (  # local import avoids circular dep
             ProductionSettings,

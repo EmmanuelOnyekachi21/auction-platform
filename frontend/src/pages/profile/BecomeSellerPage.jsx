@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import apiClient from '../../api/client';
+import apiClient, { getErrorMessage } from '../../api/client';
 import { useToast } from '../../components/common/Toast';
 import { useAuthStore } from '../../store/authStore';
 import {
@@ -82,7 +82,7 @@ function DocRow({ doc, docOptions, onTypeChange, onFileChange, onRemove }) {
 
         {doc.status === 'error' && (
           <span style={{ flex: '2 1 200px', fontSize: '0.8125rem', color: 'var(--danger)', fontWeight: 600 }}>
-            Upload failed — try again
+            {doc.errorMessage || 'Upload failed — try again'}
           </span>
         )}
 
@@ -120,12 +120,38 @@ export default function BecomeSellerPage() {
 
   const removeDoc = (id) => setDocs(d => d.filter(doc => doc.id !== id));
   const updateDocType = (id, docType) => setDocs(d => d.map(doc => doc.id === id ? { ...doc, docType } : doc));
+  const MAX_DOC_SIZE = 10 * 1024 * 1024; // 10MB — must match backend
+
   const handleFileChange = (id, file) => {
     if (!file) return;
-    setDocs(d => d.map(doc => doc.id === id ? { ...doc, file, status: 'pending' } : doc));
+    if (file.size > MAX_DOC_SIZE) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+      setDocs(d => d.map(doc => doc.id === id
+        ? { ...doc, file: null, status: 'error', errorMessage: `File is ${sizeMB}MB — max allowed is 10MB` }
+        : doc
+      ));
+      return;
+    }
+    setDocs(d => d.map(doc => doc.id === id ? { ...doc, file, status: 'pending', errorMessage: null } : doc));
   };
 
   const onSubmit = async (data) => {
+    // Validate file sizes before hitting the backend at all
+    const MAX_DOC_SIZE = 10 * 1024 * 1024; // 10MB — matches backend limit
+    const oversizedDocs = docs.filter(d => d.file && d.file.size > MAX_DOC_SIZE);
+    if (oversizedDocs.length > 0) {
+      oversizedDocs.forEach(doc => {
+        const sizeMB = (doc.file.size / (1024 * 1024)).toFixed(1);
+        setDocs(d => d.map(item =>
+          item.id === doc.id
+            ? { ...item, status: 'error', errorMessage: `File is ${sizeMB}MB — max allowed is 10MB` }
+            : item
+        ));
+      });
+      showToast(`${oversizedDocs.length > 1 ? 'Some files exceed' : 'A file exceeds'} the 10MB limit. Please replace them before submitting.`, 'error');
+      return;
+    }
+
     setSubmitting(true);
     try {
       // Step 1 — create seller profile
@@ -137,24 +163,32 @@ export default function BecomeSellerPage() {
 
       // Step 2 — upload staged documents
       const pendingDocs = docs.filter(d => d.status === 'pending' && d.file);
+      let hasDocError = false;
       for (const doc of pendingDocs) {
         try {
           const result = await uploadDocFile(doc.file, doc.docType);
           setDocs(d => d.map(item => item.id === doc.id ? { ...item, status: 'done', result } : item));
-        } catch {
-          setDocs(d => d.map(item => item.id === doc.id ? { ...item, status: 'error' } : item));
+        } catch (err) {
+          const msg = getErrorMessage(err, 'Document upload failed — please try again');
+          hasDocError = true;
+          setDocs(d => d.map(item => item.id === doc.id ? { ...item, status: 'error', errorMessage: msg } : item));
+          showToast(msg, 'error');
         }
       }
 
-      showToast('Application submitted! Pending verification.', 'success');
+      if (!hasDocError) {
+        showToast('Application submitted! Pending verification.', 'success');
+      } else {
+        showToast('Application saved, but some documents failed to upload. Please retry the failed ones.', 'warning');
+      }
 
       // Sync store with fresh profile data
       const fresh = await apiClient.get('/users/me');
       updateUser(fresh.data);
 
-      navigate('/seller/pending');
+      if (!hasDocError) navigate('/seller/pending');
     } catch (error) {
-      showToast(error.response?.data?.detail || 'Failed to register as seller', 'error');
+      showToast(getErrorMessage(error, 'Failed to register as seller'), 'error');
     } finally {
       setSubmitting(false);
     }

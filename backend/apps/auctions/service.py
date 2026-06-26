@@ -900,13 +900,31 @@ class AuctionService:
     async def get_all_auctions(
         self, status: AuctionStatus | None, page: int, limit: int
     ) -> PaginatedResponse:
-        """Get all auctions for admin dashboard."""
+        """Get all auctions for the admin dashboard.
+
+        Args:
+            status: Optional status filter.
+            page: Page number.
+            limit: Items per page.
+
+        Returns:
+            Paginated response with admin auction data.
+
+        """
         result = await self._auction_repo.get_all(status, page, limit)
         result.data = [AdminAuctionResponse.model_validate(a) for a in result.data]
         return result
 
     async def cancel_auction_admin(self, auction_id: uuid.UUID) -> MessageResponse:
-        """Cancel an auction by admin — no seller_id check required."""
+        """Cancel an auction as admin — bypasses seller ownership check.
+
+        Args:
+            auction_id: UUID of the auction to cancel.
+
+        Returns:
+            Message response confirming cancellation.
+
+        """
         # Revert all attached items back to approved
         auction_items = await self._auction_repo.get_auction_items(auction_id)
         for auction_item in auction_items:
@@ -917,3 +935,66 @@ class AuctionService:
         res = await self._auction_repo.cancel_auction_by_admin(auction_id)
         await self._db.commit()
         return res
+
+    async def extend_auction(
+        self,
+        seller_id: uuid.UUID,
+        auction_id: uuid.UUID,
+        new_ends_at: datetime,
+    ) -> AuctionResponse:
+        """Extend the end time of an active or scheduled auction.
+
+        Args:
+            seller_id: UUID of the seller requesting the extension.
+            auction_id: UUID of the auction to extend.
+            new_ends_at: The new end datetime (must be later than current ends_at).
+
+        Returns:
+            Updated auction response.
+
+        Raises:
+            AuctionNotFoundException: If auction not found.
+            ValidationException: If not authorized, wrong status, or invalid time.
+
+        """
+        auction = await self._auction_repo.get_by_id(auction_id)
+        if not auction:
+            raise AuctionNotFoundException()
+
+        if auction.seller_id != seller_id:
+            raise ValidationException(
+                message="Not authorized to modify this auction", code="FORBIDDEN"
+            )
+
+        if auction.status not in (AuctionStatus.ACTIVE, AuctionStatus.SCHEDULED):
+            raise ValidationException(
+                message="Can only extend active or scheduled auctions",
+            )
+
+        now = datetime.now(timezone.utc)
+        if new_ends_at <= now:
+            raise ValidationException(
+                message="New end time must be in the future",
+            )
+
+        if new_ends_at <= auction.ends_at:
+            raise ValidationException(
+                message="New end time must be later than the current end time",
+            )
+
+        max_ends_at = auction.starts_at + timedelta(
+            hours=settings.max_auction_duration_hours
+        )
+        if new_ends_at > max_ends_at:
+            raise ValidationException(
+                message=(
+                    f"Extended auction cannot exceed "
+                    f"{settings.max_auction_duration_hours} hours total from start time"
+                )
+            )
+
+        await self._auction_repo.update_auction(auction_id, {"ends_at": new_ends_at})
+        await self._db.commit()
+
+        auction = await self._auction_repo.get_by_id(auction_id)
+        return AuctionResponse.model_validate(auction)

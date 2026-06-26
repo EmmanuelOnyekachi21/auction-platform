@@ -89,10 +89,10 @@ celery.conf.update(
             "schedule": 60.0,
         },
         # Health check — if this stops appearing in results the worker is down
-        "celery-health-check": {
-            "task": "apps.core.tasks.health_check",
-            "schedule": 300.0,  # Every 5 minutes
-        },
+        # "celery-health-check": {
+        #     "task": "apps.core.tasks.health_check",
+        #     "schedule": 300.0,  # Every 5 minutes
+        # },
     },
 )
 

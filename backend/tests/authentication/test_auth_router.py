@@ -46,11 +46,12 @@ async def test_register_endpoint_returns_201(client: AsyncClient):
 # ---------------------------------------------------------------------------
 
 
-async def test_login_endpoint_returns_200(client: AsyncClient):
+async def test_login_endpoint_returns_200(client: AsyncClient, db_session):
     """Test that valid credentials return a 200 OK and access token.
 
     Args:
         client: Injected httpx AsyncClient for making requests.
+        db_session: Injected async database session for manual state updates.
 
     """
     reg_payload = {
@@ -61,7 +62,13 @@ async def test_login_endpoint_returns_200(client: AsyncClient):
         "password": "SecurePass1!",
         "confirm_password": "SecurePass1!",
     }
-    await client.post("/api/v1/auth/register", json=reg_payload)
+    reg_resp = await client.post("/api/v1/auth/register", json=reg_payload)
+    user_id = reg_resp.json()["user"]["id"]
+
+    # Verify email so login is not blocked
+    user_repo = UserRepository(db_session)
+    await user_repo.update(user_id, {"is_email_verified": True})
+    await db_session.commit()
 
     login_payload = {"email": "bob_router@example.com", "password": "SecurePass1!"}
     response = await client.post("/api/v1/auth/login", json=login_payload)

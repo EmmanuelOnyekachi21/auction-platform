@@ -40,20 +40,7 @@ class WalletRepository:
         """
         stmt = select(Wallet).where(Wallet.user_id == user_id)
         result = await self._db.execute(stmt)
-        wallet = result.scalar_one_or_none()
-        if not wallet:
-            # Auto-create wallet on the fly
-            wallet = Wallet(
-                user_id=user_id,
-                available_funds=Decimal("0.00"),
-                locked_funds=Decimal("0.00"),
-                escrow_funds=Decimal("0.00"),
-                currency="NGN",
-            )
-            self._db.add(wallet)
-            await self._db.commit()
-            await self._db.refresh(wallet)
-        return wallet
+        return result.scalar_one_or_none()
 
     async def get_by_user_id_with_lock(self, user_id: UUID) -> Wallet | None:
         """Get wallet by user ID with pessimistic lock.
@@ -68,18 +55,6 @@ class WalletRepository:
         stmt = select(Wallet).where(Wallet.user_id == user_id).with_for_update()
         result = await self._db.execute(stmt)
         wallet = result.scalar_one_or_none()
-        if not wallet:
-            # Auto-create wallet under lock on the fly
-            wallet = Wallet(
-                user_id=user_id,
-                available_funds=Decimal("0.00"),
-                locked_funds=Decimal("0.00"),
-                escrow_funds=Decimal("0.00"),
-                currency="NGN",
-            )
-            self._db.add(wallet)
-            await self._db.commit()
-            await self._db.refresh(wallet)
         return wallet
 
     async def get_wallet(self, wallet_id: UUID):

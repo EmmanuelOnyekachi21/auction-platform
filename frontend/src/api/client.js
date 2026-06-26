@@ -62,4 +62,22 @@ apiClient.interceptors.response.use(
     }
 );
 
+/**
+ * Extract a user-friendly error message from an Axios error.
+ * Handles both our custom backend shape { message, code } and
+ * FastAPI's default shape { detail }.
+ */
+export function getErrorMessage(error, fallback = 'Something went wrong') {
+  const data = error?.response?.data;
+  if (!data) return fallback;
+  // Our custom exception handler returns { message, code, status }
+  if (typeof data.message === 'string' && data.message) return data.message;
+  // FastAPI default validation errors return { detail: string | array }
+  if (typeof data.detail === 'string' && data.detail) return data.detail;
+  if (Array.isArray(data.detail) && data.detail.length > 0) {
+    return data.detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+  }
+  return fallback;
+}
+
 export default apiClient;

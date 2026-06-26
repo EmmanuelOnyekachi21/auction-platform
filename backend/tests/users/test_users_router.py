@@ -80,7 +80,7 @@ class TestUsersRouter:
 
     async def test_register_as_seller_success(self, client, auth_headers):
         """Test POST /api/v1/users/me/seller-profile creates seller."""
-        seller_data = {"seller_type": "CASUAL", "bio": "Casual seller"}
+        seller_data = {"seller_type": "INDIVIDUAL", "bio": "Casual seller"}
 
         response = await client.post(
             "/api/v1/users/me/seller-profile",
@@ -90,20 +90,25 @@ class TestUsersRouter:
 
         assert response.status_code == 201
         data = response.json()
-        assert data["seller_type"] == "CASUAL"
+        assert data["seller_type"] == "INDIVIDUAL"
         assert data["is_verified"] is False
 
     async def test_register_as_seller_requires_auth(self, client):
         """Test POST /api/v1/users/me/seller-profile requires auth."""
         response = await client.post(
-            "/api/v1/users/me/seller-profile", json={"seller_type": "CASUAL"}
+            "/api/v1/users/me/seller-profile", json={"seller_type": "INDIVIDUAL"}
         )
         assert response.status_code == 401
 
+    @patch("apps.auctions.cloudinary_service.CloudinaryService.upload_document")
     async def test_upload_verification_document_success(
-        self, client, auth_headers, test_user, db_session
+        self, mock_upload, client, auth_headers, test_user, db_session
     ):
         """Test POST /api/v1/users/me/seller-profile/documents uploads."""
+        mock_upload.return_value = {
+            "url": "https://example.com/doc.pdf",
+            "public_id": "test_doc",
+        }
         from apps.users.models import SellerType
         from apps.users.schemas import RegisterSellerRequest
         from apps.users.service import UserService
@@ -111,22 +116,23 @@ class TestUsersRouter:
         service = UserService(db_session)
         await service.register_as_seller(
             test_user.id,
-            RegisterSellerRequest(seller_type=SellerType.CASUAL),
+            RegisterSellerRequest(seller_type=SellerType.INDIVIDUAL),
         )
+
+        files = {"file": ("doc.pdf", b"dummy content", "application/pdf")}
+        data = {"doc_type": "National ID"}
 
         response = await client.post(
             "/api/v1/users/me/seller-profile/documents",
-            params={
-                "url": "https://example.com/doc.pdf",
-                "doc_type": "National ID",
-            },
+            files=files,
+            data=data,
             headers=auth_headers,
         )
 
         assert response.status_code == 201
-        data = response.json()
-        assert data["title"] == "National ID"
-        assert data["url"] == "https://example.com/doc.pdf"
+        res_data = response.json()
+        assert res_data["title"] == "National ID"
+        assert res_data["url"] == "https://example.com/doc.pdf"
 
     @patch("apps.notifications.tasks.send_seller_verification_approved.delay")
     async def test_verify_seller_requires_admin_role(
@@ -160,7 +166,7 @@ class TestUsersRouter:
         service = UserService(db_session)
         await service.register_as_seller(
             test_user.id,
-            RegisterSellerRequest(seller_type=SellerType.RETAIL),
+            RegisterSellerRequest(seller_type=SellerType.BUSINESS),
         )
 
         verify_data = {"is_verified": True}

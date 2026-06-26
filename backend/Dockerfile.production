@@ -1,0 +1,51 @@
+# ── Stage 1: build dependencies ──────────────────────────────────────────────
+# Use a full image to compile any C extensions (psycopg2, etc.)
+FROM python:3.12-slim AS builder
+
+RUN apt-get update && apt-get install -y \
+    gcc \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+COPY pyproject.toml .
+
+# Install only production dependencies into an isolated prefix so we can
+# copy just the installed packages into the final stage.
+RUN pip install --no-cache-dir --prefix=/install -e "." --no-deps \
+ && pip install --no-cache-dir --prefix=/install .
+
+
+# ── Stage 2: production image ─────────────────────────────────────────────────
+FROM python:3.12-slim
+
+# Runtime system dependency — libpq is needed by asyncpg/psycopg2 at runtime
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Non-root user — never run production apps as root
+RUN adduser --disabled-password --gecos "" appuser
+
+WORKDIR /app
+
+# Copy installed packages from builder stage
+COPY --from=builder /install /usr/local
+
+# Copy application source (no volume mount in production — code is in the image)
+COPY --chown=appuser:appuser . .
+
+# Ensure logs directory exists for the rotating file handler
+RUN mkdir -p logs && chown appuser:appuser logs
+
+# Don't write .pyc files to disk; ensure stdout/stderr are unbuffered
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+USER appuser
+
+EXPOSE 8000
+
+# start.sh runs: alembic upgrade head && uvicorn (no --reload)
+CMD ["bash", "start.sh"]
