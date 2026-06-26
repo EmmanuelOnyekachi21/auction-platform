@@ -39,7 +39,7 @@ def send_wallet_funded_email(
         f"Amount: {currency} {amount}\n"
         f"New Balance: {currency} {new_balance}\n\n"
         f"Thank you for using Auction Platform.\n\n"
-        f"View your wallet: {settings.app_url}/wallet"
+        f"View your wallet: {settings.frontend_url}/wallet"
     )
 
     try:
@@ -86,7 +86,7 @@ def send_withdrawal_notification(
             f"Amount: {currency} {amount}\n\n"
             f"The funds should arrive in your bank account within 24 hours.\n\n"
             f"Thank you for using Auction Platform.\n\n"
-            f"View your wallet: {settings.app_url}/wallet"
+            f"View your wallet: {settings.frontend_url}/wallet"
         )
     else:
         subject = "Withdrawal Failed"
@@ -97,7 +97,7 @@ def send_withdrawal_notification(
             f"Reason: {reason or 'Unknown error'}\n\n"
             f"The amount has been refunded to your wallet.\n\n"
             f"Please try again or contact support if the issue persists.\n\n"
-            f"View your wallet: {settings.app_url}/wallet"
+            f"View your wallet: {settings.frontend_url}/wallet"
         )
 
     try:
@@ -128,6 +128,7 @@ def process_withdrawal_transfer(self, transaction_id: str):
     """
 
     async def run():
+        """Execute the withdrawal transfer and send the outcome notification."""
         from apps.payments.flutterwave_service import PaystackService
         from apps.wallet.repository import WalletRepository
         from apps.wallet.service import WalletService
@@ -136,8 +137,8 @@ def process_withdrawal_transfer(self, transaction_id: str):
         async with get_async_db_session() as db:
             # Initialize services
             flutterwave_service = PaystackService(
-                base_url=settings.flutterwave_base_url,
-                secret_key=settings.flutterwave_secret_key,
+                base_url=settings.paystack_base_url,
+                secret_key=settings.paystack_secret_key,
             )
             wallet_service = WalletService(db, flutterwave_service)
             wallet_repo = WalletRepository(db)

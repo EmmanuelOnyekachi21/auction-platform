@@ -126,9 +126,9 @@ class BVNService:
             ValidationException: If verification fails or API errors.
 
         """
-        url = f"{settings.flutterwave_base_url}/kyc/bvns/{bvn}"
+        url = f"{settings.paystack_base_url}/kyc/bvns/{bvn}"
         headers = {
-            "Authorization": f"Bearer {settings.flutterwave_secret_key}",
+            "Authorization": f"Bearer {settings.paystack_secret_key}",
             "Content-Type": "application/json",
         }
 

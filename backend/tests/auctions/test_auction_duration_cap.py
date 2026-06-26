@@ -81,12 +81,12 @@ class TestCreateAuctionRequestDurationValidation:
             CreateAuctionRequest(**data)
 
     def test_30_minute_auction_is_rejected(self):
-        """A 30-minute auction should be rejected for being below the minimum."""
+        """A 20-minute auction should be rejected for being below the minimum."""
         start = future(1)
         with pytest.raises(Exception, match="at least"):
             CreateAuctionRequest(
                 starts_at=start,
-                ends_at=start + timedelta(minutes=30),
+                ends_at=start + timedelta(minutes=20),
                 bid_increment=Decimal("100.00"),
             )
 

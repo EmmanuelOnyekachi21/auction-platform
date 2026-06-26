@@ -348,6 +348,24 @@ class OrderService:
             },
         )
 
+        # Record commission as a separate audit transaction on the seller wallet
+        await self._wallet_repo.create_transaction(
+            wallet_id=seller_wallet.id,
+            data={
+                "amount": escrow.commission_amount,
+                "balance_before": seller_wallet.available_funds,
+                "balance_after": seller_wallet.available_funds,
+                "description": (
+                    f"Platform commission (5%) for order {escrow.order_id}"
+                ),
+                "transaction_type": TransactionType.COMMISION,
+                "direction": TransactionDirection.DEBIT,
+                "balance_type": BalanceType.AVAILABLE,
+                "reference_id": str(escrow.id),
+                "reference_type": ReferenceType.ESCROW,
+            },
+        )
+
         now = datetime.now(timezone.utc)
         await self._escrow_repo.update_status(
             escrow_id=escrow.id,

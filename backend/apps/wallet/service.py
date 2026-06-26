@@ -294,11 +294,12 @@ class WalletService:
                 f"got {verified_currency}"
             )
 
-        # Determine payment status — Paystack uses "success" for completed payments
+        # Determine payment status.
+        # Paystack uses "success" or "successful" for completed
         now = datetime.now(timezone.utc)
         payment_status = (
             PaymentStatus.COMPLETED.value
-            if verified_status == "success"
+            if verified_status in ("success", "successful")
             else PaymentStatus.FAILED.value
         )
 

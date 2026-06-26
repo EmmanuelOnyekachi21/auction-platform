@@ -12,10 +12,10 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
     FiPlus, FiPackage, FiTrendingUp, FiDollarSign,
     FiEdit2, FiXCircle, FiShoppingBag, FiRefreshCw,
-    FiCheckCircle, FiClock, FiAlertCircle,
+    FiCheckCircle, FiClock, FiAlertCircle, FiCalendar,
 } from 'react-icons/fi';
 
-import apiClient from '../../api/client';
+import apiClient, { getErrorMessage } from '../../api/client';
 import { walletActions } from '../../api/wallet';
 import AuctionCard from '../../components/auctions/AuctionCard';
 import { useToast } from '../../components/common/Toast';
@@ -74,6 +74,75 @@ function SkeletonCard() {
     );
 }
 
+/* ─── Extend Auction Modal ─────────────────────────────────────────────────── */
+
+function ExtendModal({ auction, onClose, onSuccess }) {
+    const { showToast } = useToast();
+    const minDateTime = new Date(Math.max(Date.now(), new Date(auction.ends_at).getTime()) + 60_000)
+        .toISOString().slice(0, 16);
+
+    const [endsAt, setEndsAt] = useState('');
+    const [submitting, setSubmitting] = useState(false);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!endsAt) return;
+        setSubmitting(true);
+        try {
+            await apiClient.post(`/auctions/${auction.id}/extend`, { ends_at: new Date(endsAt).toISOString() });
+            showToast('Auction end time extended.', 'success');
+            onSuccess();
+        } catch (err) {
+            showToast(getErrorMessage(err, 'Failed to extend auction'), 'error');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    return (
+        <div style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.45)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', padding: '1rem',
+        }} onClick={onClose}>
+            <div style={{
+                background: 'var(--card-bg)', borderRadius: 'var(--radius-xl)',
+                padding: '1.75rem', width: '100%', maxWidth: 420,
+                boxShadow: 'var(--shadow-lg)',
+            }} onClick={(e) => e.stopPropagation()}>
+                <h3 style={{ fontWeight: 700, fontSize: '1.125rem', marginBottom: '0.25rem' }}>
+                    Extend Auction
+                </h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+                    Current end: {new Date(auction.ends_at).toLocaleString()}
+                </p>
+                <form onSubmit={handleSubmit}>
+                    <label className="form-label" style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                        New End Date &amp; Time
+                    </label>
+                    <input
+                        type="datetime-local"
+                        className="form-control"
+                        min={minDateTime}
+                        value={endsAt}
+                        onChange={(e) => setEndsAt(e.target.value)}
+                        required
+                        style={{ marginBottom: '1.25rem' }}
+                    />
+                    <div style={{ display: 'flex', gap: '0.75rem' }}>
+                        <button type="submit" className="btn btn-primary" style={{ flex: 1 }} disabled={submitting}>
+                            {submitting ? 'Saving…' : 'Confirm Extension'}
+                        </button>
+                        <button type="button" className="btn btn-outline-secondary" style={{ flex: 1 }} onClick={onClose}>
+                            Cancel
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 /* ─── Main component ───────────────────────────────────────────────────────── */
 
 export default function SellerDashboardPage() {
@@ -81,6 +150,7 @@ export default function SellerDashboardPage() {
     const qc = useQueryClient();
     const { showToast } = useToast();
     const [activeTab, setActiveTab] = useState('active');
+    const [extendTarget, setExtendTarget] = useState(null);
 
     /* ── Data fetching ── */
     const { data: activeAuctions = [], isLoading: loadingActive } = useQuery({
@@ -156,6 +226,7 @@ export default function SellerDashboardPage() {
         const status     = (auction.status ?? '').toUpperCase();
         const hasBids    = (auction.bid_count ?? 0) > 0;
         const canCancel = (status === 'DRAFT' || status === 'ACTIVE' || status === 'SCHEDULED') && !hasBids;
+        const canExtend = status === 'ACTIVE' || status === 'SCHEDULED';
         const isSettled       = status === 'SETTLED';
         const isRelистable    = status === 'ENDED_NO_BIDS' || status === 'ENDED_RESERVE_NOT_MET';
 
@@ -168,6 +239,15 @@ export default function SellerDashboardPage() {
                         title="Edit draft"
                     >
                         <FiEdit2 size={13} /> Edit
+                    </button>
+                )}
+                {canExtend && (
+                    <button
+                        className="btn btn-outline-primary sdp__action-btn"
+                        onClick={(e) => { e.stopPropagation(); setExtendTarget(auction); }}
+                        title="Extend auction end time"
+                    >
+                        <FiCalendar size={13} /> Extend
                     </button>
                 )}
                 {canCancel && (
@@ -325,6 +405,16 @@ export default function SellerDashboardPage() {
                         </div>
                     ))}
                 </div>
+            )}
+            {extendTarget && (
+                <ExtendModal
+                    auction={extendTarget}
+                    onClose={() => setExtendTarget(null)}
+                    onSuccess={() => {
+                        setExtendTarget(null);
+                        qc.invalidateQueries({ queryKey: ['myAuctions'] });
+                    }}
+                />
             )}
         </div>
     );

@@ -74,13 +74,13 @@ class TestUserRepository:
         repo = UserRepository(db_session)
 
         seller_profile = await repo.create_seller_profile(
-            test_user.id, {"seller_type": SellerType.CASUAL}
+            test_user.id, {"seller_type": SellerType.INDIVIDUAL}
         )
         await db_session.commit()
 
         assert seller_profile is not None
         assert seller_profile.user_id == test_user.id
-        assert seller_profile.seller_type == SellerType.CASUAL
+        assert seller_profile.seller_type == SellerType.INDIVIDUAL
         assert seller_profile.is_verified is False
 
     async def test_create_seller_profile_raises_on_duplicate(
@@ -90,13 +90,13 @@ class TestUserRepository:
         repo = UserRepository(db_session)
 
         await repo.create_seller_profile(
-            test_user.id, {"seller_type": SellerType.CASUAL}
+            test_user.id, {"seller_type": SellerType.INDIVIDUAL}
         )
         await db_session.commit()
 
         with pytest.raises(AlreadyExistsException) as exc_info:
             await repo.create_seller_profile(
-                test_user.id, {"seller_type": SellerType.RETAIL}
+                test_user.id, {"seller_type": SellerType.BUSINESS}
             )
 
         assert "already exists" in str(exc_info.value).lower()
@@ -106,7 +106,7 @@ class TestUserRepository:
         repo = UserRepository(db_session)
 
         created = await repo.create_seller_profile(
-            test_user.id, {"seller_type": SellerType.WHOLESALE}
+            test_user.id, {"seller_type": SellerType.BUSINESS}
         )
         await db_session.commit()
 
@@ -132,7 +132,7 @@ class TestUserRepository:
         repo = UserRepository(db_session)
 
         await repo.create_seller_profile(
-            test_user.id, {"seller_type": SellerType.RETAIL}
+            test_user.id, {"seller_type": SellerType.BUSINESS}
         )
         await db_session.commit()
 
@@ -152,7 +152,7 @@ class TestUserRepository:
         repo = UserRepository(db_session)
 
         await repo.create_seller_profile(
-            test_user.id, {"seller_type": SellerType.CASUAL}
+            test_user.id, {"seller_type": SellerType.INDIVIDUAL}
         )
         await db_session.commit()
 
@@ -172,7 +172,7 @@ class TestUserRepository:
         await db_session.commit()
 
         await repo.create_seller_profile(
-            test_user.id, {"seller_type": SellerType.RETAIL}
+            test_user.id, {"seller_type": SellerType.BUSINESS}
         )
         await db_session.commit()
 

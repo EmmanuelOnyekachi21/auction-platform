@@ -76,11 +76,11 @@ class TestUserService:
         """Test register_as_seller creates seller profile."""
         service = UserService(db_session)
 
-        data = RegisterSellerRequest(seller_type=SellerType.CASUAL)
+        data = RegisterSellerRequest(seller_type=SellerType.INDIVIDUAL)
 
         seller_profile = await service.register_as_seller(test_user.id, data)
 
-        assert seller_profile.seller_type == SellerType.CASUAL
+        assert seller_profile.seller_type == SellerType.INDIVIDUAL
         assert seller_profile.is_verified is False
 
     async def test_register_as_seller_requires_verified_email(self, db_session):
@@ -103,7 +103,7 @@ class TestUserService:
         await db_session.commit()
 
         service = UserService(db_session)
-        data = RegisterSellerRequest(seller_type=SellerType.CASUAL)
+        data = RegisterSellerRequest(seller_type=SellerType.INDIVIDUAL)
 
         with pytest.raises(EmailNotVerifiedException):
             await service.register_as_seller(unverified_user.id, data)
@@ -114,7 +114,7 @@ class TestUserService:
         """Test register_as_seller raises error on duplicate."""
         service = UserService(db_session)
 
-        data = RegisterSellerRequest(seller_type=SellerType.CASUAL)
+        data = RegisterSellerRequest(seller_type=SellerType.INDIVIDUAL)
 
         await service.register_as_seller(test_user.id, data)
 
@@ -148,7 +148,7 @@ class TestUserService:
         """Test verify_seller approves seller and sends notification."""
         service = UserService(db_session)
 
-        data = RegisterSellerRequest(seller_type=SellerType.RETAIL)
+        data = RegisterSellerRequest(seller_type=SellerType.BUSINESS)
         await service.register_as_seller(test_user.id, data)
 
         verify_data = VerifySellerRequest(is_verified=True)
@@ -164,7 +164,7 @@ class TestUserService:
         """Test verify_seller rejection sends notification with reason."""
         service = UserService(db_session)
 
-        data = RegisterSellerRequest(seller_type=SellerType.RETAIL)
+        data = RegisterSellerRequest(seller_type=SellerType.BUSINESS)
         await service.register_as_seller(test_user.id, data)
 
         verify_data = VerifySellerRequest(
@@ -188,15 +188,32 @@ class TestUserService:
         with pytest.raises(NotFoundException):
             await service.verify_seller(test_user.id, verify_data, test_admin.id)
 
-    async def test_upload_verification_document_success(self, db_session, test_user):
+    @patch("apps.auctions.cloudinary_service.CloudinaryService.upload_document")
+    async def test_upload_verification_document_success(
+        self, mock_upload, db_session, test_user
+    ):
         """Test upload_verification_document creates document."""
+        mock_upload.return_value = {
+            "url": "https://example.com/doc.pdf",
+            "public_id": "test_doc",
+        }
         service = UserService(db_session)
 
-        data = RegisterSellerRequest(seller_type=SellerType.RETAIL)
+        data = RegisterSellerRequest(seller_type=SellerType.BUSINESS)
         await service.register_as_seller(test_user.id, data)
 
+        from io import BytesIO
+
+        from fastapi import UploadFile
+
+        dummy_file = UploadFile(
+            filename="doc.pdf",
+            file=BytesIO(b"dummy pdf content"),
+            headers={"content-type": "application/pdf"},
+        )
+
         doc = await service.upload_verification_document(
-            test_user.id, "https://example.com/doc.pdf", "National ID"
+            test_user.id, dummy_file, "National ID"
         )
 
         assert doc.title == "National ID"

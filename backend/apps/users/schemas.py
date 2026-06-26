@@ -69,7 +69,7 @@ class RegisterSellerRequest(BaseModel):
     """Request model for registering as a seller.
 
     Attributes:
-        seller_type: Classification of seller (casual, retail, wholesale).
+        seller_type: Classification of seller (individual, business).
 
     """
 
@@ -234,7 +234,7 @@ class SellerProfileResponse(BaseModel):
     """Seller profile response model.
 
     Attributes:
-        seller_type: Type of seller (casual, retail, wholesale).
+        seller_type: Type of seller (individual, business).
         is_verified: Whether seller is verified by admin.
         business_name: Name of seller's business if applicable.
         created_at: Profile creation timestamp.

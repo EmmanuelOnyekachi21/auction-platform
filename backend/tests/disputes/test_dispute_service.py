@@ -112,7 +112,6 @@ async def shipped(db):
         id=uuid4(),
         seller_id=seller.id,
         status=AuctionStatus.SETTLED,
-        bid_increment=Decimal("500"),
         starts_at=now - timedelta(hours=2),
         ends_at=now - timedelta(hours=1),
     )

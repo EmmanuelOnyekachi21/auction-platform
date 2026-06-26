@@ -25,7 +25,7 @@ ALLOWED_DOC_TYPES = {
     "image/png",
     "image/webp",
 }
-MAX_DOC_SIZE = 20 * 1024 * 1024  # 20MB
+MAX_DOC_SIZE = 10 * 1024 * 1024  # 10MB
 
 
 class CloudinaryService:
@@ -199,7 +199,8 @@ class CloudinaryService:
         if file_size > MAX_DOC_SIZE:
             raise ValidationException(
                 f"File size exceeds 10MB limit. "
-                f"Your file: {file_size / (1024 * 1024):.2f}MB"
+                f"Your file is {file_size / (1024 * 1024):.1f}MB — "
+                f"please reduce it and try again."
             )
 
         try:

@@ -9,6 +9,7 @@ Currently provides:
 import logging
 import time
 import uuid
+from contextvars import ContextVar
 from typing import Callable
 
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -16,6 +17,11 @@ from starlette.requests import Request
 from starlette.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
+
+# Context variable that holds the current request ID for the duration of a
+# request. Any logger in the call stack can read this to include it in log
+# records without being passed the value explicitly.
+request_id_var: ContextVar[str] = ContextVar("request_id", default="-")
 
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
@@ -45,6 +51,7 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
 
         """
         request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+        request_id_var.set(request_id)
 
         logger.info(
             "Request started | request_id=%s method=%s path=%s client_ip=%s",

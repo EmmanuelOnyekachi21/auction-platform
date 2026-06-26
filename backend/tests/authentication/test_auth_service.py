@@ -104,6 +104,10 @@ async def test_login_returns_auth_response(db_session):
     service = AuthService(db_session)
     await service.register(make_register_data(email="login@example.com"))
 
+    # Verify email so login is not blocked
+    user = await UserRepository(db_session).get_by_email("login@example.com")
+    await UserRepository(db_session).update(user.id, {"is_email_verified": True})
+
     response = await service.login(
         LoginRequest(email="login@example.com", password="SecurePass1!")
     )
@@ -165,7 +169,9 @@ async def test_login_updates_last_login(db_session):
     service = AuthService(db_session)
     await service.register(make_register_data(email="lastlogin@example.com"))
 
+    # Verify email so login is not blocked
     user_before = await UserRepository(db_session).get_by_email("lastlogin@example.com")
+    await UserRepository(db_session).update(user_before.id, {"is_email_verified": True})
     assert user_before.last_login_at is None
 
     await service.login(
