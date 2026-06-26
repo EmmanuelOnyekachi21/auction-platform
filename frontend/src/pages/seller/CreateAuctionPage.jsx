@@ -80,12 +80,13 @@ const CONDITIONS = [
 ];
 
 const DURATION_PILLS = [
-    { label: '5 min',  minutes: 5  },
-    { label: '10 min', minutes: 10 },
-    { label: '15 min', minutes: 15 },
-    { label: '20 min', minutes: 20 },
-    { label: '30 min', minutes: 30 },
-    { label: '1 hr',   minutes: 60 },
+    { label: '30 min', minutes: 30  },
+    { label: '1 hr',   minutes: 60  },
+    { label: '2 hr',   minutes: 120 },
+    { label: '4 hr',   minutes: 240 },
+    { label: '8 hr',   minutes: 480 },
+    { label: '12 hr',  minutes: 720 },
+    { label: '24 hr',  minutes: 1440 },
 ];
 
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -564,8 +565,8 @@ function Step3Settings({ itemId, onNext, onBack, prefill, existingAuctionId }) {
     const [activeDuration, setActiveDur]  = useState(null); // hours
 
     const now      = new Date();
-    const defaultStart = isoLocal(new Date(now.getTime() + 5 * 60_000)); // 5 mins ahead
-    const defaultEnd   = isoLocal(new Date(now.getTime() + 10 * 60_000)); // 10 mins from now
+    const defaultStart = isoLocal(new Date(now.getTime() + 5 * 60_000));   // 5 mins ahead
+    const defaultEnd   = isoLocal(new Date(now.getTime() + 35 * 60_000));  // 30 min duration
 
     const {
         register,
@@ -812,9 +813,14 @@ function Step4Review({ auctionId, itemData, settingsData, uploadedImages, reserv
 
     const duration = (() => {
         if (!settingsData?.start_at || !settingsData?.end_at) return '—';
-        const ms    = new Date(settingsData.end_at) - new Date(settingsData.start_at);
-        const hours = Math.round(ms / 3_600_000);
-        return `${hours} hour${hours !== 1 ? 's' : ''}`;
+        const ms       = new Date(settingsData.end_at) - new Date(settingsData.start_at);
+        const totalMins = Math.round(ms / 60_000);
+        if (totalMins < 60) return `${totalMins} minute${totalMins !== 1 ? 's' : ''}`;
+        const hours = Math.floor(totalMins / 60);
+        const mins  = totalMins % 60;
+        return mins > 0
+            ? `${hours} hour${hours !== 1 ? 's' : ''} ${mins} min`
+            : `${hours} hour${hours !== 1 ? 's' : ''}`;
     })();
 
     const summaryRows = [

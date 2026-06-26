@@ -266,7 +266,7 @@ class UserRepository:
         user_id: uuid.UUID,
         is_verified: bool,
         verified_by_id: uuid.UUID,
-        reason: str,
+        reason: str | None = None,
     ) -> "SellerProfile":
         """Update seller verification status.
 
@@ -425,7 +425,16 @@ class UserRepository:
         return await paginate(stmt, page, limit, self._db)
 
     async def get_user_detail(self, user_id: uuid.UUID) -> User | None:
-        """Fetch a single user with all relationships for admin detail view."""
+        """Fetch a single user with all relationships for admin detail view.
+
+        Args:
+            user_id: The UUID of the user to retrieve.
+
+        Returns:
+            The ``User`` instance with all relationships loaded,
+            or ``None`` if not found.
+
+        """
         stmt = (
             select(User)
             .where(User.id == user_id)

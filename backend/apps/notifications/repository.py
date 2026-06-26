@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.notifications.models import Notification
@@ -140,15 +140,10 @@ class NotificationRepository:
 
         """
         stmt = (
-            select(Notification)
+            update(Notification)
             .where(Notification.user_id == user_id)
             .where(~Notification.is_read)
+            .values(is_read=True, read_at=datetime.now(timezone.utc))
         )
-        results = await self._db.execute(stmt)
-        notifications = results.scalars().all()
-
-        for notification in notifications:
-            notification.is_read = True
-            notification.read_at = datetime.now(timezone.utc)
-
+        await self._db.execute(stmt)
         await self._db.flush()

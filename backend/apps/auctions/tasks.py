@@ -107,7 +107,7 @@ def send_reserve_not_met_seller(
         f"Your reserve price: ₦{reserve_price:,.2f}\n\n"
         f"The reserve price was not met, and the item has been returned "
         f"to your inventory.\n\n"
-        f"Visit your dashboard: {settings.app_url}/seller/dashboard"
+        f"Visit your dashboard: {settings.frontend_url}/seller/dashboard"
     )
 
     try:
@@ -146,7 +146,7 @@ def send_reserve_not_met_bidder(
         f"Your bid: ₦{bid_amount:,.2f}\n\n"
         f"The reserve price was not met, so the item was not sold.\n\n"
         f"Your funds have been returned to your wallet.\n\n"
-        f"Visit your dashboard: {settings.app_url}/dashboard"
+        f"Visit your dashboard: {settings.frontend_url}/dashboard"
     )
 
     try:
@@ -421,17 +421,26 @@ def process_auction_settlement(self, auction_id: str):
                     auction_seller_name,
                     auction_seller_email,
                 )
-                await send_email(
-                    subject="Your auction ended with no bids",
-                    recipients=[auction_seller_email],
-                    body=(
-                        f"Hello {auction_seller_name},\n\n"
-                        f"Your auction has ended but no bids were placed.\n\n"
-                        f"Your items have been returned to your inventory and "
-                        f"are available to relist.\n\n"
-                        f"Visit your dashboard: {settings.app_url}/seller/dashboard"
-                    ),
-                )
+                try:
+                    await send_email(
+                        subject="Your auction ended with no bids",
+                        recipients=[auction_seller_email],
+                        body=(
+                            f"Hello {auction_seller_name},\n\n"
+                            f"Your auction has ended but no bids were placed.\n\n"
+                            f"Your items have been returned to your inventory "
+                            f"and are available to relist.\n\n"
+                            f"Visit your dashboard: "
+                            f"{settings.frontend_url}/seller/dashboard"
+                        ),
+                    )
+                except Exception:
+                    logger.error(
+                        "Failed to send no-bids email to seller %s — "
+                        "settlement still completed",
+                        auction_seller_email,
+                        exc_info=True,
+                    )
                 return
 
             # ----------------------------------------------------------------
@@ -554,17 +563,25 @@ def process_auction_settlement(self, auction_id: str):
             )
 
         if winner_email:
-            await send_email(
-                subject="Congratulations! You won the auction",
-                recipients=[winner_email],
-                body=(
-                    f"Hello {winner_name},\n\n"
-                    f"You won the auction with a bid of ₦{bid_amount:,.2f}!\n\n"
-                    f"The seller has {settings.shipping_deadline} hours to ship"
-                    f" your item.\n\n"
-                    f"View your order: {settings.app_url}/orders"
-                ),
-            )
+            try:
+                await send_email(
+                    subject="Congratulations! You won the auction",
+                    recipients=[winner_email],
+                    body=(
+                        f"Hello {winner_name},\n\n"
+                        f"You won the auction with a bid of ₦{bid_amount:,.2f}!\n\n"
+                        f"The seller has {settings.shipping_deadline} hours to ship"
+                        f" your item.\n\n"
+                        f"View your order: {settings.frontend_url}/orders"
+                    ),
+                )
+            except Exception:
+                logger.error(
+                    "Failed to send auction won email to winner %s — "
+                    "settlement still completed",
+                    winner_email,
+                    exc_info=True,
+                )
             # In-app notification for winner
             await _create_notification(
                 user_id=str(winner_id),
@@ -579,18 +596,28 @@ def process_auction_settlement(self, auction_id: str):
                 reference_type="AUCTION",
             )
 
-        await send_email(
-            subject="Your item has been sold!",
-            recipients=[auction_seller_email],
-            body=(
-                f"Hello {auction_seller_name},\n\n"
-                f"Your auction has settled! Your item sold for ₦{bid_amount:,.2f}.\n\n"
-                f"Commission (5%): ₦{commission:,.2f}\n"
-                f"Your payout: ₦{seller_payout:,.2f}\n\n"
-                f"Please ship the item within {settings.shipping_deadline} hours.\n\n"
-                f"View your orders: {settings.app_url}/seller/dashboard"
-            ),
-        )
+        try:
+            await send_email(
+                subject="Your item has been sold!",
+                recipients=[auction_seller_email],
+                body=(
+                    f"Hello {auction_seller_name},\n\n"
+                    f"Your auction has settled! Your item sold for "
+                    f"₦{bid_amount:,.2f}.\n\n"
+                    f"Commission (5%): ₦{commission:,.2f}\n"
+                    f"Your payout: ₦{seller_payout:,.2f}\n\n"
+                    f"Please ship the item within {settings.shipping_deadline} "
+                    f"hours.\n\n"
+                    f"View your orders: {settings.frontend_url}/seller/dashboard"
+                ),
+            )
+        except Exception:
+            logger.error(
+                "Failed to send auction settled email to seller %s — "
+                "settlement still completed",
+                auction_seller_email,
+                exc_info=True,
+            )
         # In-app notification for seller
         await _create_notification(
             user_id=str(auction_seller_id),

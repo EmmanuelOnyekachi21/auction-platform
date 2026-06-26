@@ -157,7 +157,7 @@ export default function AdminSettingsPage() {
                       <span style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)' }}>Auction Duration Range:</span>
                     </div>
                     <span style={{ fontWeight: 800, fontSize: '0.9rem' }}>
-                      {config.min_auction_duration_hours}h to {config.max_auction_duration_hours}h
+                      {config.min_auction_duration_mins}min to {config.max_auction_duration_hours}h
                     </span>
                   </div>
                 </div>

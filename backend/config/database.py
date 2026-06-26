@@ -4,20 +4,31 @@ This module sets up the async SQLAlchemy engine, session factory,
 and declarative base classes used across all application models.
 """
 
+import asyncio
+import logging
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, func
+from sqlalchemy import DateTime, func, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from config.settings import settings
 
+logger = logging.getLogger(__name__)
+
 # Async engine configured with a connection pool suitable for production use.
 # pool_size controls persistent connections; max_overflow allows temporary bursts.
 engine = create_async_engine(
-    settings.database_url, future=True, pool_size=10, max_overflow=20, echo=False
+    settings.database_url,
+    future=True,
+    pool_size=settings.database_pool_size,
+    max_overflow=settings.database_max_overflow,
+    pool_timeout=settings.database_pool_timeout,
+    pool_recycle=settings.database_pool_recycle,
+    pool_pre_ping=True,  # tests connection before use
+    echo=False,
 )
 
 # Session factory bound to the async engine.
@@ -26,6 +37,51 @@ engine = create_async_engine(
 AsyncSessionLocal = async_sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
 )
+
+
+# check DB connection
+async def check_database_connection() -> bool:
+    """Tests database reachability with a simple SELECT 1.
+
+    Returns:
+        bool: True if reachable, False if not.
+    """
+    try:
+        async with engine.connect() as conn:
+            await conn.execute(text("SELECT 1"))
+        return True
+    except Exception:
+        return False
+
+
+async def wait_for_database(retries: int = 3, delay: int = 5) -> None:
+    """Block startup until the database is reachable.
+
+    Retries up to `retries` times with `delay` seconds between attempts.
+    Raises RuntimeError if all attempts fail — prevents app from starting
+    in a broken state.
+
+    Args:
+        retries: Number of attempts before giving up.
+        delay: Seconds to wait between attempts.
+    """
+    for attempt in range(1, retries + 1):
+        if await check_database_connection():
+            logger.info("Database connection verified (attempt %d)", attempt)
+            return
+
+        logger.warning(
+            "Database not ready, retrying in %ds (attempt %d/%d)",
+            delay,
+            attempt,
+            retries,
+        )
+        await asyncio.sleep(delay)
+
+    logger.critical(
+        "Database unreachable after %d attempts - aborting startup", retries
+    )
+    raise RuntimeError("Cannot connect to database. Aborting.")
 
 
 class Base(DeclarativeBase):

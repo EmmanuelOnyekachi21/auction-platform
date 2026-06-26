@@ -48,6 +48,7 @@ def _make_service(kyc_profile=None, user=None):
     db = MagicMock()
     db.add = MagicMock()
     db.flush = AsyncMock()
+    db.commit = AsyncMock()
 
     service = KYCService(db)
 

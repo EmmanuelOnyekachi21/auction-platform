@@ -2,7 +2,8 @@ import axios from "axios";
 import { useAuthStore } from "../store/authStore";
 
 // Use an environment variable of fallback to localhost
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const baseURL = import.meta.env.VITE_API_URL || 'http://ivkjuebk6qm9t2qsbyf9jx9k.187.124.210.55.sslip.io/api/v1';
+// const baseURL = 'http://ivkjuebk6qm9t2qsbyf9jx9k.187.124.210.55.sslip.io:2102/api/v1';
 
 const apiClient = axios.create({
     baseURL,
@@ -60,5 +61,23 @@ apiClient.interceptors.response.use(
         return Promise.reject(error);
     }
 );
+
+/**
+ * Extract a user-friendly error message from an Axios error.
+ * Handles both our custom backend shape { message, code } and
+ * FastAPI's default shape { detail }.
+ */
+export function getErrorMessage(error, fallback = 'Something went wrong') {
+  const data = error?.response?.data;
+  if (!data) return fallback;
+  // Our custom exception handler returns { message, code, status }
+  if (typeof data.message === 'string' && data.message) return data.message;
+  // FastAPI default validation errors return { detail: string | array }
+  if (typeof data.detail === 'string' && data.detail) return data.detail;
+  if (Array.isArray(data.detail) && data.detail.length > 0) {
+    return data.detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', ');
+  }
+  return fallback;
+}
 
 export default apiClient;

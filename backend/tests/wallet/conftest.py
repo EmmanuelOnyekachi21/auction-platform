@@ -39,6 +39,7 @@ async def test_wallet_user_with_bank(db_session):
     """Create a test user with wallet and bank details set up."""
     from sqlalchemy import select
 
+    from apps.users.enums import KYCTier
     from apps.users.models import UserProfile
 
     repo = UserRepository(db_session)
@@ -51,6 +52,7 @@ async def test_wallet_user_with_bank(db_session):
             "last_name": "UserBank",
             "role": UserRole.USER,
             "is_email_verified": True,
+            "kyc_tier": KYCTier.TIER_2,
         }
     )
     await db_session.commit()

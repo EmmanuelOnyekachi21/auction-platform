@@ -1,0 +1,53 @@
+services:
+  # No db or redis services — both are managed by Hostinger on the VPS host.
+  # Set DATABASE_URL and REDIS_URL in .env.production to point at them.
+  # Example:
+  #   DATABASE_URL=postgresql+asyncpg://user:pass@localhost:5432/karakaja
+  #   REDIS_URL=redis://localhost:6379/0
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env.production
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    env_file:
+      - .env.production
+    restart: unless-stopped
+    command: celery -A config.celery_app worker --loglevel=info
+    deploy:
+      resources:
+        limits:
+          memory: 256m
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.production
+    env_file:
+      - .env.production
+    restart: unless-stopped
+    command: celery -A config.celery_app beat --loglevel=info
+    deploy:
+      resources:
+        limits:
+          memory: 128m

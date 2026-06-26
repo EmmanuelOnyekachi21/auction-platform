@@ -291,7 +291,7 @@ async def get_admin_settings(
         "commission_rate": 0.05,  # 5% platform commission
         "bvn_verification_enabled": settings.bvn_verification_enabled,
         "max_auction_duration_hours": settings.max_auction_duration_hours,
-        "min_auction_duration_hours": settings.min_auction_duration_hours,
+        "min_auction_duration_mins": settings.min_auction_duration_mins,
         "shipping_deadline_days": settings.shipping_deadline,
         "tier_limits": {
             "tier_1": {

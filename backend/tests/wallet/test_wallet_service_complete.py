@@ -75,7 +75,6 @@ class TestWalletServiceComplete:
         assert result.amount == amount
         assert result.transaction_reference.startswith("APF-")
         assert "flutterwave.com" in result.payment_link
-        assert result.version == 1
 
         # Verify Paystack was called
         mock_flutterwave.initiate_payment.assert_called_once()
@@ -112,6 +111,7 @@ class TestWalletServiceComplete:
                 "status": "successful",
                 "amount": float(amount),
                 "currency": "NGN",
+                "reference": "FLW-MOCK-REF-123",
                 "flw_ref": "FLW-MOCK-REF-123",
             }
         )
@@ -249,7 +249,7 @@ class TestWalletServiceComplete:
         db_session.add(wallet)
         await db_session.commit()
 
-        withdrawal_request = WithdrawalRequest(amount=Decimal("300.00"), version=1)
+        withdrawal_request = WithdrawalRequest(amount=Decimal("300.00"))
 
         with patch("apps.wallet.tasks.process_withdrawal_transfer"):
             result = await service.initiate_withdrawal(
@@ -278,7 +278,7 @@ class TestWalletServiceComplete:
         mock_flutterwave = MagicMock()
         service = WalletService(db_session, mock_flutterwave)
 
-        withdrawal_request = WithdrawalRequest(amount=Decimal("300.00"), version=1)
+        withdrawal_request = WithdrawalRequest(amount=Decimal("300.00"))
 
         with pytest.raises(BankDetailsNotSetupException):
             await service.initiate_withdrawal(
@@ -293,7 +293,7 @@ class TestWalletServiceComplete:
         service = WalletService(db_session, mock_flutterwave)
 
         withdrawal_request = WithdrawalRequest(
-            amount=Decimal("2000.00"), version=1  # More than available
+            amount=Decimal("2000.00")  # More than available
         )
 
         with pytest.raises(InsufficientFundsException):
@@ -385,6 +385,7 @@ class TestWalletServiceComplete:
                 "status": "successful",
                 "amount": 200.00,
                 "currency": "NGN",
+                "reference": "FLW-REF",
                 "flw_ref": "FLW-REF",
             }
         )
@@ -395,13 +396,14 @@ class TestWalletServiceComplete:
         payment_init = await service.initiate_funding(
             test_wallet_user.id, Decimal("200.00")
         )
-        await service.handle_webhook(
-            transaction_reference=payment_init.transaction_reference,
-            provider_reference="FLW-REF",
-            status="successful",
-            amount=Decimal("200.00"),
-            provider_response={"status": "successful"},
-        )
+        with patch("apps.wallet.tasks.send_wallet_funded_email"):
+            await service.handle_webhook(
+                transaction_reference=payment_init.transaction_reference,
+                provider_reference="FLW-REF",
+                status="successful",
+                amount=Decimal("200.00"),
+                provider_response={"status": "successful"},
+            )
 
         # Get transactions
         result = await service.get_transactions(

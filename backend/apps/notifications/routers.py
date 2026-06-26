@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from apps.users.models import User
@@ -53,7 +54,7 @@ async def mark_notification_read(
     return NotificationResponse.model_validate(notification)
 
 
-@router.patch("/read-all", status_code=204)
+@router.patch("/read-all", status_code=204, response_class=Response)
 async def mark_all_notifications_read(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_active_user),

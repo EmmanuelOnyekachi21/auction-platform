@@ -70,7 +70,6 @@ def make_auction(seller_id, status=AuctionStatus.ACTIVE, ends_in_minutes=60):
         id=uuid4(),
         seller_id=seller_id,
         status=status,
-        bid_increment=Decimal("500"),
         starts_at=now - timedelta(minutes=5),
         ends_at=now + timedelta(minutes=ends_in_minutes),
     )
