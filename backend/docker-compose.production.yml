@@ -10,7 +10,7 @@ services:
       context: .
       dockerfile: Dockerfile.production
     ports:
-      - "8000:8000"
+      - "2102:8000"
     env_file:
       - .env.production
     restart: unless-stopped
