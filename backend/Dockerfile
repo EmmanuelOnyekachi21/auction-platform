@@ -19,9 +19,9 @@ RUN pip install --no-cache-dir -e ".[dev]"
 # Copy the rest of the source code
 COPY . .
 
-RUN chmod +x start.sh && mkdir -p logs
+RUN mkdir -p logs
 
 # Expose the port the app will run on
 EXPOSE 8000
 
-CMD ["bash", "start.sh"]
+CMD ["sh", "-c", "alembic upgrade head && exec uvicorn main:app --host 0.0.0.0 --port ${PORT:-8000}"]
