@@ -256,6 +256,14 @@ class WalletService:
         if not payment:
             raise PaymentVerificationException("Payment not found")
 
+        # Idempotency guard — don't reprocess a payment that already completed
+        if payment.status == PaymentStatus.COMPLETED.value:
+            logger.info(
+                f"Webhook duplicate ignored — payment {transaction_reference} "
+                f"already completed"
+            )
+            return PaymentResponse.model_validate(payment)
+
         # Verify payment with Paystack API
         try:
             verified_data = await self._flutterwave_service.verify_payment(

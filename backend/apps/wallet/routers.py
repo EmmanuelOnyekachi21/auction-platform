@@ -179,6 +179,57 @@ async def paystack_webhook(
         )
 
 
+@router.get("/payments/{payment_id}/status")
+async def get_payment_status(
+    payment_id: str,
+    current_user: User = Depends(get_current_active_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Poll payment status for a given payment ID.
+
+    Used by the frontend confirm page to determine if the webhook
+    has been processed and the wallet has been credited.
+
+    Returns status: pending | completed | failed
+    """
+    from uuid import UUID
+
+    from sqlalchemy import select
+
+    from apps.payments.models import Payment
+
+    try:
+        pid = UUID(payment_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid payment ID")
+
+    stmt = select(Payment).where(Payment.id == pid)
+    result = await db.execute(stmt)
+    payment = result.scalar_one_or_none()
+
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+
+    # Security: only the wallet owner can poll this
+    from apps.wallet.models import Wallet
+
+    wallet_stmt2 = select(Wallet).where(Wallet.id == payment.wallet_id)
+    wallet_result = await db.execute(wallet_stmt2)
+    wallet = wallet_result.scalar_one_or_none()
+
+    if not wallet or wallet.user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    return {
+        "payment_id": str(payment.id),
+        "status": payment.status,  # PENDING | COMPLETED | FAILED
+        "amount": str(payment.amount),
+        "currency": payment.currency,
+        "transaction_reference": payment.transaction_reference,
+        "webhook_received": payment.webhook_received_at is not None,
+    }
+
+
 @router.get("/transactions", response_model=PaginatedResponse)
 async def get_transactions(
     transaction_type: Optional[str] = None,
