@@ -281,15 +281,20 @@ class WalletService:
         verified_currency = verified_data.get("currency")
         verified_reference = verified_data.get("reference")
 
-        # Validate amount matches
-        if verified_amount != payment.amount:
+        # Validate amount — Paystack adds processing fees so verified_amount
+        # may be slightly higher than payment.amount. We accept as long as
+        # Paystack charged at least what the user intended to deposit.
+        if verified_amount < payment.amount:
             logger.error(
-                f"Amount mismatch for {transaction_reference}: "
+                f"Amount too low for {transaction_reference}: "
                 f"expected {payment.amount}, got {verified_amount}"
             )
             raise PaymentVerificationException(
-                f"Amount mismatch: expected {payment.amount}, got {verified_amount}"
+                f"Amount too low: expected {payment.amount}, got {verified_amount}"
             )
+        # Always credit what the user requested, not what Paystack charged
+        # (fees are Paystack's cut, not extra credit for the user)
+        credit_amount = payment.amount
 
         # Validate currency matches
         if verified_currency != payment.currency:
@@ -347,10 +352,11 @@ class WalletService:
             # Record balance before — available_funds only
             balance_before = wallet.available_funds
 
-            # Update wallet balance (use verified amount, not webhook amount)
+            # Update wallet balance — credit what user intended to deposit,
+            # not the Paystack-charged amount which includes fees
             await self._wallet_repo.update_balances(
                 wallet_id=wallet.id,
-                available_delta=verified_amount,
+                available_delta=credit_amount,
                 locked_delta=Decimal("0.00"),
                 escrow_delta=Decimal("0.00"),
             )
@@ -358,9 +364,9 @@ class WalletService:
             # Refresh to get updated available_funds for balance_after
             await self._db.refresh(wallet)
 
-            # Create wallet transaction (use verified amount)
+            # Create wallet transaction (use credit_amount, not verified_amount)
             transaction_data = {
-                "amount": verified_amount,
+                "amount": credit_amount,
                 "balance_before": balance_before,
                 "balance_after": wallet.available_funds,
                 "description": f"Wallet funding via {payment.provider}",
@@ -397,7 +403,7 @@ class WalletService:
             send_wallet_funded_email.delay(
                 user_email=user_email,
                 user_name=f"{user_first_name} {user_last_name}",
-                amount=str(verified_amount),
+                amount=str(credit_amount),
                 currency=payment.currency,
                 new_balance=str(new_balance),
             )
