@@ -592,11 +592,11 @@ class WalletService:
         transaction_id = transaction.id
 
         # Validate it is a withdrawal and pending
-        if transaction.transaction_type != TransactionType.WITHDRAWAL:
+        if transaction.transaction_type != TransactionType.WITHDRAWAL.value:
             logger.error(f"Transaction {transaction_id} is not a withdrawal")
             raise ValueError(f"Transaction {transaction_id} is not a withdrawal")
 
-        if transaction.status != TransactionStatus.PENDING:
+        if transaction.status != TransactionStatus.PENDING.value:
             logger.error(
                 f"Transaction {transaction_id} is not pending "
                 f"(status: {transaction.status})"
