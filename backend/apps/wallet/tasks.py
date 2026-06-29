@@ -129,7 +129,7 @@ def process_withdrawal_transfer(self, transaction_id: str):
 
     async def run():
         """Execute the withdrawal transfer and send the outcome notification."""
-        from apps.payments.flutterwave_service import PaystackService
+        from apps.payments.paystack_service import PaystackService
         from apps.wallet.repository import WalletRepository
         from apps.wallet.service import WalletService
         from common.exceptions import BankDetailsNotSetupException, PaystackError
