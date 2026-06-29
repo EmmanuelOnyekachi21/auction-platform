@@ -165,6 +165,41 @@ class PaystackService:
             logger.error(f"HTTP error verifying payment {transaction_reference}: {e}")
             raise PaystackVerificationError(f"Verification request failed: {str(e)}")
 
+    async def resolve_account(self, account_number: str, bank_code: str) -> dict:
+        """Resolve account name from account number and bank code.
+
+        Args:
+            account_number: 10-digit NUBAN account number
+            bank_code: Bank code (e.g. "044" for Access, "999992" for OPay)
+
+        Returns:
+            dict with account_name and account_number
+
+        Raises:
+            PaystackError: If resolution fails or account not found
+
+        """
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                response = await client.get(
+                    f"{self.base_url}/bank/resolve",
+                    params={"account_number": account_number, "bank_code": bank_code},
+                    headers=self.headers,
+                )
+                response.raise_for_status()
+                data = response.json()
+
+                if data.get("status") is True:
+                    return {
+                        "account_name": data["data"]["account_name"],
+                        "account_number": data["data"]["account_number"],
+                    }
+                raise PaystackError(data.get("message", "Could not resolve account"))
+        except httpx.HTTPStatusError as e:
+            raise PaystackError(f"Account resolution failed: {e.response.text}")
+        except httpx.HTTPError as e:
+            raise PaystackError(f"Account resolution request failed: {str(e)}")
+
     async def initiate_transfer(
         self,
         account_number: str,

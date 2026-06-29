@@ -30,6 +30,33 @@ from config.settings import settings
 router = APIRouter()
 
 
+@router.get("/me/resolve-account")
+async def resolve_bank_account(
+    account_number: str,
+    bank_code: str,
+    current_user: User = Depends(get_current_active_user),
+):
+    """Resolve account name from Paystack given account number + bank code.
+
+    Used by the frontend to auto-fill account name when user sets up
+    bank withdrawal details.
+    """
+    from fastapi import HTTPException
+
+    from apps.payments.paystack_service import PaystackService
+    from common.exceptions import PaystackError
+
+    paystack = PaystackService(
+        base_url=settings.paystack_base_url,
+        secret_key=settings.paystack_secret_key,
+    )
+    try:
+        result = await paystack.resolve_account(account_number, bank_code)
+        return result
+    except PaystackError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/me", response_model=UserProfileResponse)
 async def get_my_profile(
     current_user: User = Depends(get_current_active_user),
