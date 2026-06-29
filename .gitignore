@@ -41,7 +41,6 @@ node_modules/
 .env.test
 
 log_error
-RAILWAY_*
 WALLET_*
 ISSUE_*
 testresults*
